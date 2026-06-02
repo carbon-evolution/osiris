@@ -289,11 +289,11 @@ async function fetchMiddleEastCameras(): Promise<any[]> {
   // Israel Curated (Embedded)
   cams.push(
     {
-      id: 'il-telaviv-skyline', lat: 32.0853, lng: 34.7818,
-      name: 'Tel Aviv Beach & Skyline', city: 'Tel Aviv', country: 'Israel',
-      external_url: 'https://www.earthcam.com/world/israel/telaviv/?cam=telaviv',
-      stream_type: 'external',
-      source: 'EarthCam',
+      id: 'il-israel-multicam', lat: 32.0853, lng: 34.7818,
+      name: 'Israel Multi-Cam (Live)', city: 'Tel Aviv', country: 'Israel',
+      stream_url: 'https://www.youtube.com/embed/gmtlJ_m2r5A?autoplay=1&mute=1',
+      stream_type: 'iframe',
+      source: 'YouTube Live',
     },
     {
       id: 'il-jerusalem-live', lat: 31.7767, lng: 35.2345,
@@ -301,13 +301,6 @@ async function fetchMiddleEastCameras(): Promise<any[]> {
       stream_url: 'https://www.youtube.com/embed/77akujLn4k8?autoplay=1&mute=1',
       stream_type: 'iframe',
       source: 'YouTube Live',
-    },
-    {
-      id: 'il-haifa-live', lat: 32.8191, lng: 34.9983,
-      name: 'Haifa Port & City', city: 'Haifa', country: 'Israel',
-      external_url: 'https://www.skylinewebcams.com/en/webcam/israel/haifa-district/haifa/haifa.html',
-      stream_type: 'external',
-      source: 'SkylineWebcams',
     }
   );
 
