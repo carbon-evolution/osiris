@@ -1,0 +1,562 @@
+/**
+ * OSIRIS Intelligence Layer — osiris-intel
+ *
+ * Centralized ontology engine that ingests, indexes, and correlates entities
+ * across open-source intelligence feeds. All other services query this one
+ * brain via GET /resolve.
+ *
+ * Data sources:
+ *   - OpenSanctions (OFAC SDN) — bulk CSV, refreshed every 24h
+ *   - Wikidata SPARQL — on-demand with aggressive LRU cache
+ *
+ * Security:
+ *   - Outbound requests only to allowlisted domains
+ *   - SPARQL inputs sanitized against injection
+ *   - Rate-limited per client IP
+ */
+
+const express = require('express');
+const app = express();
+const PORT = process.env.INTEL_PORT || 4000;
+
+// ════════════════════════════════════════════════════
+// §1 — CONFIGURATION
+// ════════════════════════════════════════════════════
+
+const SDN_CSV_URL = 'https://data.opensanctions.org/datasets/latest/us_ofac_sdn/targets.simple.csv';
+const WIKIDATA_ENDPOINT = 'https://query.wikidata.org/sparql';
+const WIKIDATA_UA = 'OSIRIS-Intel/1.0 (https://osirisai.live; ontology engine)';
+const SDN_REFRESH_MS = 24 * 60 * 60 * 1000; // 24h
+const WIKIDATA_CACHE_TTL = 24 * 60 * 60 * 1000; // 24h
+const WIKIDATA_CACHE_MAX = 10_000;
+
+const ALLOWED_DOMAINS = new Set(['query.wikidata.org', 'data.opensanctions.org', 'www.wikidata.org']);
+
+// ════════════════════════════════════════════════════
+// §2 — SANCTIONS INDEX (in-memory graph)
+// ════════════════════════════════════════════════════
+
+let sanctionsIndex = {
+  entries: [],
+  byNorm: new Map(),   // normalised name/alias → [entry]
+  fetchedAt: 0,
+};
+
+function normName(s) {
+  return s.toLowerCase().replace(/[^\p{L}\p{N}\s]+/gu, ' ').replace(/\s+/g, ' ').trim();
+}
+
+function parseCsv(text) {
+  const rows = [];
+  let field = '', row = [], inQ = false;
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i];
+    if (inQ) {
+      if (c === '"') { if (text[i + 1] === '"') { field += '"'; i++; } else inQ = false; }
+      else field += c;
+    } else if (c === '"') inQ = true;
+    else if (c === ',') { row.push(field); field = ''; }
+    else if (c === '\n') { row.push(field); rows.push(row); row = []; field = ''; }
+    else if (c !== '\r') field += c;
+  }
+  if (field.length || row.length) { row.push(field); rows.push(row); }
+  return rows;
+}
+
+async function loadSanctions() {
+  console.log('[INTEL] Loading OpenSanctions OFAC SDN...');
+  try {
+    const res = await fetch(SDN_CSV_URL, {
+      signal: AbortSignal.timeout(30000),
+      headers: { Accept: 'text/csv' },
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const text = await res.text();
+    const rows = parseCsv(text);
+    if (rows.length < 2) throw new Error('CSV empty');
+
+    const headers = rows[0];
+    const idx = (col) => headers.indexOf(col);
+    const i = {
+      id: idx('id'), schema: idx('schema'), name: idx('name'),
+      aliases: idx('aliases'), countries: idx('countries'),
+      programs: idx('program_ids'), sanctions: idx('sanctions'),
+      first_seen: idx('first_seen'), last_seen: idx('last_seen'),
+    };
+
+    const entries = [];
+    const byNorm = new Map();
+
+    for (let r = 1; r < rows.length; r++) {
+      const row = rows[r];
+      if (!row[i.name]) continue;
+      const entry = {
+        id: row[i.id] || '',
+        schema: row[i.schema] || 'LegalEntity',
+        name: row[i.name],
+        aliases: (row[i.aliases] || '').split(';').map(s => s.trim()).filter(Boolean),
+        countries: (row[i.countries] || '').split(';').map(s => s.trim()).filter(Boolean),
+        programs: (row[i.programs] || '').split(';').map(s => s.trim()).filter(Boolean),
+        sanctions: row[i.sanctions] || '',
+        first_seen: i.first_seen >= 0 ? row[i.first_seen] : undefined,
+      };
+      entries.push(entry);
+
+      const keys = new Set([entry.name, ...entry.aliases].map(normName));
+      for (const key of keys) {
+        if (!key) continue;
+        if (!byNorm.has(key)) byNorm.set(key, []);
+        byNorm.get(key).push(entry);
+      }
+    }
+
+    sanctionsIndex = { entries, byNorm, fetchedAt: Date.now() };
+    console.log(`[INTEL] Sanctions index loaded: ${entries.length} entities, ${byNorm.size} name keys`);
+  } catch (e) {
+    console.error('[INTEL] Sanctions load failed:', e.message);
+    if (sanctionsIndex.entries.length > 0) {
+      console.log('[INTEL] Keeping stale index');
+    }
+  }
+}
+
+function sanctionsSearch(query, limit = 5) {
+  if (!query || query.length < 3) return [];
+  const q = normName(query);
+  const exact = sanctionsIndex.byNorm.get(q) || [];
+  if (exact.length > 0) return exact.slice(0, limit);
+
+  const results = [];
+  const seen = new Set();
+  for (const entry of sanctionsIndex.entries) {
+    if (results.length >= limit) break;
+    if (seen.has(entry.id)) continue;
+    const n = normName(entry.name);
+    if (n.includes(q) || entry.aliases.some(a => normName(a).includes(q))) {
+      seen.add(entry.id);
+      results.push(entry);
+    }
+  }
+  return results;
+}
+
+// ════════════════════════════════════════════════════
+// §3 — WIKIDATA LRU CACHE
+// ════════════════════════════════════════════════════
+
+const wdCache = new Map(); // key → { data, ts }
+
+function wdCacheGet(key) {
+  const entry = wdCache.get(key);
+  if (!entry) return null;
+  if (Date.now() - entry.ts > WIKIDATA_CACHE_TTL) { wdCache.delete(key); return null; }
+  // Move to end (LRU)
+  wdCache.delete(key);
+  wdCache.set(key, entry);
+  return entry.data;
+}
+
+function wdCacheSet(key, data) {
+  if (wdCache.size >= WIKIDATA_CACHE_MAX) {
+    const oldest = wdCache.keys().next().value;
+    wdCache.delete(oldest);
+  }
+  wdCache.set(key, { data, ts: Date.now() });
+}
+
+// ════════════════════════════════════════════════════
+// §4 — WIKIDATA SPARQL (safe)
+// ════════════════════════════════════════════════════
+
+function sanitizeId(id) {
+  return id.replace(/[^a-zA-Z0-9 \-._]/g, '').trim();
+}
+
+async function sparql(query) {
+  const url = `${WIKIDATA_ENDPOINT}?query=${encodeURIComponent(query)}&format=json`;
+  const parsed = new URL(url);
+  if (!ALLOWED_DOMAINS.has(parsed.hostname)) {
+    throw new Error(`Blocked domain: ${parsed.hostname}`);
+  }
+  const res = await fetch(url, {
+    headers: { 'User-Agent': WIKIDATA_UA, Accept: 'application/sparql-results+json' },
+    signal: AbortSignal.timeout(10000),
+  });
+  if (!res.ok) return [];
+  const json = await res.json();
+  return json.results?.bindings || [];
+}
+
+// Search Wikidata for an entity by name, returns QID or null
+async function wdSearch(query, type = 'item') {
+  const url = `https://www.wikidata.org/w/api.php?action=wbsearchentities&search=${encodeURIComponent(query)}&language=en&limit=1&format=json`;
+  const parsed = new URL(url);
+  if (!ALLOWED_DOMAINS.has(parsed.hostname)) return null;
+  try {
+    const res = await fetch(url, {
+      headers: { 'User-Agent': WIKIDATA_UA },
+      signal: AbortSignal.timeout(5000),
+    });
+    if (!res.ok) return null;
+    const json = await res.json();
+    return json.search?.[0]?.id || null;
+  } catch { return null; }
+}
+
+// ════════════════════════════════════════════════════
+// §5 — RESOLVERS (the intelligence)
+// ════════════════════════════════════════════════════
+
+function addSanctionsToGraph(query, rootId, nodes, links) {
+  const matches = sanctionsSearch(query);
+  for (const m of matches) {
+    const sid = `sanction:${m.id}`;
+    nodes.push({
+      id: sid, label: `⚠ ${m.name}`, type: 'sanction',
+      properties: {
+        schema: m.schema, countries: m.countries.join(', '),
+        programs: m.programs.join(', '), sanctions: m.sanctions,
+        aliases: m.aliases.slice(0, 5).join('; '),
+        first_seen: m.first_seen, sanctioned: true,
+      },
+    });
+    links.push({ source: rootId, target: sid, label: 'SANCTIONS MATCH' });
+  }
+}
+
+function dedup(nodes, links) {
+  const seen = new Set();
+  const uNodes = [];
+  for (const n of nodes) { if (!seen.has(n.id)) { seen.add(n.id); uNodes.push(n); } }
+  const lSeen = new Set();
+  const uLinks = [];
+  for (const l of links) {
+    const k = `${l.source}→${l.target}→${l.label}`;
+    if (!lSeen.has(k)) { lSeen.add(k); uLinks.push(l); }
+  }
+  return { nodes: uNodes, links: uLinks };
+}
+
+async function resolveAircraft(id, properties = {}) {
+  const rootId = `aircraft:${id}`;
+  const nodes = [], links = [];
+  const cacheKey = `aircraft:${id}:${properties.registration || ''}`;
+  const cached = wdCacheGet(cacheKey);
+  if (cached) return { ...cached };
+
+  const callsign = id.toUpperCase().trim();
+  const registration = (properties.registration || '').toUpperCase().trim();
+  const model = properties.model || '';
+
+  // Step 1: Decode ICAO airline prefix from callsign (e.g. TRK → Turkish Airlines)
+  // The prefix is the alphabetic portion of the callsign
+  const airlinePrefix = callsign.replace(/[0-9]+$/, '');
+  let airlineName = null;
+
+  if (airlinePrefix && airlinePrefix.length >= 2) {
+    // Search Wikidata for the ICAO airline code
+    try {
+      const results = await sparql(`
+        SELECT ?item ?itemLabel ?countryLabel ?ceoLabel ?parentLabel WHERE {
+          ?item wdt:P230 "${airlinePrefix}" .
+          OPTIONAL { ?item wdt:P17 ?country . }
+          OPTIONAL { ?item wdt:P169 ?ceo . }
+          OPTIONAL { ?item wdt:P749 ?parent . }
+          SERVICE wikibase:label { bd:serviceParam wikibase:language "en" . }
+        } LIMIT 5`);
+
+      for (const r of results) {
+        if (r.itemLabel?.value) {
+          airlineName = r.itemLabel.value;
+          const airId = `company:${airlineName}`;
+          nodes.push({ id: airId, label: airlineName, type: 'company', properties: { icao_code: airlinePrefix, source: 'Wikidata' } });
+          links.push({ source: rootId, target: airId, label: 'OPERATED BY' });
+
+          if (r.countryLabel?.value) {
+            const cid = `country:${r.countryLabel.value}`;
+            nodes.push({ id: cid, label: r.countryLabel.value, type: 'country', properties: { source: 'Wikidata' } });
+            links.push({ source: airId, target: cid, label: 'HEADQUARTERED' });
+          }
+          if (r.ceoLabel?.value) {
+            const pid = `person:${r.ceoLabel.value}`;
+            nodes.push({ id: pid, label: r.ceoLabel.value, type: 'person', properties: { role: 'CEO', source: 'Wikidata' } });
+            links.push({ source: airId, target: pid, label: 'CEO' });
+          }
+          if (r.parentLabel?.value) {
+            const pid = `company:${r.parentLabel.value}`;
+            nodes.push({ id: pid, label: r.parentLabel.value, type: 'company', properties: { source: 'Wikidata' } });
+            links.push({ source: airId, target: pid, label: 'PARENT ORG' });
+          }
+        }
+      }
+    } catch (e) { console.warn('[INTEL] Airline ICAO lookup error:', e.message); }
+  }
+
+  // Step 2: Decode registration prefix → country (e.g. TC → Turkey, N → USA, G → UK)
+  const REG_PREFIXES = {
+    'N':'United States','G':'United Kingdom','F':'France','D':'Germany','I':'Italy',
+    'JA':'Japan','HL':'South Korea','B':'China','VT':'India','TC':'Turkey',
+    'SU':'Russia','RA':'Russia','UR':'Ukraine','A6':'UAE','A7':'Qatar','9V':'Singapore',
+    'VH':'Australia','C':'Canada','PP':'Brazil','PR':'Brazil','PT':'Brazil',
+    'EC':'Spain','PH':'Philippines','HS':'Thailand','9M':'Malaysia','PK':'Pakistan',
+    'EP':'Iran','YI':'Iraq','HZ':'Saudi Arabia','4X':'Israel','SX':'Greece',
+    'OE':'Austria','HB':'Switzerland','SE':'Sweden','OH':'Finland','LN':'Norway',
+    'OY':'Denmark','PH':'Netherlands','OO':'Belgium','CS':'Portugal','SP':'Poland',
+    'OK':'Czech Republic','HA':'Hungary','YR':'Romania','LZ':'Bulgaria',
+    'EI':'Ireland','EW':'Belarus','ES':'Estonia','YL':'Latvia','LY':'Lithuania',
+  };
+
+  if (registration) {
+    let regCountry = null;
+    // Try 2-char prefix first, then 1-char
+    if (REG_PREFIXES[registration.substring(0, 2)]) regCountry = REG_PREFIXES[registration.substring(0, 2)];
+    else if (REG_PREFIXES[registration.substring(0, 1)]) regCountry = REG_PREFIXES[registration.substring(0, 1)];
+
+    if (regCountry) {
+      const cid = `country:${regCountry}`;
+      nodes.push({ id: cid, label: regCountry, type: 'country', properties: { source: 'Registration prefix' } });
+      links.push({ source: rootId, target: cid, label: 'REGISTERED IN' });
+    }
+  }
+
+  // Step 3: Add aircraft model info
+  if (model) {
+    const mid = `aircraft:model:${model}`;
+    nodes.push({ id: mid, label: model, type: 'aircraft', properties: { type: 'model', source: 'ADS-B' } });
+    links.push({ source: rootId, target: mid, label: 'AIRCRAFT TYPE' });
+  }
+
+  // Step 4: Cross-ref sanctions on airline name + callsign
+  addSanctionsToGraph(callsign, rootId, nodes, links);
+  if (airlineName) addSanctionsToGraph(airlineName, rootId, nodes, links);
+  if (registration) addSanctionsToGraph(registration, rootId, nodes, links);
+
+  const result = dedup(nodes, links);
+  wdCacheSet(cacheKey, result);
+  return result;
+}
+
+async function resolveVessel(id) {
+  const rootId = `vessel:${id}`;
+  const nodes = [], links = [];
+  const cached = wdCacheGet(`vessel:${id}`);
+  if (cached) return { ...cached };
+
+  try {
+    const results = await sparql(`
+      SELECT ?item ?itemLabel ?ownerLabel ?countryLabel ?operatorLabel ?flagLabel WHERE {
+        { ?item wdt:P458 "${id}" . }
+        UNION { ?item rdfs:label "${id}"@en . ?item wdt:P31/wdt:P279* wd:Q11446 . }
+        OPTIONAL { ?item wdt:P127 ?owner . }
+        OPTIONAL { ?item wdt:P17 ?country . }
+        OPTIONAL { ?item wdt:P137 ?operator . }
+        OPTIONAL { ?item wdt:P8047 ?flag . }
+        SERVICE wikibase:label { bd:serviceParam wikibase:language "en" . }
+      } LIMIT 10`);
+    for (const r of results) {
+      if (r.ownerLabel?.value) {
+        const oid = `company:${r.ownerLabel.value}`;
+        nodes.push({ id: oid, label: r.ownerLabel.value, type: 'company', properties: { source: 'Wikidata' } });
+        links.push({ source: rootId, target: oid, label: 'OWNED BY' });
+      }
+      const flag = r.flagLabel?.value || r.countryLabel?.value;
+      if (flag) {
+        const cid = `country:${flag}`;
+        nodes.push({ id: cid, label: flag, type: 'country', properties: { source: 'Wikidata' } });
+        links.push({ source: rootId, target: cid, label: 'FLAG STATE' });
+      }
+      if (r.operatorLabel?.value) {
+        const oid = `company:${r.operatorLabel.value}`;
+        nodes.push({ id: oid, label: r.operatorLabel.value, type: 'company', properties: { source: 'Wikidata' } });
+        links.push({ source: rootId, target: oid, label: 'OPERATED BY' });
+      }
+    }
+  } catch (e) { console.warn('[INTEL] Wikidata vessel error:', e.message); }
+
+  addSanctionsToGraph(id, rootId, nodes, links);
+  const result = dedup(nodes, links);
+  wdCacheSet(`vessel:${id}`, result);
+  return result;
+}
+
+async function resolveCompany(id) {
+  const rootId = `company:${id}`;
+  const nodes = [], links = [];
+  const cached = wdCacheGet(`company:${id}`);
+  if (cached) return { ...cached };
+
+  try {
+    // Use Wikidata search to find the QID first, then resolve by QID
+    const qid = await wdSearch(id);
+    const filter = qid
+      ? `VALUES ?item { wd:${qid} }`
+      : `?item rdfs:label "${id}"@en . { ?item wdt:P31/wdt:P279* wd:Q4830453 . } UNION { ?item wdt:P31/wdt:P279* wd:Q43229 . }`;
+    const results = await sparql(`
+      SELECT ?item ?itemLabel ?countryLabel ?parentLabel ?ceoLabel ?industryLabel WHERE {
+        ${filter}
+        OPTIONAL { ?item wdt:P17 ?country . }
+        OPTIONAL { ?item wdt:P749 ?parent . }
+        OPTIONAL { ?item wdt:P169 ?ceo . }
+        OPTIONAL { ?item wdt:P452 ?industry . }
+        SERVICE wikibase:label { bd:serviceParam wikibase:language "en" . }
+      } LIMIT 10`);
+    for (const r of results) {
+      if (r.countryLabel?.value) {
+        const cid = `country:${r.countryLabel.value}`;
+        nodes.push({ id: cid, label: r.countryLabel.value, type: 'country', properties: { source: 'Wikidata' } });
+        links.push({ source: rootId, target: cid, label: 'HEADQUARTERED' });
+      }
+      if (r.parentLabel?.value) {
+        const pid = `company:${r.parentLabel.value}`;
+        nodes.push({ id: pid, label: r.parentLabel.value, type: 'company', properties: { source: 'Wikidata' } });
+        links.push({ source: rootId, target: pid, label: 'PARENT ORG' });
+      }
+      if (r.ceoLabel?.value) {
+        const pid = `person:${r.ceoLabel.value}`;
+        nodes.push({ id: pid, label: r.ceoLabel.value, type: 'person', properties: { role: 'CEO', source: 'Wikidata' } });
+        links.push({ source: rootId, target: pid, label: 'CEO' });
+      }
+    }
+  } catch (e) { console.warn('[INTEL] Wikidata company error:', e.message); }
+
+  addSanctionsToGraph(id, rootId, nodes, links);
+  const result = dedup(nodes, links);
+  wdCacheSet(`company:${id}`, result);
+  return result;
+}
+
+async function resolvePerson(id) {
+  const rootId = `person:${id}`;
+  const nodes = [], links = [];
+  const cached = wdCacheGet(`person:${id}`);
+  if (cached) return { ...cached };
+
+  try {
+    const qid = await wdSearch(id);
+    const filter = qid
+      ? `VALUES ?item { wd:${qid} }`
+      : `?item rdfs:label "${id}"@en . ?item wdt:P31 wd:Q5 .`;
+    const results = await sparql(`
+      SELECT ?item ?itemLabel ?nationalityLabel ?employerLabel ?positionLabel WHERE {
+        ${filter}
+        OPTIONAL { ?item wdt:P27 ?nationality . }
+        OPTIONAL { ?item wdt:P108 ?employer . }
+        OPTIONAL { ?item wdt:P39 ?position . }
+        SERVICE wikibase:label { bd:serviceParam wikibase:language "en" . }
+      } LIMIT 10`);
+    for (const r of results) {
+      if (r.nationalityLabel?.value) {
+        const cid = `country:${r.nationalityLabel.value}`;
+        nodes.push({ id: cid, label: r.nationalityLabel.value, type: 'country', properties: { source: 'Wikidata' } });
+        links.push({ source: rootId, target: cid, label: 'NATIONALITY' });
+      }
+      if (r.employerLabel?.value) {
+        const eid = `company:${r.employerLabel.value}`;
+        nodes.push({ id: eid, label: r.employerLabel.value, type: 'company', properties: { source: 'Wikidata' } });
+        links.push({ source: rootId, target: eid, label: 'EMPLOYER' });
+      }
+      if (r.positionLabel?.value) {
+        const pid = `event:${r.positionLabel.value}`;
+        nodes.push({ id: pid, label: r.positionLabel.value, type: 'event', properties: { source: 'Wikidata' } });
+        links.push({ source: rootId, target: pid, label: 'POSITION HELD' });
+      }
+    }
+  } catch (e) { console.warn('[INTEL] Wikidata person error:', e.message); }
+
+  addSanctionsToGraph(id, rootId, nodes, links);
+  const result = dedup(nodes, links);
+  wdCacheSet(`person:${id}`, result);
+  return result;
+}
+
+const RESOLVERS = { aircraft: resolveAircraft, vessel: resolveVessel, company: resolveCompany, person: resolvePerson };
+const ALLOWED_TYPES = new Set(Object.keys(RESOLVERS));
+
+// ════════════════════════════════════════════════════
+// §6 — RATE LIMITER
+// ════════════════════════════════════════════════════
+
+const rateMap = new Map();
+
+function isRateLimited(ip, limit = 30, windowMs = 60000) {
+  const now = Date.now();
+  for (const [k, v] of rateMap) { if (now > v.resetAt) rateMap.delete(k); }
+  const entry = rateMap.get(ip);
+  if (!entry || now > entry.resetAt) { rateMap.set(ip, { count: 1, resetAt: now + windowMs }); return false; }
+  entry.count++;
+  return entry.count > limit;
+}
+
+// ════════════════════════════════════════════════════
+// §7 — EXPRESS ROUTES
+// ════════════════════════════════════════════════════
+
+app.get('/health', (_req, res) => {
+  res.json({
+    status: 'ok',
+    sanctions_entries: sanctionsIndex.entries.length,
+    sanctions_loaded_at: sanctionsIndex.fetchedAt ? new Date(sanctionsIndex.fetchedAt).toISOString() : null,
+    wikidata_cache_size: wdCache.size,
+    uptime_seconds: Math.floor(process.uptime()),
+  });
+});
+
+app.get('/resolve', async (req, res) => {
+  const ip = req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.ip || 'unknown';
+  if (isRateLimited(ip)) return res.status(429).json({ error: 'Rate limit exceeded' });
+
+  const type = (req.query.type || '').toLowerCase().trim();
+  const rawId = (req.query.id || '').trim();
+
+  if (!type || !ALLOWED_TYPES.has(type)) {
+    return res.status(400).json({ error: `Invalid type. Allowed: ${[...ALLOWED_TYPES].join(', ')}` });
+  }
+  if (!rawId || rawId.length < 2 || rawId.length > 200) {
+    return res.status(400).json({ error: 'Invalid id (2-200 chars)' });
+  }
+
+  const id = sanitizeId(rawId);
+  if (id.length < 2) return res.status(400).json({ error: 'ID contains too many invalid characters' });
+
+  try {
+    const resolver = RESOLVERS[type];
+    // Pass extra properties for aircraft resolution (registration, model, etc.)
+    const props = {};
+    if (req.query.registration) props.registration = sanitizeId(req.query.registration);
+    if (req.query.model) props.model = sanitizeId(req.query.model);
+    if (req.query.icao24) props.icao24 = sanitizeId(req.query.icao24);
+    const result = await resolver(id, props);
+    res.set('Cache-Control', 'public, s-maxage=3600, stale-while-revalidate=7200');
+    res.json({
+      nodes: result.nodes,
+      links: result.links,
+      entity: { type, id },
+      source: 'OSIRIS Intelligence Layer',
+      sanctions_index_size: sanctionsIndex.entries.length,
+      wikidata_cache_hits: wdCache.size,
+      timestamp: new Date().toISOString(),
+    });
+  } catch (e) {
+    console.error('[INTEL] Resolve error:', e);
+    res.status(500).json({ error: 'Resolution failed', nodes: [], links: [] });
+  }
+});
+
+// ════════════════════════════════════════════════════
+// §8 — STARTUP
+// ════════════════════════════════════════════════════
+
+async function boot() {
+  console.log('[INTEL] OSIRIS Intelligence Layer starting...');
+  await loadSanctions();
+  // Refresh sanctions every 24h
+  setInterval(() => loadSanctions(), SDN_REFRESH_MS);
+
+  app.listen(PORT, '0.0.0.0', () => {
+    console.log(`[INTEL] Intelligence Layer ready on port ${PORT}`);
+    console.log(`[INTEL] Sanctions: ${sanctionsIndex.entries.length} entities indexed`);
+    console.log(`[INTEL] Resolve endpoint: GET /resolve?type=<type>&id=<id>`);
+  });
+}
+
+boot().catch(e => { console.error('[INTEL] Fatal:', e); process.exit(1); });

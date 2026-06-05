@@ -851,6 +851,7 @@ function OsirisMap({ data, activeLayers, onEntityClick, onMouseCoords, onRightCl
           <div><span style="color:#5C5A54;">DEST</span><br/><span style="color:#E8E6E0;">${p.destination || 'UNKNOWN'}</span></div>
         </div>
       </div>`);
+      onEntityClick?.({ type: 'vessel', name: p.name, flag: p.flag, speed: p.speed, heading: p.heading, destination: p.destination, mmsi: p.mmsi });
     });
 
     // ── Weather Events (NASA EONET) ──
