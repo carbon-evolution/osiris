@@ -265,8 +265,7 @@ export default function Dashboard() {
       if (res.ok) setRegionDossier(await res.json());
     } catch (e) { console.warn('[OSIRIS] Suppressed error:', e instanceof Error ? e.message : e); } finally { setDossierLoading(false); }
   }, []);
-
-  // Entity click handler (hoisted from JSX to comply with Rules of Hooks — Fixes #113)
+  // Entity click handler (hoisted from JSX to comply with Rules of Hooks - Fixes #113)
   const handleEntityClick = useCallback((entity: any) => {
     if (entity?.type === 'cctv') setActiveCamera(entity);
     if (entity?.type === 'live_news' && entity.url) {
@@ -274,14 +273,26 @@ export default function Dashboard() {
       setLiveFeedName(entity.name);
       setLiveFeedEmbedAllowed(entity.embed_allowed !== false);
     }
-    // Entity Graph — open for flights, vessels
-    if (entity?.callsign || entity?.icao24) {
-      setEntityGraphTarget({ type: 'aircraft', id: entity.callsign?.trim() || entity.icao24, label: entity.callsign?.trim() || entity.icao24, properties: { model: entity.model, registration: entity.registration, icao24: entity.icao24 } });
-      setShowEntityGraph(true);
-    } else if (entity?.type === 'vessel' || entity?.mmsi || entity?.imo) {
-      setEntityGraphTarget({ type: 'vessel', id: entity.imo || entity.mmsi || entity.name, label: entity.name || entity.imo, properties: { flag: entity.flag, speed: entity.speed, destination: entity.destination } });
-      setShowEntityGraph(true);
-    }
+  }, []);
+
+  // Global handler for map popups to manually open the Intel Graph
+  useEffect(() => {
+    (window as any).openOsirisIntel = (entity: any) => {
+      if (entity?.callsign || entity?.icao24) {
+        setEntityGraphTarget({ type: 'aircraft', id: entity.callsign?.trim() || entity.icao24, label: entity.callsign?.trim() || entity.icao24, properties: { model: entity.model, registration: entity.registration, icao24: entity.icao24 } });
+        setShowEntityGraph(true);
+      } else if (entity?.type === 'vessel' || entity?.mmsi || entity?.imo) {
+        setEntityGraphTarget({ type: 'vessel', id: entity.imo || entity.mmsi || entity.name, label: entity.name || entity.imo, properties: { flag: entity.flag, speed: entity.speed, destination: entity.destination } });
+        setShowEntityGraph(true);
+      } else if (entity?.type === 'ip' && entity?.ip) {
+        setEntityGraphTarget({ type: 'ip', id: entity.ip, label: entity.ip, properties: { threat_type: entity.threat_type, status: entity.status } });
+        setShowEntityGraph(true);
+      } else if (entity?.type === 'country' && entity?.country) {
+        setEntityGraphTarget({ type: 'country', id: entity.country, label: entity.country, properties: {} });
+        setShowEntityGraph(true);
+      }
+    };
+    return () => { delete (window as any).openOsirisIntel; };
   }, []);
 
   // ── SHARED FETCH UTILITY (Fixes #107 — single definition, not 3 copies) ──

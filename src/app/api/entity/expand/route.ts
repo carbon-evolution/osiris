@@ -19,7 +19,7 @@ const INTEL_URL = process.env.INTEL_URL || (
     : 'http://localhost:4000'
 );
 
-const ALLOWED_TYPES = new Set(['aircraft', 'vessel', 'company', 'person']);
+const ALLOWED_TYPES = new Set(['aircraft', 'vessel', 'company', 'person', 'ip', 'country']);
 
 export async function GET(req: Request) {
   const clientIp = getClientIp(req);

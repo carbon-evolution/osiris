@@ -6,7 +6,7 @@ import dynamic from 'next/dynamic';
 import {
   X, Maximize2, Minimize2, Loader2, AlertTriangle,
   Plane, Ship, Building2, User, Globe, Newspaper, ShieldAlert,
-  RefreshCw, Network
+  RefreshCw, Network, Wifi
 } from 'lucide-react';
 
 const ForceGraph2D = dynamic(() => import('react-force-graph-2d'), { ssr: false });
@@ -16,7 +16,7 @@ const ForceGraph2D = dynamic(() => import('react-force-graph-2d'), { ssr: false 
 interface EntityNode {
   id: string;
   label: string;
-  type: 'aircraft' | 'vessel' | 'company' | 'person' | 'country' | 'event' | 'sanction';
+  type: 'aircraft' | 'vessel' | 'company' | 'person' | 'country' | 'event' | 'sanction' | 'ip';
   properties?: Record<string, any>;
   x?: number; y?: number;
 }
@@ -34,11 +34,13 @@ interface GraphData { nodes: EntityNode[]; links: EntityLink[]; }
 const TYPE_COLORS: Record<string, string> = {
   aircraft: '#00E5FF', vessel: '#00BCD4', company: '#D4AF37',
   person: '#B388FF', country: '#76FF03', event: '#FF9500', sanction: '#FF1744',
+  ip: '#FF6D00',
 };
 
 const TYPE_ICONS: Record<string, typeof Plane> = {
   aircraft: Plane, vessel: Ship, company: Building2,
   person: User, country: Globe, event: Newspaper, sanction: ShieldAlert,
+  ip: Wifi,
 };
 
 // ── PROPS ──

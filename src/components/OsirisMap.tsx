@@ -166,7 +166,7 @@ function OsirisMap({ data, activeLayers, onEntityClick, onMouseCoords, onRightCl
       createDot(map, 'dot-cctv', '#39FF14', 10);
 
       // Sources
-      const sources = ['flights','military','jets','private-fl','satellites','earthquakes','gdelt','gps-jamming','day-night','cctv','fires','weather','infrastructure','maritime','maritime-choke','maritime-ships','live-news','sigint-news','conflict-zones', 'war-alerts-targets', 'war-alerts-lines', 'balloons', 'radiation', 'ip-sweep-devices', 'ip-sweep-pulse', 'ip-sweep-connections', 'scan-targets', 'sdk-entities', 'sdk-links', 'ioda-outages', 'malware-nodes'];
+      const sources = ['flights','military','jets','private-fl','satellites','earthquakes','gdelt','gps-jamming','day-night','cctv','fires','weather','infrastructure','maritime','maritime-choke','maritime-ships','live-news','sigint-news','conflict-zones', 'war-alerts-targets', 'war-alerts-lines', 'balloons', 'radiation', 'ip-sweep-devices', 'ip-sweep-pulse', 'ip-sweep-connections', 'scan-targets', 'sdk-entities', 'sdk-links', 'ioda-outages', 'malware-nodes', 'network-mesh'];
       sources.forEach(s => map.addSource(s, { type: 'geojson', data: EMPTY_FC }));
 
       // Warning icon generator (parameterized — eliminates 3x copy-paste)
@@ -275,6 +275,26 @@ function OsirisMap({ data, activeLayers, onEntityClick, onMouseCoords, onRightCl
         'text-field': ['get','malware'], 'text-size': 8, 'text-font': ['Open Sans Regular'],
         'text-offset': [0, 1.8], 'text-max-width': 10, 'text-allow-overlap': false,
       }, paint: { 'text-color': '#FF1744', 'text-halo-color': '#000', 'text-halo-width': 1, 'text-opacity': 0.7 }});
+
+      // ── NETWORK INTEL MESH (SDK STYLE) ──
+      map.addLayer({ id: 'network-mesh-atmo', type: 'line', source: 'network-mesh', paint: {
+        'line-color': ['match', ['get','threat_type'], 'ioda','#00E5FF', '#FF1744'],
+        'line-width': ['interpolate',['linear'],['zoom'], 1, 2, 5, 4, 10, 8],
+        'line-opacity': 0.08,
+        'line-blur': 4,
+      }});
+      map.addLayer({ id: 'network-mesh-glow', type: 'line', source: 'network-mesh', paint: {
+        'line-color': ['match', ['get','threat_type'], 'ioda','#4DD0E1', '#FF5252'],
+        'line-width': ['interpolate',['linear'],['zoom'], 1, 1, 5, 2, 10, 4],
+        'line-opacity': 0.2,
+        'line-blur': 1.5,
+      }});
+      map.addLayer({ id: 'network-mesh-core', type: 'line', source: 'network-mesh', paint: {
+        'line-color': ['match', ['get','threat_type'], 'ioda','#E0F7FA', '#FFCDD2'],
+        'line-width': ['interpolate',['linear'],['zoom'], 1, 0.2, 5, 0.5, 10, 1.5],
+        'line-opacity': 0.4,
+      }});
+
 
       map.addLayer({ id: 'gdelt-dots', type: 'circle', source: 'gdelt', paint: {
         'circle-radius': 4, 'circle-color': '#FF3D3D', 'circle-opacity': 0.5, 'circle-stroke-width': 1, 'circle-stroke-color': '#FF3D3D', 'circle-stroke-opacity': 0.3,
@@ -587,8 +607,8 @@ function OsirisMap({ data, activeLayers, onEntityClick, onMouseCoords, onRightCl
             <a href="https://globe.adsbexchange.com/?icao=${p.icao24||''}" target="_blank" style="${linkStyle}color:#00E5FF;border:1px solid rgba(0,229,255,0.4);background:rgba(0,229,255,0.1);">📡 ADS-B</a>
             <a href="https://www.radarbox.com/data/flights/${cs}" target="_blank" style="${linkStyle}color:#FF69B4;border:1px solid rgba(255,105,180,0.4);background:rgba(255,105,180,0.1);">📍 RADARBOX</a>
           </div>
+          <button onclick="window.openOsirisIntel({ callsign: '${cs}', icao24: '${p.icao24||''}', model: '${p.model||''}', registration: '${p.registration||''}' })" style="width:100%;margin-top:8px;padding:6px 12px;background:rgba(212,175,55,0.15);border:1px solid rgba(212,175,55,0.5);color:#D4AF37;font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:bold;letter-spacing:0.1em;border-radius:4px;cursor:pointer;">[ DEEP DIVE INTEL ]</button>
         </div>`);
-        onEntityClick?.(p);
       });
       map.on('mouseenter', layer, () => { map.getCanvas().style.cursor = 'pointer'; });
       map.on('mouseleave', layer, () => { map.getCanvas().style.cursor = ''; });
@@ -665,6 +685,40 @@ function OsirisMap({ data, activeLayers, onEntityClick, onMouseCoords, onRightCl
       </div>`);
     });
 
+    // ── Malware Threats (Abuse.ch) ──
+    map.on('click', 'malware-dots', e => {
+      if (!e.features?.length) return;
+      const p = e.features[0].properties as any;
+      const coords = (e.features[0].geometry as any).coordinates;
+      popup(coords, `<div style="${pStyle}border:1px solid rgba(255,23,68,0.3);">
+        <div style="color:#FF1744;font-size:14px;font-weight:700;margin-bottom:4px;">MALWARE / BOTNET</div>
+        <div style="font-size:9px;color:#E8E6E0;margin-bottom:8px;">${p.malware || p.threat_type}</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;font-size:9px;">
+          <div><span style="color:#5C5A54;">TARGET IP</span><br/><span style="color:#E8E6E0;">${p.ip}</span></div>
+          <div><span style="color:#5C5A54;">STATUS</span><br/><span style="color:#E8E6E0;">${p.status}</span></div>
+        </div>
+        <a href="https://feodotracker.abuse.ch/browse/" target="_blank" style="${linkStyle}color:#FF1744;border:1px solid rgba(255,23,68,0.4);background:rgba(255,23,68,0.1);">[?] ABUSE.CH INTELLIGENCE</a>
+        <button onclick="window.openOsirisIntel({ type: 'ip', ip: '${p.ip}', threat_type: '${p.malware || p.threat_type || ''}', status: '${p.status || ''}' })" style="width:100%;margin-top:6px;padding:6px 12px;background:rgba(255,109,0,0.15);border:1px solid rgba(255,109,0,0.5);color:#FF6D00;font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:bold;letter-spacing:0.1em;border-radius:4px;cursor:pointer;">[ IP INTEL DEEP DIVE ]</button>
+      </div>`);
+    });
+
+    // ── Internet Outages (IODA) ──
+    map.on('click', 'ioda-dots', e => {
+      if (!e.features?.length) return;
+      const p = e.features[0].properties as any;
+      const coords = (e.features[0].geometry as any).coordinates;
+      popup(coords, `<div style="${pStyle}border:1px solid rgba(0,229,255,0.3);">
+        <div style="color:#00E5FF;font-size:14px;font-weight:700;margin-bottom:4px;">INTERNET OUTAGE</div>
+        <div style="font-size:9px;color:#E8E6E0;margin-bottom:8px;">${p.country}</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;font-size:9px;">
+          <div><span style="color:#5C5A54;">SEVERITY</span><br/><span style="color:#E8E6E0;">${p.level}</span></div>
+          <div><span style="color:#5C5A54;">SCORE</span><br/><span style="color:#E8E6E0;">${(p.score*100).toFixed(1)}%</span></div>
+        </div>
+        <a href="https://ioda.inetintel.cc.gatech.edu/" target="_blank" style="${linkStyle}color:#00E5FF;border:1px solid rgba(0,229,255,0.4);background:rgba(0,229,255,0.1);">[?] IODA GEORGIA TECH</a>
+        <button onclick="window.openOsirisIntel({ type: 'country', country: '${p.country}' })" style="width:100%;margin-top:6px;padding:6px 12px;background:rgba(118,255,3,0.15);border:1px solid rgba(118,255,3,0.5);color:#76FF03;font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:bold;letter-spacing:0.1em;border-radius:4px;cursor:pointer;">[ COUNTRY INTEL ]</button>
+      </div>`);
+    });
+
     // ── GDELT Conflicts (with source article) ──
     map.on('click', 'gdelt-dots', e => {
       if (!e.features?.length) return;
@@ -732,7 +786,7 @@ function OsirisMap({ data, activeLayers, onEntityClick, onMouseCoords, onRightCl
     });
 
     // ── Generic hover for clickables ──
-    ['conflict-icons','cctv-dots','eq-circles','sat-dots','fires-heat','gdelt-dots','weather-dots','infra-dots','maritime-dots','choke-dots','news-dots','sigint-news-dots','balloon-dots','rad-dots','ship-dots','sweep-device-dots','scan-targets-dots','sdk-sea','sdk-sea-glow','sdk-sea-atmo','sdk-air','sdk-air-glow','sdk-air-atmo','sdk-intel','sdk-intel-glow','sdk-intel-atmo'].forEach(layer => {
+    ['conflict-icons','cctv-dots','eq-circles','sat-dots','fires-heat','gdelt-dots','weather-dots','infra-dots','maritime-dots','choke-dots','news-dots','sigint-news-dots','balloon-dots','rad-dots','ship-dots','sweep-device-dots','scan-targets-dots','sdk-sea','sdk-sea-glow','sdk-sea-atmo','sdk-air','sdk-air-glow','sdk-air-atmo','sdk-intel','sdk-intel-glow','sdk-intel-atmo','malware-dots','ioda-dots'].forEach(layer => {
       map.on('mouseenter', layer, () => { map.getCanvas().style.cursor = 'pointer'; });
       map.on('mouseleave', layer, () => { map.getCanvas().style.cursor = ''; });
     });
@@ -749,6 +803,7 @@ function OsirisMap({ data, activeLayers, onEntityClick, onMouseCoords, onRightCl
           <div><span style="color:#5C5A54;">TYPE</span><br/><span style="color:#00E5FF;">${(p.type || 'UNKNOWN').toUpperCase()}</span></div>
           <div><span style="color:#5C5A54;">COORDS</span><br/><span style="color:#E8E6E0;">${coords[1].toFixed(3)}°, ${coords[0].toFixed(3)}°</span></div>
         </div>
+        <button onclick="window.openOsirisIntel({ type: 'ip', ip: '${p.id}' })" style="width:100%;margin-top:8px;padding:6px 12px;background:rgba(255,109,0,0.15);border:1px solid rgba(255,109,0,0.5);color:#FF6D00;font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:bold;letter-spacing:0.1em;border-radius:4px;cursor:pointer;">[ IP INTEL DEEP DIVE ]</button>
       </div>`);
     });
 
@@ -796,6 +851,7 @@ function OsirisMap({ data, activeLayers, onEntityClick, onMouseCoords, onRightCl
         </div>
         <div style="font-size:9px;color:#8A8880;margin-bottom:6px;">Open: ${ports.slice(0, 12).join(', ')}${ports.length > 12 ? ' ...' : ''}</div>
         ${vulns.length > 0 ? `<div style="font-size:9px;color:#FF3D3D;margin-bottom:6px;">⚠ CVEs: ${vulns.slice(0, 5).join(', ')}${vulns.length > 5 ? ` +${vulns.length - 5} more` : ''}</div>` : ''}
+        <button onclick="window.openOsirisIntel({ type: 'ip', ip: '${p.ip}' })" style="width:100%;margin-top:6px;padding:6px 12px;background:rgba(255,109,0,0.15);border:1px solid rgba(255,109,0,0.5);color:#FF6D00;font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:bold;letter-spacing:0.1em;border-radius:4px;cursor:pointer;">[ IP INTEL DEEP DIVE ]</button>
       </div>`);
     });
 
@@ -850,8 +906,8 @@ function OsirisMap({ data, activeLayers, onEntityClick, onMouseCoords, onRightCl
           <div><span style="color:#5C5A54;">HEADING</span><br/><span style="color:#E8E6E0;">${p.heading}°</span></div>
           <div><span style="color:#5C5A54;">DEST</span><br/><span style="color:#E8E6E0;">${p.destination || 'UNKNOWN'}</span></div>
         </div>
+        <button onclick="window.openOsirisIntel({ type: 'vessel', name: '${p.name}', imo: '${p.imo||''}', mmsi: '${p.mmsi||''}', flag: '${p.flag||''}', speed: ${p.speed||0}, destination: '${p.destination||''}' })" style="width:100%;margin-top:8px;padding:6px 12px;background:${color}30;border:1px solid ${color}80;color:${color};font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:bold;letter-spacing:0.1em;border-radius:4px;cursor:pointer;">[ VESSEL INTEL ]</button>
       </div>`);
-      onEntityClick?.({ type: 'vessel', name: p.name, flag: p.flag, speed: p.speed, heading: p.heading, destination: p.destination, mmsi: p.mmsi });
     });
 
     // ── Weather Events (NASA EONET) ──
@@ -1026,6 +1082,45 @@ function OsirisMap({ data, activeLayers, onEntityClick, onMouseCoords, onRightCl
     setGeo('malware-nodes', activeLayers.malware && data.malware_threats ? data.malware_threats.map((t: any) => ({ type: 'Feature', geometry: { type: 'Point', coordinates: [t.lng, t.lat] }, properties: { ip: t.ip, malware: t.malware, status: t.status, threat_type: t.threat_type, country: t.country } })) : []);
   }, [mapReady, data.malware_threats, activeLayers.malware, setGeo]);
 
+  // Network Mesh Generation (Nearest Neighbor Lattice)
+  useEffect(() => {
+    if (!mapReady) return;
+    const meshLinks: any[] = [];
+    
+    // Generate IODA Mesh
+    if (activeLayers.internet_outages && data.ioda_outages && data.ioda_outages.length > 1) {
+      const nodes = data.ioda_outages;
+      for (let i = 0; i < nodes.length; i++) {
+        // Connect each to next 2 for a global web
+        for (let j = 1; j <= 2; j++) {
+          const target = nodes[(i + j) % nodes.length];
+          meshLinks.push({
+            type: 'Feature',
+            geometry: { type: 'LineString', coordinates: [[nodes[i].lng, nodes[i].lat], [target.lng, target.lat]] },
+            properties: { threat_type: 'ioda' }
+          });
+        }
+      }
+    }
+    
+    // Generate Malware Botnet Mesh
+    if (activeLayers.malware && data.malware_threats && data.malware_threats.length > 1) {
+      const nodes = data.malware_threats;
+      for (let i = 0; i < nodes.length; i++) {
+        // Connect each to next 2 for a global web
+        for (let j = 1; j <= 2; j++) {
+          const target = nodes[(i + j) % nodes.length];
+          meshLinks.push({
+            type: 'Feature',
+            geometry: { type: 'LineString', coordinates: [[nodes[i].lng, nodes[i].lat], [target.lng, target.lat]] },
+            properties: { threat_type: 'malware' }
+          });
+        }
+      }
+    }
+    setGeo('network-mesh', meshLinks);
+  }, [mapReady, activeLayers.internet_outages, activeLayers.malware, data.ioda_outages, data.malware_threats, setGeo]);
+
   useEffect(() => {
     if (!mapReady) return;
     setGeo('gps-jamming', activeLayers.gps_jamming && data.gps_jamming ? data.gps_jamming.map((z: any) => ({ type: 'Feature', geometry: { type: 'Point', coordinates: [z.lng, z.lat] }, properties: { severity: z.severity } })) : []);
@@ -1162,6 +1257,7 @@ function OsirisMap({ data, activeLayers, onEntityClick, onMouseCoords, onRightCl
     setVis(['gdelt-dots'], activeLayers.global_incidents);
     setVis(['ioda-glow','ioda-dots','ioda-label'], activeLayers.internet_outages);
     setVis(['malware-glow','malware-dots','malware-label'], activeLayers.malware);
+    setVis(['network-mesh-atmo', 'network-mesh-glow', 'network-mesh-core'], activeLayers.internet_outages || activeLayers.malware);
     setVis(['jam-fill','jam-label'], activeLayers.gps_jamming);
     setVis(['day-night-fill'], activeLayers.day_night);
     setVis(['fl-commercial'], activeLayers.flights);
