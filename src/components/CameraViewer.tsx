@@ -83,8 +83,9 @@ export default function CameraViewer({ camera, onClose, onLocate }: CameraViewer
     }
 
     // JPG fallback
-    if (camera.feed_url) {
-      const url = camera.feed_url.includes('?') ? `${camera.feed_url}&_t=${Date.now()}` : `${camera.feed_url}?_t=${Date.now()}`;
+    const targetUrl = camera.feed_url || camera.stream_url;
+    if (targetUrl) {
+      const url = targetUrl.includes('?') ? `${targetUrl}&_t=${Date.now()}` : `${targetUrl}?_t=${Date.now()}`;
       setImageUrl(url);
     } else {
       setError(true);
