@@ -1,16 +1,21 @@
 import { NextResponse } from 'next/server';
 import { stealthFetch } from '@/lib/stealthFetch';
+import { fetchAcledEvents, acledConfigured } from '@/lib/acled';
 
 export const dynamic = 'force-dynamic';
 
 /**
- * OSIRIS — Real-Time Geopolitical Events (GDELT 2.0 GeoJSON API)
- * Source: GDELT Project — completely free, no auth required
- * Replaces the old RSS scraper with actual GDELT geo-coded events.
+ * OSIRIS — Real-Time Geopolitical Events
+ * Sources: GDELT 2.0 GEO API (keyless) + ACLED structured conflict events
+ * (opt-in, OAuth — only used when ACLED_EMAIL/ACLED_PASSWORD are set).
  */
 
 export async function GET() {
   try {
+    // ACLED — structured, geocoded conflict events with actors + fatalities.
+    // Runs in parallel; skipped entirely when credentials aren't configured.
+    const acledPromise = fetchAcledEvents();
+
     // GDELT GEO 2.0 API — real events with actual coordinates. Each query is
     // tagged with an incident category so the map/popup can show what kind of
     // event it is. Categories broadened beyond protest/conflict/coup.
@@ -27,60 +32,74 @@ export async function GET() {
     const allEvents: any[] = [];
     let eventId = 0;
 
-    for (const { q, type, category } of queries) {
-      try {
-        const encodedQuery = encodeURIComponent(q);
-        const url = `https://api.gdeltproject.org/api/v2/geo/geo?query=${encodedQuery}&format=GeoJSON&timespan=24h&maxpoints=100`;
+    // Run all GDELT category queries in parallel so total latency stays ~5s
+    // regardless of how many categories there are (and so a down/slow GDELT
+    // never stacks 7 sequential timeouts).
+    const gdeltResults = await Promise.allSettled(
+      queries.map(async ({ q, type, category }) => {
+        const url = `https://api.gdeltproject.org/api/v2/geo/geo?query=${encodeURIComponent(q)}&format=GeoJSON&timespan=24h&maxpoints=100`;
+        const res = await stealthFetch(url, { signal: AbortSignal.timeout(5000), cache: 'no-store' });
+        if (!res.ok) throw new Error('Not OK');
+        const geojson = await res.json();
+        return { type, category, features: geojson?.features || [] };
+      }),
+    );
 
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 5000);
+    for (const r of gdeltResults) {
+      if (r.status !== 'fulfilled') continue;
+      const { type, category, features } = r.value;
+      for (const feature of features) {
+        const coords = feature.geometry?.coordinates;
+        if (!coords || coords.length < 2) continue;
 
-        const geojson = await Promise.race([
-          (async () => {
-            const res = await stealthFetch(url, { signal: controller.signal, cache: 'no-store' });
-            if (!res.ok) throw new Error('Not OK');
-            return await res.json();
-          })(),
-          new Promise<any>((_, reject) => setTimeout(() => reject(new Error('GDELT Timeout')), 5000))
-        ]).finally(() => clearTimeout(timeoutId));
+        const props = feature.properties || {};
+        const name = props.name || props.html?.replace(/<[^>]*>/g, '').slice(0, 120) || 'GDELT Event';
+        const articleUrl = props.url || (/href="([^"]+)"/.exec(props.html || '')?.[1]) || '';
 
-        if (!geojson?.features) continue;
+        const isDupe = allEvents.some(e =>
+          Math.abs(e.lat - coords[1]) < 0.5 && Math.abs(e.lng - coords[0]) < 0.5 && e.name === name,
+        );
+        if (isDupe) continue;
 
-        for (const feature of geojson.features) {
-          const coords = feature.geometry?.coordinates;
-          if (!coords || coords.length < 2) continue;
-
-          const props = feature.properties || {};
-          const name = props.name || props.html?.replace(/<[^>]*>/g, '').slice(0, 120) || 'GDELT Event';
-          // Pull the first article link out of the GDELT html bubble for detail.
-          const articleUrl = props.url || (/href="([^"]+)"/.exec(props.html || '')?.[1]) || '';
-
-          // Deduplicate by proximity (within 0.5 degrees)
-          const isDupe = allEvents.some(e =>
-            Math.abs(e.lat - coords[1]) < 0.5 && Math.abs(e.lng - coords[0]) < 0.5 && e.name === name
-          );
-          if (isDupe) continue;
-
-          allEvents.push({
-            id: `gdelt-${eventId++}`,
-            lat: coords[1],
-            lng: coords[0],
-            name,
-            url: articleUrl,
-            html: props.html || '',
-            type,
-            category,
-            count: props.count || 1,
-            shareimage: props.shareimage || '',
-            source: 'GDELT',
-          });
-        }
-      } catch {
-        // Individual query failure is non-fatal
+        allEvents.push({
+          id: `gdelt-${eventId++}`,
+          lat: coords[1],
+          lng: coords[0],
+          name,
+          url: articleUrl,
+          html: props.html || '',
+          type,
+          category,
+          count: props.count || 1,
+          shareimage: props.shareimage || '',
+          source: 'GDELT',
+        });
       }
     }
 
-    // Fallback if GDELT rate-limits or fails (simulate global incidents for demo purposes)
+    // Merge ACLED events (precise coords, actors, fatalities). These are
+    // high-confidence, so they're added ahead of the simulated fallback and
+    // suppress it when present.
+    let acledCount = 0;
+    try {
+      const acled = await acledPromise;
+      acledCount = acled.length;
+      for (const a of acled) {
+        const dupe = allEvents.some(
+          (e) => Math.abs(e.lat - a.lat) < 0.25 && Math.abs(e.lng - a.lng) < 0.25 && e.name === a.name,
+        );
+        if (!dupe) {
+          allEvents.push({
+            id: a.id, lat: a.lat, lng: a.lng, name: a.name, url: a.url, html: '',
+            type: a.type, category: a.category, count: a.count,
+            fatalities: a.fatalities, actors: a.actors, country: a.country, date: a.date,
+            shareimage: '', source: 'ACLED',
+          });
+        }
+      }
+    } catch { /* ACLED is best-effort */ }
+
+    // Fallback only if BOTH live sources came back empty (simulated demo data).
     if (allEvents.length === 0) {
       const generateFallback = (type: string, name: string, count: number, latBase: number, lngBase: number, spread: number) => {
         for(let i=0; i<count; i++) {
@@ -109,11 +128,20 @@ export async function GET() {
       generateFallback('unrest', 'Violent riots', 6, 40.7, -74.0, 5); // US East
     }
 
+    const usedSources = [
+      allEvents.some((e) => e.source === 'GDELT') ? 'GDELT' : null,
+      acledCount ? 'ACLED' : null,
+    ].filter(Boolean);
+    const source = allEvents[0]?.id?.includes('fb')
+      ? 'OSIRIS Simulated Incident Engine'
+      : (usedSources.join(' + ') || 'none');
+
     return NextResponse.json({
       events: allEvents,
       total: allEvents.length,
+      acled_configured: acledConfigured(),
       timestamp: new Date().toISOString(),
-      source: allEvents[0]?.id?.includes('fb') ? 'OSIRIS Simulated Incident Engine' : 'GDELT 2.0 GeoJSON API',
+      source,
     }, {
       headers: { 'Cache-Control': 'public, s-maxage=300, stale-while-revalidate=600' },
     });
