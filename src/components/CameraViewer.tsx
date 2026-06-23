@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, ExternalLink, RefreshCw, MapPin, Camera, Maximize2 } from 'lucide-react';
 import Hls from 'hls.js';
+import { needsHlsProxy, toHlsProxyUrl } from '@/app/api/cctv/hls-hosts';
 
 interface CameraViewerProps {
   camera: any | null;
@@ -55,10 +56,15 @@ export default function CameraViewer({ camera, onClose, onLocate }: CameraViewer
     }
 
     if (streamType === 'hls' && camera.stream_url) {
+      // Indonesian feeds with inconsistent/absent CORS are routed through the
+      // same-origin HLS proxy; everything else loads directly.
+      const hlsSrc = needsHlsProxy(camera.stream_url)
+        ? toHlsProxyUrl(camera.stream_url)
+        : camera.stream_url;
       if (Hls.isSupported() && videoRef.current) {
         const hls = new Hls({ enableWorker: false });
         hlsRef.current = hls;
-        hls.loadSource(camera.stream_url);
+        hls.loadSource(hlsSrc);
         hls.attachMedia(videoRef.current);
         hls.on(Hls.Events.MANIFEST_PARSED, () => {
           setLoading(false);
@@ -68,7 +74,7 @@ export default function CameraViewer({ camera, onClose, onLocate }: CameraViewer
           if (data.fatal) setError(true);
         });
       } else if (videoRef.current?.canPlayType('application/vnd.apple.mpegurl')) {
-        videoRef.current.src = camera.stream_url;
+        videoRef.current.src = hlsSrc;
         videoRef.current.addEventListener('loadedmetadata', () => {
           setLoading(false);
           videoRef.current?.play().catch(() => {});
@@ -82,11 +88,18 @@ export default function CameraViewer({ camera, onClose, onLocate }: CameraViewer
       return;
     }
 
-    // JPG fallback
+    // JPG / MJPEG fallback
     const targetUrl = camera.feed_url || camera.stream_url;
     if (targetUrl) {
-      const url = targetUrl.includes('?') ? `${targetUrl}&_t=${Date.now()}` : `${targetUrl}?_t=${Date.now()}`;
-      setImageUrl(url);
+      if (streamType === 'mjpeg') {
+        // MJPEG streams are multipart/x-mixed-replace which browsers don't
+        // reliably render in <img> tags. Proxy through our backend to extract
+        // the first JPEG frame and return it as a static image.
+        setImageUrl(`/api/cctv/proxy?url=${encodeURIComponent(targetUrl)}&_t=${Date.now()}`);
+      } else {
+        const url = targetUrl.includes('?') ? `${targetUrl}&_t=${Date.now()}` : `${targetUrl}?_t=${Date.now()}`;
+        setImageUrl(url);
+      }
     } else {
       setError(true);
       setLoading(false);
@@ -95,8 +108,8 @@ export default function CameraViewer({ camera, onClose, onLocate }: CameraViewer
 
   // Auto-refresh for JPGs
   useEffect(() => {
-    if (streamType !== 'jpg' || !camera?.feed_url) return;
-    const iv = setInterval(() => setRefreshKey(k => k + 1), 5000); // 5s refresh for JPG
+    if ((streamType !== 'jpg' && streamType !== 'mjpeg') || !camera?.feed_url) return;
+    const iv = setInterval(() => setRefreshKey(k => k + 1), 5000); // 5s refresh for JPG/MJPEG
     return () => clearInterval(iv);
   }, [camera?.feed_url, streamType]);
 
