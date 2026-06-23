@@ -33,6 +33,7 @@ export default function CameraViewer({ camera, onClose, onLocate }: CameraViewer
   
   const videoRef = useRef<HTMLVideoElement>(null);
   const hlsRef = useRef<Hls | null>(null);
+  const refreshTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const streamType = camera?.stream_type || 'jpg';
   const externalFeedUrl = camera?.external_url || camera?.feed_url;
@@ -106,11 +107,15 @@ export default function CameraViewer({ camera, onClose, onLocate }: CameraViewer
     }
   }, [camera, refreshKey, streamType, externalOnly]);
 
-  // Auto-refresh for JPGs
+  // Refresh is load-driven (see the <img> onLoad/onError handlers), not on a
+  // blind 5s interval. A blind interval remounted the <img> every 5s and
+  // abandoned any in-flight load, so slow MJPEG-proxy feeds (e.g. southern
+  // Taiwan) never finished loading. Here we just clear the pending timer when
+  // the camera changes or the viewer unmounts.
   useEffect(() => {
-    if ((streamType !== 'jpg' && streamType !== 'mjpeg') || !camera?.feed_url) return;
-    const iv = setInterval(() => setRefreshKey(k => k + 1), 5000); // 5s refresh for JPG/MJPEG
-    return () => clearInterval(iv);
+    return () => {
+      if (refreshTimer.current) clearTimeout(refreshTimer.current);
+    };
   }, [camera?.feed_url, streamType]);
 
   if (!camera) return null;
@@ -260,8 +265,22 @@ export default function CameraViewer({ camera, onClose, onLocate }: CameraViewer
                 src={imageUrl}
                 alt={camera.name}
                 className={`w-full h-full ${fullscreen ? 'object-contain' : 'object-cover'}`}
-                onLoad={() => setLoading(false)}
-                onError={() => { setLoading(false); setError(true); }}
+                onLoad={() => {
+                  setLoading(false);
+                  // Schedule the next frame 5s AFTER this one finished loading,
+                  // so a slow feed is never interrupted mid-load.
+                  if (streamType === 'jpg' || streamType === 'mjpeg') {
+                    if (refreshTimer.current) clearTimeout(refreshTimer.current);
+                    refreshTimer.current = setTimeout(() => setRefreshKey(k => k + 1), 5000);
+                  }
+                }}
+                onError={() => {
+                  setLoading(false);
+                  setError(true);
+                  // Retry occasionally in case the feed was briefly unavailable.
+                  if (refreshTimer.current) clearTimeout(refreshTimer.current);
+                  refreshTimer.current = setTimeout(() => setRefreshKey(k => k + 1), 15000);
+                }}
               />
             ) : null}
 
