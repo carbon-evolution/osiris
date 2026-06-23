@@ -52,8 +52,18 @@ export async function GET(req: Request) {
     return NextResponse.json({ error: 'domain not allowed' }, { status: 403 });
   }
 
+  // Taiwan freeway hosts are https-only, but the THB feed lists some (notably
+  // cctvs.freeway.gov.tw) as http:// — and plain http is refused, so the feed
+  // never loads. Upgrade to https here as well as at the source, so stale or
+  // legacy http:// URLs still resolve. Scoped to *.freeway.gov.tw to avoid
+  // breaking genuinely http-only MJPEG cameras in other regions.
+  let fetchUrl = urlStr;
+  if (host.endsWith('.freeway.gov.tw') && fetchUrl.startsWith('http://')) {
+    fetchUrl = 'https://' + fetchUrl.slice('http://'.length);
+  }
+
   try {
-    const res = await safeFetch(urlStr, {
+    const res = await safeFetch(fetchUrl, {
       // Some Taiwan gov MJPEG hosts (e.g. cctvs.freeway.gov.tw) are slow to
       // open the stream — allow extra headroom before aborting.
       signal: AbortSignal.timeout(15000),
