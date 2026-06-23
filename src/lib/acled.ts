@@ -87,8 +87,13 @@ function bucket(eventType: string): AcledEvent['type'] {
  * Fetch recent ACLED events (default: last `days` days, capped at `limit`).
  * Returns [] when unconfigured or on any failure (never throws to the caller).
  */
+// When the account is authenticated but not yet entitled to the API (403),
+// back off so we don't attempt a doomed read on every incidents poll.
+let accessDeniedUntil = 0;
+
 export async function fetchAcledEvents(days = 30, limit = 600): Promise<AcledEvent[]> {
   try {
+    if (Date.now() < accessDeniedUntil) return [];
     const token = await getToken();
     if (!token) return [];
 
@@ -103,6 +108,12 @@ export async function fetchAcledEvents(days = 30, limit = 600): Promise<AcledEve
       headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' },
       signal: AbortSignal.timeout(12000),
     });
+    if (res.status === 401 || res.status === 403) {
+      // API not enabled for this account yet — skip ACLED for an hour.
+      accessDeniedUntil = Date.now() + 3600_000;
+      console.warn('[OSIRIS] ACLED API access denied (403/401) — backing off 1h');
+      return [];
+    }
     if (!res.ok) throw new Error(`ACLED read ${res.status}`);
     const json = await res.json();
     const rows: any[] = Array.isArray(json) ? json : json.data || [];
