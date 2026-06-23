@@ -3,6 +3,11 @@
 import { useEffect, useRef, useState, useCallback, memo } from 'react';
 import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
+import {
+  MARKER_LAYERS, MARKER_ICON_SVG, MARKER_ICON_SIZE,
+  markerImageId, markerImages, markerIconImage,
+  renderMarkerIcon,
+} from './mapMarkers';
 
 interface OsirisMapProps {
   data: any;
@@ -48,7 +53,7 @@ function OsirisMap({ data, activeLayers, onEntityClick, onMouseCoords, onRightCl
   const popupRef = useRef<maplibregl.Popup | null>(null);
   const [mapReady, setMapReady] = useState(false);
   const prevStyleRef = useRef(mapStyle);
-
+  const orbitFeaturesRef = useRef<any[]>([]);
   // Create aircraft icon on canvas (for WebGL symbol layer)
   const createIcon = useCallback((map: maplibregl.Map, id: string, color: string, size: number) => {
     if (map.hasImage(id)) return;
@@ -82,6 +87,75 @@ function OsirisMap({ data, activeLayers, onEntityClick, onMouseCoords, onRightCl
     ctx.beginPath();
     ctx.arc(size/2, size/2, size/2 - 1, 0, Math.PI * 2);
     ctx.fill();
+    map.addImage(id, { width: size, height: size, data: new Uint8Array(ctx.getImageData(0, 0, size, size).data) });
+  }, []);
+
+  // Satellite icon (body + solar panels)
+  const createSatelliteIcon = useCallback((map: maplibregl.Map, id: string, color: string, size: number) => {
+    if (map.hasImage(id)) return;
+    const canvas = document.createElement('canvas');
+    canvas.width = size; canvas.height = size;
+    const ctx = canvas.getContext('2d')!;
+    const cx = size / 2, cy = size / 2, s = size;
+
+    // Solar panel wings
+    ctx.fillStyle = '#5C6BC0';
+    ctx.fillRect(cx - s * 0.45, cy - s * 0.08, s * 0.35, s * 0.16);
+    ctx.fillRect(cx + s * 0.1, cy - s * 0.08, s * 0.35, s * 0.16);
+
+    // Panel grid lines
+    ctx.strokeStyle = '#7986CB';
+    ctx.lineWidth = 0.5;
+    ctx.strokeRect(cx - s * 0.45, cy - s * 0.08, s * 0.35, s * 0.16);
+    ctx.strokeRect(cx + s * 0.1, cy - s * 0.08, s * 0.35, s * 0.16);
+
+    // Satellite body (rounded rect)
+    ctx.fillStyle = color;
+    const bx = cx - s * 0.08, by = cy - s * 0.15, bw = s * 0.16, bh = s * 0.3;
+    ctx.beginPath();
+    ctx.roundRect(bx, by, bw, bh, 2);
+    ctx.fill();
+
+    // Antenna
+    ctx.strokeStyle = '#B0BEC5';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(cx, by);
+    ctx.lineTo(cx, by - s * 0.12);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.arc(cx, by - s * 0.15, s * 0.04, 0, Math.PI * 2);
+    ctx.stroke();
+
+    map.addImage(id, { width: size, height: size, data: new Uint8Array(ctx.getImageData(0, 0, size, size).data) });
+  }, []);
+
+  // Military icon (stealth/fighter jet silhouette)
+  const createMilitaryIcon = useCallback((map: maplibregl.Map, id: string, color: string, size: number) => {
+    if (map.hasImage(id)) return;
+    const canvas = document.createElement('canvas');
+    canvas.width = size; canvas.height = size;
+    const ctx = canvas.getContext('2d')!;
+    const cx = size / 2, cy = size / 2, s = size;
+
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    // Stealth/delta wing shape — angular, aggressive
+    ctx.moveTo(cx, cy - s * 0.42);           // nose
+    ctx.lineTo(cx - s * 0.15, cy + s * 0.05); // left cockpit
+    ctx.lineTo(cx - s * 0.42, cy + s * 0.28); // left wing tip
+    ctx.lineTo(cx - s * 0.38, cy + s * 0.32);
+    ctx.lineTo(cx - s * 0.12, cy + s * 0.18); // left tail
+    ctx.lineTo(cx - s * 0.08, cy + s * 0.38); // left exhaust
+    ctx.lineTo(cx, cy + s * 0.34);            // center exhaust
+    ctx.lineTo(cx + s * 0.08, cy + s * 0.38); // right exhaust
+    ctx.lineTo(cx + s * 0.12, cy + s * 0.18); // right tail
+    ctx.lineTo(cx + s * 0.38, cy + s * 0.32);
+    ctx.lineTo(cx + s * 0.42, cy + s * 0.28); // right wing tip
+    ctx.lineTo(cx + s * 0.15, cy + s * 0.05); // right cockpit
+    ctx.closePath();
+    ctx.fill();
+
     map.addImage(id, { width: size, height: size, data: new Uint8Array(ctx.getImageData(0, 0, size, size).data) });
   }, []);
 
@@ -180,9 +254,17 @@ function OsirisMap({ data, activeLayers, onEntityClick, onMouseCoords, onRightCl
       createDot(map, 'dot-green', isGhost ? phantomPurple : '#26A69A', 10);
       createDot(map, 'dot-fire', isGhost ? phantomPurple : '#E65100', 10);
       createDot(map, 'dot-cctv', cameraColor, 10);
+      createSatelliteIcon(map, 'satellite-icon', '#B388FF', 24);
+      createMilitaryIcon(map, 'mil-icon', '#EF5350', 24);
 
-      const sources = ['flights','military','jets','private-fl','satellites','earthquakes','gdelt','gps-jamming','day-night','cctv','fires','weather','infrastructure','maritime','maritime-choke','maritime-ships','live-news','sigint-news','conflict-zones', 'war-alerts-targets', 'war-alerts-lines', 'balloons', 'radiation', 'ip-sweep-devices', 'ip-sweep-pulse', 'ip-sweep-connections', 'scan-targets', 'sdk-entities', 'sdk-links', 'malware-nodes', 'network-mesh'];
+      const sources = ['flights','military','jets','private-fl','satellites','orbit','earthquakes','gdelt','gps-jamming','day-night','cctv','fires','weather','infrastructure','maritime','maritime-choke','maritime-ships','live-news','sigint-news','conflict-zones', 'war-alerts-targets', 'war-alerts-lines', 'balloons', 'radiation', 'ip-sweep-devices', 'ip-sweep-pulse', 'ip-sweep-connections', 'scan-targets', 'sdk-entities', 'sdk-links', 'malware-nodes', 'network-mesh', 'flight-route', 'ransomware', 'power_plants', 'cables'];
       sources.forEach(s => map.addSource(s, { type: 'geojson', data: EMPTY_FC }));
+      map.addSource('threat-intel-nodes', { type: 'geojson', data: EMPTY_FC });
+map.addSource('drop-nodes', { type: 'geojson', data: EMPTY_FC });
+map.addSource('tor-nodes', { type: 'geojson', data: EMPTY_FC });
+map.addSource('cve-nodes', { type: 'geojson', data: EMPTY_FC });
+map.addSource('mitre-nodes', { type: 'geojson', data: EMPTY_FC });
+      map.addSource('cable-landing-points', { type: 'geojson', data: EMPTY_FC });
 
       // Warning icon generator (parameterized — eliminates 3x copy-paste)
       const createWarningIcon = (id: string, color: string) => {
@@ -232,7 +314,7 @@ function OsirisMap({ data, activeLayers, onEntityClick, onMouseCoords, onRightCl
         'circle-opacity': 0.55, 'circle-blur': 0.3, 'circle-stroke-width': 1, 'circle-stroke-color': '#F9A825', 'circle-stroke-opacity': 0.25,
       }});
       map.addLayer({ id: 'eq-label', type: 'symbol', source: 'earthquakes', filter: ['>=',['get','magnitude'],4.5], layout: {
-        'text-field': ['concat','M',['to-string',['get','magnitude']]], 'text-size': 9, 'text-font': ['Open Sans Regular'], 'text-offset': [0,1.5],
+        'text-field': ['concat','M',['to-string',['coalesce',['get','magnitude'],0]]], 'text-size': 9, 'text-font': ['Open Sans Regular'], 'text-offset': [0,1.5],
       }, paint: { 'text-color': '#F9A825', 'text-halo-color': '#000', 'text-halo-width': 1 }});
 
       // Fires — burnt sienna
@@ -278,6 +360,113 @@ function OsirisMap({ data, activeLayers, onEntityClick, onMouseCoords, onRightCl
         'text-offset': [0, 1.5], 'text-max-width': 10, 'text-allow-overlap': false,
       }, paint: { 'text-color': '#D32F2F', 'text-halo-color': '#111', 'text-halo-width': 1.5, 'text-opacity': 0.85 }});
 
+      // ══ RANSOMWARE — Ransomware.live victims — crimson threat ══
+      map.addLayer({ id: 'ransomware-glow', type: 'circle', source: 'ransomware', paint: {
+        'circle-radius': ['interpolate',['linear'],['zoom'], 1,6, 5,12, 10,20],
+        'circle-color': '#D32F2F', 'circle-opacity': 0.06, 'circle-blur': 0.5,
+      }});
+      map.addLayer({ id: 'ransomware-dots', type: 'circle', source: 'ransomware', paint: {
+        'circle-radius': ['interpolate',['linear'],['zoom'], 1,2, 5,4, 10,6],
+        'circle-color': '#D32F2F',
+        'circle-opacity': 0.9,
+        'circle-stroke-width': 1, 'circle-stroke-color': '#000000', 'circle-stroke-opacity': 0.8,
+      }});
+      map.addLayer({ id: 'ransomware-label', type: 'symbol', source: 'ransomware', minzoom: 5, layout: {
+        'text-field': ['get','group_name'], 'text-size': 8, 'text-font': ['JetBrains Mono Bold', 'Open Sans Bold'],
+        'text-offset': [0, 1.5], 'text-max-width': 10, 'text-allow-overlap': false,
+      }, paint: { 'text-color': '#D32F2F', 'text-halo-color': '#111', 'text-halo-width': 1.5, 'text-opacity': 0.85 }});
+
+      // ══ NETWORK INTEL — Threat Intel (Blocklist.de, SSL Blacklist, PhishTank) ══
+      map.addLayer({ id: 'threat-intel-glow', type: 'circle', source: 'threat-intel-nodes', paint: {
+        'circle-radius': ['interpolate',['linear'],['zoom'], 1,6, 5,12, 10,20],
+        'circle-color': ['match', ['get','threat_type'],
+          'blocklist_de','#FF6D00',
+          'ssl_blacklist','#FF1744',
+          'phishing','#AA00FF',
+          'abuseipdb','#00E5FF',
+          '#AA00FF'],
+        'circle-opacity': 0.06, 'circle-blur': 0.5,
+      }});
+      map.addLayer({ id: 'threat-intel-dots', type: 'circle', source: 'threat-intel-nodes', paint: {
+        'circle-radius': ['interpolate',['linear'],['zoom'], 1,2, 5,4, 10,6],
+        'circle-color': ['match', ['get','threat_type'],
+          'blocklist_de','#FF6D00',
+          'ssl_blacklist','#FF1744',
+          'phishing','#AA00FF',
+          'abuseipdb','#00E5FF',
+          '#AA00FF'],
+        'circle-opacity': 0.9,
+        'circle-stroke-width': 1, 'circle-stroke-color': '#000000', 'circle-stroke-opacity': 0.8,
+      }});
+      map.addLayer({ id: 'threat-intel-label', type: 'symbol', source: 'threat-intel-nodes', minzoom: 5, layout: {
+        'text-field': ['get','malware'], 'text-size': 8, 'text-font': ['JetBrains Mono Bold', 'Open Sans Bold'],
+        'text-offset': [0, 1.5], 'text-max-width': 10, 'text-allow-overlap': false,
+      }, paint: { 'text-color': '#FF6D00', 'text-halo-color': '#111', 'text-halo-width': 1.5, 'text-opacity': 0.85 }});
+
+      // ══ CYBER INTEL — Spamhaus DROP (Routing Intelligence) ══
+      map.addLayer({ id: 'drop-glow', type: 'circle', source: 'drop-nodes', paint: {
+        'circle-radius': ['interpolate',['linear'],['zoom'], 1,20, 5,40, 10,80],
+        'circle-color': '#FF9100', 'circle-opacity': 0.04, 'circle-blur': 0.8,
+      }});
+      map.addLayer({ id: 'drop-dots', type: 'circle', source: 'drop-nodes', paint: {
+        'circle-radius': ['interpolate',['linear'],['zoom'], 1,3, 5,5, 10,8],
+        'circle-color': '#FF9100', 'circle-opacity': 0.7,
+        'circle-stroke-width': 1, 'circle-stroke-color': '#000', 'circle-stroke-opacity': 0.8,
+      }});
+      map.addLayer({ id: 'drop-label', type: 'symbol', source: 'drop-nodes', minzoom: 6, layout: {
+        'text-field': ['get','cidr'], 'text-size': 7, 'text-font': ['JetBrains Mono Bold', 'Open Sans Bold'],
+        'text-offset': [0, 1.5], 'text-max-width': 14,
+      }, paint: { 'text-color': '#FF9100', 'text-halo-color': '#111', 'text-halo-width': 1.5, 'text-opacity': 0.8 }});
+
+      // ══ CYBER INTEL — Tor Exit Nodes ══
+      map.addLayer({ id: 'tor-glow', type: 'circle', source: 'tor-nodes', paint: {
+        'circle-radius': ['interpolate',['linear'],['zoom'], 1,5, 5,10, 10,18],
+        'circle-color': '#7C4DFF', 'circle-opacity': 0.06, 'circle-blur': 0.5,
+      }});
+      map.addLayer({ id: 'tor-dots', type: 'circle', source: 'tor-nodes', paint: {
+        'circle-radius': ['interpolate',['linear'],['zoom'], 1,2, 5,3.5, 10,5],
+        'circle-color': '#7C4DFF', 'circle-opacity': 0.85,
+        'circle-stroke-width': 1, 'circle-stroke-color': '#000', 'circle-stroke-opacity': 0.8,
+      }});
+      map.addLayer({ id: 'tor-label', type: 'symbol', source: 'tor-nodes', minzoom: 7, layout: {
+        'text-field': ['get','ip'], 'text-size': 7, 'text-font': ['JetBrains Mono Bold', 'Open Sans Bold'],
+        'text-offset': [0, 1.5], 'text-max-width': 14,
+      }, paint: { 'text-color': '#7C4DFF', 'text-halo-color': '#111', 'text-halo-width': 1.5, 'text-opacity': 0.8 }});
+
+      // ══ CYBER INTEL — CVE Feed (Vulnerability Intelligence) ══
+      map.addLayer({ id: 'cve-glow', type: 'circle', source: 'cve-nodes', paint: {
+        'circle-radius': ['interpolate',['linear'],['zoom'], 1,8, 5,16, 10,30],
+        'circle-color': ['case', ['>=', ['get','cvss'], 9], '#FF1744', ['>=', ['get','cvss'], 7], '#FF6D00', ['>=', ['get','cvss'], 4], '#FF9100', '#00E5FF'],
+        'circle-opacity': 0.04, 'circle-blur': 0.7,
+      }});
+      map.addLayer({ id: 'cve-dots', type: 'circle', source: 'cve-nodes', paint: {
+        'circle-radius': ['interpolate',['linear'],['zoom'], 1,4, 5,6, 10,10],
+        'circle-color': ['case', ['>=', ['get','cvss'], 9], '#FF1744', ['>=', ['get','cvss'], 7], '#FF6D00', ['>=', ['get','cvss'], 4], '#FF9100', '#00E5FF'],
+        'circle-opacity': 0.8,
+        'circle-stroke-width': 1.5, 'circle-stroke-color': '#000', 'circle-stroke-opacity': 0.8,
+      }});
+      map.addLayer({ id: 'cve-label', type: 'symbol', source: 'cve-nodes', minzoom: 5, layout: {
+        'text-field': ['concat',['get','title'],' ','CVSS:',['to-string',['coalesce',['get','cvss'],0]]],
+        'text-size': 7, 'text-font': ['JetBrains Mono Bold', 'Open Sans Bold'],
+        'text-offset': [0, 1.5], 'text-max-width': 14,
+      }, paint: { 'text-color': ['case', ['>=', ['get','cvss'], 7], '#FF6D00', '#00E5FF'], 'text-halo-color': '#111', 'text-halo-width': 1.5, 'text-opacity': 0.85 }});
+
+      // ══ CYBER INTEL — MITRE ATT&CK (APT Group Intelligence) ══
+      map.addLayer({ id: 'mitre-glow', type: 'circle', source: 'mitre-nodes', paint: {
+        'circle-radius': ['interpolate',['linear'],['zoom'], 1,12, 5,25, 10,50],
+        'circle-color': '#00E676', 'circle-opacity': 0.04, 'circle-blur': 0.8,
+      }});
+      map.addLayer({ id: 'mitre-dots', type: 'circle', source: 'mitre-nodes', paint: {
+        'circle-radius': ['interpolate',['linear'],['zoom'], 1,5, 5,8, 10,14],
+        'circle-color': '#00E676', 'circle-opacity': 0.9,
+        'circle-stroke-width': 2, 'circle-stroke-color': '#000', 'circle-stroke-opacity': 0.8,
+      }});
+      map.addLayer({ id: 'mitre-label', type: 'symbol', source: 'mitre-nodes', minzoom: 3, layout: {
+        'text-field': ['concat',['get','name'],'\n[',['get','country'],']'],
+        'text-size': 8, 'text-font': ['JetBrains Mono Bold', 'Open Sans Bold'],
+        'text-offset': [0, 1.8], 'text-max-width': 14,
+      }, paint: { 'text-color': '#00E676', 'text-halo-color': '#111', 'text-halo-width': 1.5, 'text-opacity': 0.85 }});
+
       // ── NETWORK INTEL MESH (SDK STYLE) ──
       map.addLayer({ id: 'network-mesh-atmo', type: 'line', source: 'network-mesh', paint: {
 
@@ -302,11 +491,16 @@ function OsirisMap({ data, activeLayers, onEntityClick, onMouseCoords, onRightCl
         'circle-radius': 4, 'circle-color': '#D32F2F', 'circle-opacity': 0.5, 'circle-stroke-width': 1, 'circle-stroke-color': '#D32F2F', 'circle-stroke-opacity': 0.25,
       }});
 
-      // GPS Jamming — crimson
-      map.addLayer({ id: 'jam-fill', type: 'circle', source: 'gps-jamming', paint: { 'circle-radius': 30, 'circle-color': '#D32F2F', 'circle-opacity': 0.12, 'circle-blur': 1 }});
+      // GPS Jamming — H3 hex polygons from gpsjam.org
+      map.addLayer({ id: 'jam-fill', type: 'fill', source: 'gps-jamming', paint: {
+        'fill-color': ['get','color'], 'fill-opacity': ['get','opacity'],
+      }});
+      map.addLayer({ id: 'jam-line', type: 'line', source: 'gps-jamming', paint: {
+        'line-color': ['get','color'], 'line-width': 1, 'line-opacity': 0.4,
+      }});
       map.addLayer({ id: 'jam-label', type: 'symbol', source: 'gps-jamming', layout: {
-        'text-field': ['concat','GPS JAM ',['to-string',['get','severity']],'%'], 'text-size': 10, 'text-font': ['Open Sans Bold'], 'text-allow-overlap': true,
-      }, paint: { 'text-color': '#D32F2F', 'text-halo-color': '#000', 'text-halo-width': 1 }});
+        'text-field': ['concat',['to-string',['*',['get','ratio'],100]],'%'], 'text-size': 9, 'text-font': ['Open Sans Bold'], 'text-allow-overlap': true,
+      }, paint: { 'text-color': '#fff', 'text-halo-color': '#000', 'text-halo-width': 1.5 }});
 
       // Weather Events (NASA EONET) — deep violet
       map.addLayer({ id: 'weather-glow', type: 'circle', source: 'weather', paint: {
@@ -346,12 +540,43 @@ function OsirisMap({ data, activeLayers, onEntityClick, onMouseCoords, onRightCl
         'text-offset': [0, 2], 'text-max-width': 14, 'text-allow-overlap': false,
       }, paint: { 'text-color': ['case', ['in', 'SEISMIC RISK', ['get', 'status']], '#E65100', '#26A69A'], 'text-halo-color': '#000', 'text-halo-width': 1, 'text-opacity': 0.7 }});
 
-      // Satellites
+      // ══ POWER PLANTS — Global Power Plant Database — teal spectrum ══
+      map.addLayer({ id: 'power-plants-glow', type: 'circle', source: 'power_plants', paint: {
+        'circle-radius': ['interpolate',['linear'],['zoom'], 1,5, 5,10, 10,16],
+        'circle-color': ['match', ['get','fuel_type'], 'Solar','#F9A825', 'Wind','#4FC3F7', 'Hydro','#1565C0', 'Nuclear','#D32F2F', 'Coal','#424242', 'Oil','#795548', 'Gas','#78909C', 'Biomass','#66BB6A', 'Geothermal','#E65100', 'Waste','#8D6E63', 'Petcoke','#37474F', '#26A69A'],
+        'circle-opacity': 0.06, 'circle-blur': 0.5,
+      }});
+      map.addLayer({ id: 'power-plants-dots', type: 'circle', source: 'power_plants', paint: {
+        'circle-radius': ['interpolate',['linear'],['zoom'], 1,2, 5,3.5, 10,5],
+        'circle-color': ['match', ['get','fuel_type'], 'Solar','#F9A825', 'Wind','#4FC3F7', 'Hydro','#1565C0', 'Nuclear','#D32F2F', 'Coal','#424242', 'Oil','#795548', 'Gas','#78909C', 'Biomass','#66BB6A', 'Geothermal','#E65100', 'Waste','#8D6E63', 'Petcoke','#37474F', '#26A69A'],
+        'circle-opacity': 0.85,
+        'circle-stroke-width': 1, 'circle-stroke-color': '#000', 'circle-stroke-opacity': 0.7,
+      }});
+      map.addLayer({ id: 'power-plants-label', type: 'symbol', source: 'power_plants', minzoom: 6, layout: {
+        'text-field': ['get','name'], 'text-size': 8, 'text-font': ['Open Sans Regular'],
+        'text-offset': [0, 1.5], 'text-max-width': 12, 'text-allow-overlap': false,
+      }, paint: { 'text-color': '#26A69A', 'text-halo-color': '#000', 'text-halo-width': 1, 'text-opacity': 0.75 }});
+
+      // Satellites — symbol layer with satellite icon + orbit ground track
       map.addLayer({ id: 'sat-glow', type: 'circle', source: 'satellites', paint: {
         'circle-radius': ['interpolate',['linear'],['zoom'], 1,3, 5,6], 'circle-color': ['get','color'], 'circle-opacity': 0.3, 'circle-blur': 1,
       }});
-      map.addLayer({ id: 'sat-dots', type: 'circle', source: 'satellites', paint: {
-        'circle-radius': ['interpolate',['linear'],['zoom'], 1,1.5, 5,3], 'circle-color': ['get','color'], 'circle-opacity': 1.0,
+      map.addLayer({ id: 'sat-dots', type: 'symbol', source: 'satellites', layout: {
+        'icon-image': 'satellite-icon', 'icon-size': ['interpolate',['linear'],['zoom'], 1,0.4, 5,0.6, 10,0.8],
+        'icon-allow-overlap': true, 'icon-ignore-placement': true,
+      }, paint: {
+        'icon-color': ['get','color'],
+      }});
+      map.addLayer({ id: 'sat-label', type: 'symbol', source: 'satellites', minzoom: 6, layout: {
+        'text-field': ['get','name'], 'text-size': 8, 'text-font': ['Open Sans Regular'],
+        'text-offset': [0, 1.2], 'text-max-width': 10, 'text-allow-overlap': false,
+      }, paint: {
+        'text-color': ['get','color'], 'text-halo-color': '#000', 'text-halo-width': 1,
+      }});
+
+      // Orbit ground track lines — only visible at zoom >= 5, filtered by viewport
+      map.addLayer({ id: 'orbit-line', type: 'line', source: 'orbit', minzoom: 5, paint: {
+        'line-color': ['get','color'], 'line-width': ['interpolate',['linear'],['zoom'], 5,0.5, 10,1.2], 'line-opacity': 0.25, 'line-blur': 0.5,
       }});
 
       // Maritime — ports & naval bases — ocean teal
@@ -472,6 +697,17 @@ function OsirisMap({ data, activeLayers, onEntityClick, onMouseCoords, onRightCl
         }, paint: { 'icon-opacity': 0.85 }});
       });
 
+      // Flight route arcs (drawn dynamically on click)
+      map.addLayer({ id: 'flight-route-atmo', type: 'line', source: 'flight-route', paint: {
+        'line-color': '#D4AF37', 'line-width': 3, 'line-opacity': 0.15, 'line-blur': 4,
+      }});
+      map.addLayer({ id: 'flight-route-glow', type: 'line', source: 'flight-route', paint: {
+        'line-color': '#D4AF37', 'line-width': 1.5, 'line-opacity': 0.4, 'line-blur': 2,
+      }});
+      map.addLayer({ id: 'flight-route-core', type: 'line', source: 'flight-route', paint: {
+        'line-color': '#D4AF37', 'line-width': 1, 'line-opacity': 0.8,
+      }});
+
       // Balloons (moving entities)
       map.addLayer({ id: 'balloon-dots', type: 'circle', source: 'balloons', paint: {
         'circle-radius': ['interpolate',['linear'],['zoom'], 1,3, 5,5, 10,7],
@@ -497,9 +733,46 @@ function OsirisMap({ data, activeLayers, onEntityClick, onMouseCoords, onRightCl
         'circle-stroke-width': 1.5, 'circle-stroke-color': ['match', ['get','status'], 'DANGER','#D32F2F', 'WARNING','#E65100', '#7E57C2'], 'circle-stroke-opacity': 0.35,
       }});
       map.addLayer({ id: 'rad-label', type: 'symbol', source: 'radiation', minzoom: 5, layout: {
-        'text-field': ['concat', ['to-string', ['get','reading']], ' nSv/h'], 'text-size': 9, 'text-font': ['Open Sans Bold'],
+        'text-field': ['concat', ['to-string', ['coalesce', ['get','reading'], 0]], ' nSv/h'], 'text-size': 9, 'text-font': ['Open Sans Bold'],
         'text-offset': [0, 1.5], 'text-allow-overlap': false,
       }, paint: { 'text-color': ['match', ['get','status'], 'DANGER','#D32F2F', 'WARNING','#E65100', '#7E57C2'], 'text-halo-color': '#000', 'text-halo-width': 1 }});
+
+      // ══ SUBMARINE CABLES — standalone layer (all cables, uniform amber) ══
+      map.addLayer({ id: 'cables-line', type: 'line', source: 'cables', paint: {
+        'line-color': ['coalesce', ['get', 'color'], '#FF6D00'],
+        'line-width': ['interpolate',['linear'],['zoom'], 1, 1, 5, 1.5, 10, 2.5],
+        'line-opacity': ['interpolate',['linear'],['zoom'], 1, 0.45, 5, 0.6, 10, 0.8],
+      }});
+      map.addLayer({ id: 'cables-glow', type: 'line', source: 'cables', paint: {
+        'line-color': '#FF6D00',
+        'line-width': ['interpolate',['linear'],['zoom'], 1, 3, 5, 6, 10, 10],
+        'line-opacity': 0.08,
+        'line-blur': 3,
+      }});
+
+      // Cable highlight layer (visible on click, hidden by default)
+      map.addLayer({
+        id: 'cable-highlight',
+        type: 'line',
+        source: 'cables',
+        layout: { visibility: 'none' },
+        paint: {
+          'line-color': 'rgba(255,200,50,0.9)',
+          'line-width': 4,
+          'line-opacity': 0.9,
+        }
+      });
+
+      // Cable Landing Points — visible dots at cable origin/termination stations
+      map.addLayer({ id: 'cable-landing-points-dots', type: 'circle', source: 'cable-landing-points', paint: {
+        'circle-radius': ['interpolate',['linear'],['zoom'], 1, 2, 5, 3, 10, 5],
+        'circle-color': '#FF6D00',
+        'circle-opacity': 0.9,
+        'circle-stroke-width': 1,
+        'circle-stroke-color': '#000',
+        'circle-stroke-opacity': 0.5,
+      }});
+
 
       // ══ OSIRIS SDK — Lattice Intelligence Mesh ══
       // Polybolos Style: Delicate, translucent, steel-blue splined mesh
@@ -561,6 +834,34 @@ function OsirisMap({ data, activeLayers, onEntityClick, onMouseCoords, onRightCl
         'text-offset': [0, 1.2], 'text-allow-overlap': false,
       }, paint: { 'text-color': ['match', ['get','type'], 'military','#D32F2F', 'tanker','#E65100', 'cargo','#26C6DA', '#B0BEC5'], 'text-halo-color': '#000', 'text-halo-width': 1 }});
 
+      // ── Per-layer marker icons (tinted lucide glyphs on top of glow halos) ──
+      // Icons sit above the existing dots; layers toggle by emptying their
+      // source, so these symbol layers hide automatically when a layer is off.
+      for (const m of MARKER_LAYERS) {
+        if (!map.getSource(m.source)) continue;
+        for (const { icon, color } of markerImages(m)) {
+          const imgId = markerImageId(icon, color);
+          if (!map.hasImage(imgId)) {
+            const img = renderMarkerIcon(MARKER_ICON_SVG[icon], color);
+            map.addImage(imgId, img);
+          }
+        }
+        const layerId = `${m.source}-marker`;
+        if (!map.getLayer(layerId)) {
+          map.addLayer({
+            id: layerId,
+            type: 'symbol',
+            source: m.source,
+            layout: {
+              'icon-image': markerIconImage(m) as any,
+              'icon-size': MARKER_ICON_SIZE as any,
+              'icon-allow-overlap': true,
+              'icon-ignore-placement': true,
+            },
+          });
+        }
+      }
+
       setMapReady(true);
     });
 
@@ -574,7 +875,26 @@ function OsirisMap({ data, activeLayers, onEntityClick, onMouseCoords, onRightCl
       }
     });
     map.on('contextmenu', e => { e.preventDefault(); onRightClick?.({ lat: e.lngLat.lat, lng: e.lngLat.lng }); });
-    map.on('moveend', () => { const c = map.getCenter(); onViewStateChange?.({ zoom: map.getZoom(), latitude: c.lat }); });
+    map.on('moveend', () => {
+      const c = map.getCenter();
+      onViewStateChange?.({ zoom: map.getZoom(), latitude: c.lat });
+      // Filter orbit tracks to only show satellites passing through the current viewport
+      const zoom = map.getZoom();
+      const orbitSrc = map.getSource('orbit') as any;
+      if (orbitSrc && orbitFeaturesRef.current.length > 0) {
+        if (zoom >= 5) {
+          const bounds = map.getBounds();
+          const filtered = orbitFeaturesRef.current.filter((f: any) => {
+            const coords: [number, number][] = f.geometry.coordinates;
+            return coords.some(([lng, lat]) => bounds.contains([lng, lat]));
+          });
+          orbitSrc.setData({ type: 'FeatureCollection', features: filtered });
+        } else {
+          // Below zoom threshold — clear orbit lines to keep the map clean
+          orbitSrc.setData({ type: 'FeatureCollection', features: [] });
+        }
+      }
+    });
 
     // ── POPUP HELPER ──
     const popup = (coords: any, html: string) => {
@@ -583,20 +903,22 @@ function OsirisMap({ data, activeLayers, onEntityClick, onMouseCoords, onRightCl
     };
     const pStyle = `background:rgba(12,14,26,0.95);backdrop-filter:blur(16px);border-radius:10px;padding:16px;font-family:'JetBrains Mono',monospace;`;
     const linkStyle = `display:inline-block;margin-top:8px;padding:5px 12px;font-size:10px;letter-spacing:0.12em;text-decoration:none;border-radius:5px;font-family:'JetBrains Mono',monospace;`;
-
-    // ── Flights (with FlightAware + ADS-B Exchange links) ──
+    // ── Flights (with FlightAware + ADS-B Exchange links + enriched route) ──
+    const enrichmentCache = new Map<string, any>();
     ['fl-commercial','fl-private','fl-jets','fl-military'].forEach(layer => {
       map.on('click', layer, e => {
         if (!e.features?.length) return;
         const p = e.features[0].properties as any;
         const coords = (e.features[0].geometry as any).coordinates;
         const cs = (p.callsign||'').trim();
-        popup(coords, `<div style="${pStyle}border:1px solid rgba(212,175,55,0.3);">
+        const icao24 = (p.icao24||'').trim();
+        const showPopup = (extra: string) => popup(coords, `<div style="${pStyle}border:1px solid rgba(212,175,55,0.3);">
           <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
             <span style="color:#D4AF37;font-size:16px;font-weight:700;letter-spacing:0.1em;">${cs}</span>
-            <span style="color:#5C5A54;font-size:10px;">${p.icao24||''}</span>
+            <span style="color:#5C5A54;font-size:10px;">${icao24}</span>
           </div>
-          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;font-size:11px;">
+          ${extra}
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;font-size:11px;margin-top:8px;">
             <div><span style="color:#5C5A54;font-size:9px;">MODEL</span><br/><span style="color:#E8E6E0;">${p.model||'—'}</span></div>
             <div><span style="color:#5C5A54;font-size:9px;">ALT</span><br/><span style="color:#00E5FF;">${p.alt?Math.round(p.alt)+'m':'—'}</span></div>
             <div><span style="color:#5C5A54;font-size:9px;">SPEED</span><br/><span style="color:#E8E6E0;">${p.speed_knots||'—'}kt</span></div>
@@ -606,37 +928,142 @@ function OsirisMap({ data, activeLayers, onEntityClick, onMouseCoords, onRightCl
           </div>
           <div style="margin-top:12px;display:flex;gap:6px;flex-wrap:wrap;">
             <a href="https://www.flightaware.com/live/flight/${cs}" target="_blank" style="${linkStyle}color:#D4AF37;border:1px solid rgba(212,175,55,0.4);background:rgba(212,175,55,0.1);">⚡ FLIGHTAWARE</a>
-            <a href="https://globe.adsbexchange.com/?icao=${p.icao24||''}" target="_blank" style="${linkStyle}color:#00E5FF;border:1px solid rgba(0,229,255,0.4);background:rgba(0,229,255,0.1);">📡 ADS-B</a>
+            <a href="https://globe.adsbexchange.com/?icao=${icao24}" target="_blank" style="${linkStyle}color:#00E5FF;border:1px solid rgba(0,229,255,0.4);background:rgba(0,229,255,0.1);">📡 ADS-B</a>
             <a href="https://www.radarbox.com/data/flights/${cs}" target="_blank" style="${linkStyle}color:#FF69B4;border:1px solid rgba(255,105,180,0.4);background:rgba(255,105,180,0.1);">📍 RADARBOX</a>
           </div>
-          <button onclick="window.openOsirisIntel({ callsign: '${cs}', icao24: '${p.icao24||''}', model: '${p.model||''}', registration: '${p.registration||''}' })" style="width:100%;margin-top:8px;padding:6px 12px;background:rgba(212,175,55,0.15);border:1px solid rgba(212,175,55,0.5);color:#D4AF37;font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:bold;letter-spacing:0.1em;border-radius:4px;cursor:pointer;">[ DEEP DIVE INTEL ]</button>
+          <button onclick="window.openOsirisIntel({ callsign: '${cs}', icao24: '${icao24}', model: '${p.model||''}', registration: '${p.registration||''}' })" style="width:100%;margin-top:8px;padding:6px 12px;background:rgba(212,175,55,0.15);border:1px solid rgba(212,175,55,0.5);color:#D4AF37;font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:bold;letter-spacing:0.1em;border-radius:4px;cursor:pointer;">[ DEEP DIVE INTEL ]</button>
         </div>`);
+
+        // Show initial popup with loading indicator
+        showPopup(`<div style="display:flex;gap:8px;align-items:center;margin-bottom:6px;font-size:9px;color:#5C5A54;">
+          <span style="display:inline-block;width:8px;height:8px;border:1px solid #D4AF37;border-top-color:transparent;border-radius:50%;animation:osiris-spin .6s linear infinite;"></span>
+          LOADING ROUTE...
+        </div>`);
+
+        // ── Enrichment fetch ──
+        const cacheKey = `${cs}|${icao24}`;
+        const cached = enrichmentCache.get(cacheKey);
+        const enrichmentPromise = cached
+          ? Promise.resolve(cached)
+          : fetch(`/api/flight/enrich?callsign=${encodeURIComponent(cs)}&icao24=${icao24}`, { cache: 'no-store' })
+              .then(r => r.ok ? r.json() : null)
+              .catch(() => null);
+
+        enrichmentPromise.then(data => {
+          if (!data) {
+            showPopup(`<div style="font-size:9px;color:#5C5A54;margin-bottom:6px;">ROUTE: NOT FOUND</div>`);
+            return;
+          }
+          enrichmentCache.set(cacheKey, data);
+
+          const r = data.route;
+          const ac = data.aircraft;
+
+          // Build route HTML
+          let routeHtml = '';
+          if (r) {
+            const origin = r.origin;
+            const dest = r.destination;
+            const airline = r.airline;
+
+            if (origin && dest) {
+              // Draw route arc on map
+              const map = mapRef.current;
+              if (map) {
+                const routeSrc = 'flight-route';
+                const routeFeats = [{
+                  type: 'Feature' as const,
+                  geometry: {
+                    type: 'LineString' as const,
+                    coordinates: greatCircleArc(origin.lng, origin.lat, dest.lng, dest.lat, 32),
+                  },
+                  properties: { callsign: cs },
+                }];
+                try {
+                  const src = map.getSource(routeSrc) as any;
+                  if (src) src.setData({ type: 'FeatureCollection', features: routeFeats });
+                } catch {}
+              }
+
+              routeHtml = `<div style="margin-bottom:8px;padding:6px 8px;background:rgba(212,175,55,0.08);border:1px solid rgba(212,175,55,0.2);border-radius:4px;">
+                <div style="font-size:9px;color:#5C5A54;letter-spacing:0.1em;margin-bottom:4px;">═ FLIGHT ROUTE ═</div>
+                <div style="display:grid;grid-template-columns:auto 1fr;gap:2px 8px;font-size:10px;">
+                  <span style="color:#00E5FF;">🛫</span>
+                  <span style="color:#E8E6E0;"><strong>${origin.iata || origin.icao}</strong> ${origin.municipality}, ${origin.country}</span>
+                  <span style="color:#FF5252;">🛬</span>
+                  <span style="color:#E8E6E0;"><strong>${dest.iata || dest.icao}</strong> ${dest.municipality}, ${dest.country}</span>
+                </div>
+                ${airline ? `<div style="margin-top:4px;font-size:9px;color:#D4AF37;">✈ ${airline.name} · ${airline.country}${airline.iata ? ' ('+airline.iata+')' : ''}</div>` : ''}
+              </div>`;
+            } else if (airline) {
+              routeHtml = `<div style="margin-bottom:8px;padding:4px 6px;background:rgba(212,175,55,0.08);border:1px solid rgba(212,175,55,0.2);border-radius:4px;font-size:9px;">
+                <span style="color:#D4AF37;">✈ ${airline.name}</span>
+                <span style="color:#5C5A54;"> · ${airline.country}</span>
+              </div>`;
+            }
+          }
+
+          // Build aircraft detail
+          let acHtml = '';
+          if (ac) {
+            acHtml = `<div style="font-size:9px;color:#5C5A54;margin-top:2px;">
+              ${ac.icao_type ? ac.icao_type : ac.type || ''}${ac.manufacturer ? ' · '+ac.manufacturer : ''}${ac.owner ? ' · '+ac.owner : ''}
+            </div>`;
+          }
+
+          showPopup(routeHtml + acHtml);
+        });
       });
       map.on('mouseenter', layer, () => { map.getCanvas().style.cursor = 'pointer'; });
       map.on('mouseleave', layer, () => { map.getCanvas().style.cursor = ''; });
     });
 
-    // ── CCTV (opens CameraViewer panel) ──
+    // ── Great-circle arc helper ──
+    function greatCircleArc(lng1: number, lat1: number, lng2: number, lat2: number, steps: number = 32): [number, number][] {
+      const toRad = (d: number) => d * Math.PI / 180;
+      const toDeg = (r: number) => r * 180 / Math.PI;
+      const pts: [number, number][] = [];
+      const dLng = toRad(lng2 - lng1);
+      const lat1r = toRad(lat1);
+      const lat2r = toRad(lat2);
+      const lng1r = toRad(lng1);
+      for (let i = 0; i <= steps; i++) {
+        const f = i / steps;
+        const A = Math.sin((1 - f) * Math.PI / 2) / Math.sin(Math.PI / 2);
+        const B = Math.sin(f * Math.PI / 2) / Math.sin(Math.PI / 2);
+        const x = A * Math.cos(lat1r) * Math.cos(lng1r) + B * Math.cos(lat2r) * Math.cos(lng1r + dLng);
+        const y = A * Math.cos(lat1r) * Math.sin(lng1r) + B * Math.cos(lat2r) * Math.sin(lng1r + dLng);
+        const z = A * Math.sin(lat1r) + B * Math.sin(lat2r);
+        const lat = toDeg(Math.atan2(z, Math.sqrt(x * x + y * y)));
+        const lng = toDeg(Math.atan2(y, x));
+        pts.push([lng, lat]);
+      }
+      return pts;
+    }
+
+    // ── CCTV (metadata popup + opens CameraViewer panel) ──
     map.on('click', 'cctv-dots', e => {
       if (!e.features?.length) return;
       const p = e.features[0].properties as any;
       const coords = (e.features[0].geometry as any).coordinates;
-      // Emit the camera data so the CameraViewer opens
-      onEntityClick?.({
-        type: 'cctv',
-        id: p.id,
-        name: p.name,
-        city: p.city,
-        country: p.country,
-        source: p.source,
-        feed_url: p.feed_url,
-        stream_url: p.stream_url,
-        stream_type: p.stream_type,
-        external_url: p.external_url,
-        lat: coords[1],
-        lng: coords[0],
-      });
-      // Also fly to the camera
+      const dotColor = '#7E57C2';
+      const streamType = p.stream_type || 'jpg';
+      const camMeta = [
+        ['SOURCE', p.source || '—'],
+        ['CITY', p.city || '—'],
+        ['COUNTRY', p.country || '—'],
+        ['FEED TYPE', streamType.toUpperCase()],
+      ].map(([k, v]) => `<div><span style="color:#5C5A54;font-size:8px;">${k}</span><br/><span style="color:#E8E6E0;font-size:9px;">${v}</span></div>`).join('');
+      popup(coords, `<div style="${pStyle}border:1px solid ${dotColor}40;">
+        <div style="display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid ${dotColor}40;padding-bottom:6px;margin-bottom:8px;">
+          <div style="color:${dotColor};font-size:11px;font-weight:700;letter-spacing:0.05em;">${p.name || 'CCTV Camera'}</div>
+          <div style="color:#5C5A54;font-size:8px;">${coords[1].toFixed(3)}, ${coords[0].toFixed(3)}</div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:10px;background:rgba(0,0,0,0.3);padding:6px;border-radius:4px;">
+          ${camMeta}
+        </div>
+        <button onclick="window.openOsirisIntel({ type: 'cctv', id: '${p.id}', name: '${p.name?.replace(/'/g, '\\\'') || ''}', city: '${p.city || ''}', country: '${p.country || ''}', source: '${p.source || ''}', feed_url: '${p.feed_url || ''}', stream_url: '${p.stream_url || ''}', stream_type: '${p.stream_type || ''}', external_url: '${p.external_url || ''}', lat: ${coords[1]}, lng: ${coords[0]} })" style="width:100%;padding:7px 12px;background:linear-gradient(90deg,${dotColor}15 0%,${dotColor}25 100%);border:1px solid ${dotColor}80;color:${dotColor};font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:bold;letter-spacing:0.15em;border-radius:4px;cursor:pointer;">OPEN FEED</button>
+      </div>`);
       map.flyTo({ center: coords, zoom: Math.max(map.getZoom(), 13), duration: 1000 });
     });
 
@@ -656,20 +1083,107 @@ function OsirisMap({ data, activeLayers, onEntityClick, onMouseCoords, onRightCl
       </div>`);
     });
 
-    // ── Satellites (SatNOGS powered) ──
+    // ── Satellites (SatNOGS powered + SatNOGS DB enrichment) ──
+    const enrichCache = new Map<string, any>();
     map.on('click', 'sat-dots', e => {
       if (!e.features?.length) return;
       const p = e.features[0].properties as any;
       const coords = (e.features[0].geometry as any).coordinates;
-      popup(coords, `<div style="${pStyle}border:1px solid rgba(212,175,55,0.3);">
-        <div style="color:#D4AF37;font-size:12px;font-weight:700;letter-spacing:0.1em;margin-bottom:4px;">🛰️ ${p.name}</div>
+      const noradId = p.noradId || '';
+      const satName = p.name || 'Unknown';
+
+      const showPopup = (extra: string) => popup(coords, `<div style="${pStyle}border:1px solid rgba(179,136,255,0.3);">
+        ${extra}
         <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:4px;font-size:9px;margin-bottom:8px;">
           <div><span style="color:#5C5A54;">MISSION</span><br/><span style="color:${p.color||'#aaa'};">${p.mission||'Unknown'}</span></div>
           <div><span style="color:#5C5A54;">ALT</span><br/><span style="color:#00E5FF;">${p.alt ? p.alt+' km' : '—'}</span></div>
           <div><span style="color:#5C5A54;">POS</span><br/><span style="color:#E8E6E0;">${coords[1].toFixed(2)}°, ${coords[0].toFixed(2)}°</span></div>
         </div>
-        ${p.noradId ? `<a href="https://db.satnogs.org/satellite/${p.noradId}/" target="_blank" style="display:block;text-align:center;padding:4px;margin-top:6px;font-size:8px;font-family:monospace;letter-spacing:0.1em;text-decoration:none;color:#00E5FF;border:1px solid rgba(0,229,255,0.4);background:rgba(0,229,255,0.1);border-radius:2px;cursor:pointer;">🔭 SOURCE: SATNOGS</a>` : ''}
+        ${noradId ? `<a href="https://db.satnogs.org/satellite/${noradId}/" target="_blank" style="display:block;text-align:center;padding:4px;margin-top:6px;font-size:8px;font-family:monospace;letter-spacing:0.1em;text-decoration:none;color:#00E5FF;border:1px solid rgba(0,229,255,0.4);background:rgba(0,229,255,0.1);border-radius:2px;cursor:pointer;">🔭 SOURCE: SATNOGS</a>` : ''}
       </div>`);
+
+      // Show initial popup with loading
+      const loadingHtml = `<div style="color:#B388FF;font-size:13px;font-weight:700;letter-spacing:0.1em;margin-bottom:6px;">🛰️ ${satName}${noradId ? ' <span style="color:#5C5A54;font-size:9px;font-weight:400;">NORAD: '+noradId+'</span>' : ''}</div>
+        <div style="display:flex;gap:8px;align-items:center;margin-bottom:6px;font-size:9px;color:#5C5A54;">
+          <span style="display:inline-block;width:8px;height:8px;border:1px solid #B388FF;border-top-color:transparent;border-radius:50%;animation:osiris-spin .6s linear infinite;"></span>
+          LOADING SATNOGS DATA...
+        </div>`;
+      showPopup(loadingHtml);
+
+      if (!noradId) return;
+
+      // ── Enrichment fetch ──
+      const cached = enrichCache.get(noradId);
+      const promise = cached
+        ? Promise.resolve(cached)
+        : fetch(`/api/satellites/enrich?noradId=${noradId}`, { cache: 'no-store' })
+            .then(r => r.ok ? r.json() : null)
+            .catch(() => null);
+
+      promise.then(data => {
+        if (!data) {
+          showPopup(`<div style="color:#B388FF;font-size:13px;font-weight:700;letter-spacing:0.1em;margin-bottom:6px;">🛰️ ${satName}${noradId ? ' <span style="color:#5C5A54;font-size:9px;font-weight:400;">NORAD: '+noradId+'</span>' : ''}</div>
+            <div style="font-size:9px;color:#5C5A54;margin-bottom:6px;">ENRICHMENT NOT FOUND</div>`);
+          return;
+        }
+        enrichCache.set(noradId, data);
+
+        const sat = data.satellite;
+        const txs: any[] = data.transmitters || [];
+
+        // Build header
+        let headerHtml = `<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
+          <div style="color:#B388FF;font-size:13px;font-weight:700;letter-spacing:0.1em;">🛰️ ${sat?.name || satName}</div>
+          ${noradId ? `<div style="color:#5C5A54;font-size:9px;font-family:monospace;">#${noradId}</div>` : ''}
+        </div>`;
+
+        // Satellite metadata section
+        let metaHtml = '';
+        if (sat) {
+          const rows: string[] = [];
+          if (sat.countries) rows.push(`<div><span style="color:#5C5A54;">COUNTRIES</span><br/><span style="color:#E8E6E0;">${sat.countries}</span></div>`);
+          if (sat.status) rows.push(`<div><span style="color:#5C5A54;">STATUS</span><br/><span style="color:${sat.status === 'alive' ? '#00E676' : '#FF5252'};">${sat.status.toUpperCase()}</span></div>`);
+          if (sat.operator) rows.push(`<div><span style="color:#5C5A54;">OPERATOR</span><br/><span style="color:#E8E6E0;">${sat.operator}</span></div>`);
+          if (sat.launched) rows.push(`<div><span style="color:#5C5A54;">LAUNCHED</span><br/><span style="color:#E8E6E0;">${sat.launched.split('T')[0]}</span></div>`);
+          if (sat.decayed) rows.push(`<div><span style="color:#5C5A54;">DECAYED</span><br/><span style="color:#FF5252;">${sat.decayed.split('T')[0]}</span></div>`);
+
+          if (rows.length > 0) {
+            metaHtml = `<div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;font-size:9px;margin-bottom:8px;padding:6px;background:rgba(179,136,255,0.06);border-radius:4px;">${rows.join('')}</div>`;
+          }
+        }
+
+        // Transmitters section
+        let txHtml = '';
+        if (txs.length > 0) {
+          const lines = txs.map((tx: any, i: number) => {
+            const freq = (hz: number | null) => hz ? (hz >= 1e9 ? (hz/1e9).toFixed(3)+' GHz' : hz >= 1e6 ? (hz/1e6).toFixed(2)+' MHz' : (hz/1e3).toFixed(1)+' kHz') : '—';
+            return `<div style="padding:4px 0;${i > 0 ? 'border-top:1px solid rgba(179,136,255,0.15);' : ''}">
+              <div style="display:flex;justify-content:space-between;align-items:center;">
+                <span style="color:#B388FF;font-size:9px;font-weight:bold;">${tx.description || tx.type || 'Transmitter'}</span>
+                <span style="color:${tx.alive ? '#00E676' : '#5C5A54'};font-size:8px;">${tx.status?.toUpperCase() || (tx.alive ? 'ACTIVE' : 'INACTIVE')}</span>
+              </div>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:2px;font-size:8px;margin-top:2px;">
+                ${tx.downlink_low ? `<div><span style="color:#5C5A54;">⬇ DL</span> <span style="color:#00E5FF;">${freq(tx.downlink_low)}</span></div>` : ''}
+                ${tx.uplink_low ? `<div><span style="color:#5C5A54;">⬆ UL</span> <span style="color:#FFD740;">${freq(tx.uplink_low)}</span></div>` : ''}
+                ${tx.mode ? `<div><span style="color:#5C5A54;">🔊 MODE</span> <span style="color:#E8E6E0;">${tx.mode}</span></div>` : ''}
+                ${tx.baud ? `<div><span style="color:#5C5A54;">⚡ BAUD</span> <span style="color:#E8E6E0;">${tx.baud}</span></div>` : ''}
+              </div>
+              ${tx.type ? `<div style="font-size:7px;color:#5C5A54;margin-top:2px;">${tx.type}${tx.service && tx.service !== 'Unknown' ? ' · '+tx.service : ''}</div>` : ''}
+            </div>`;
+          });
+          txHtml = `<div style="margin-top:6px;padding:6px;background:rgba(0,0,0,0.3);border-radius:4px;">
+            <div style="font-size:8px;color:#5C5A54;letter-spacing:0.1em;margin-bottom:4px;">═ TRANSMITTERS (${txs.length}) ═</div>
+            ${lines.join('')}
+          </div>`;
+        }
+
+        // Website link
+        const webHtml = sat?.website
+          ? `<a href="${sat.website}" target="_blank" style="display:inline-block;margin-top:6px;padding:3px 8px;font-size:8px;color:#D4AF37;border:1px solid rgba(212,175,55,0.4);background:rgba(212,175,55,0.1);border-radius:4px;text-decoration:none;font-family:'JetBrains Mono',monospace;">🌐 OFFICIAL SITE</a>`
+          : '';
+
+        showPopup(headerHtml + metaHtml + txHtml + webHtml);
+      });
     });
 
     // ── Fires (with NASA FIRMS link) ──
@@ -712,6 +1226,121 @@ function OsirisMap({ data, activeLayers, onEntityClick, onMouseCoords, onRightCl
       </div>`);
     });
 
+    // ── Threat Intel (Blocklist.de, SSL Blacklist, PhishTank) ──
+    map.on('click', 'threat-intel-dots', e => {
+      if (!e.features?.length) return;
+      const p = e.features[0].properties as any;
+      const coords = (e.features[0].geometry as any).coordinates;
+      const tType = (p.threat_type || 'THREAT').toUpperCase();
+      const dotColor = tType.includes('BLOCKLIST') ? '#FF6D00' : tType.includes('SSL') ? '#FF1744' : '#AA00FF';
+      popup(coords, `<div style="${pStyle}border:1px solid ${dotColor}40;box-shadow:inset 0 0 12px ${dotColor}15;">
+        <div style="display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid ${dotColor}40;padding-bottom:6px;margin-bottom:8px;">
+          <div style="color:${dotColor};font-size:12px;font-weight:700;letter-spacing:0.1em;text-shadow:0 0 4px ${dotColor}50;">[ ${tType} ]</div>
+          <div style="color:#5C5A54;font-size:9px;">${p.country || 'UNKNOWN'}</div>
+        </div>
+        <div style="color:#E8E6E0;font-size:11px;font-weight:bold;margin-bottom:10px;">${p.malware || 'Threat'}</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:9px;margin-bottom:12px;background:rgba(0,0,0,0.3);padding:6px;border-radius:4px;">
+          <div><span style="color:#5C5A54;">IP</span><br/><span style="color:#00E5FF;font-family:monospace;">${p.ip}</span></div>
+          <div><span style="color:#5C5A54;">STATUS</span><br/><span style="color:#39FF14;">ACTIVE</span></div>
+        </div>
+        ${p.url ? `<div style="font-size:9px;margin-bottom:8px;word-break:break-all;"><span style="color:#5C5A54;">URL</span><br/><span style="color:#E8E6E0;">${p.url}</span></div>` : ''}
+        <button onclick="window.openOsirisIntel({ type: 'ip', ip: '${p.ip}', threat_type: '${p.threat_type || ''}', status: 'active' })" style="width:100%;margin-top:8px;padding:8px 12px;background:linear-gradient(90deg, ${dotColor}15 0%, ${dotColor}25 100%);border:1px solid ${dotColor}80;color:${dotColor};font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:bold;letter-spacing:0.15em;border-radius:4px;cursor:pointer;transition:all 0.2s;">DEEP DIVE ANALYTICS</button>
+      </div>`);
+    });
+
+    // ── Cyber Intel — Spamhaus DROP (Routing Intelligence) ──
+    map.on('click', 'drop-dots', e => {
+      if (!e.features?.length) return;
+      const p = e.features[0].properties as any;
+      const coords = (e.features[0].geometry as any).coordinates;
+      popup(coords, `<div style="${pStyle}border:1px solid #FF910040;box-shadow:inset 0 0 12px #FF910015;">
+        <div style="display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid #FF910040;padding-bottom:6px;margin-bottom:8px;">
+          <div style="color:#FF9100;font-size:12px;font-weight:700;letter-spacing:0.1em;text-shadow:0 0 4px #FF910050;">[ SPAMHAUS DROP ]</div>
+          <div style="color:#5C5A54;font-size:9px;">${p.country || 'UNKNOWN'}</div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:9px;margin-bottom:12px;background:rgba(0,0,0,0.3);padding:6px;border-radius:4px;">
+          <div><span style="color:#5C5A54;">CIDR</span><br/><span style="color:#00E5FF;font-family:monospace;">${p.cidr}</span></div>
+          <div><span style="color:#5C5A54;">SAMPLE IP</span><br/><span style="color:#39FF14;font-family:monospace;">${p.ip}</span></div>
+        </div>
+        <div style="font-size:9px;color:#5C5A54;">Hostile network block tracked by Spamhaus DROP project</div>
+        <button onclick="window.openOsirisIntel({ type: 'ip', ip: '${p.ip}', threat_type: 'bgp_route', status: 'blocked' })" style="width:100%;margin-top:8px;padding:8px 12px;background:linear-gradient(90deg,#FF910015 0%,#FF910025 100%);border:1px solid #FF910080;color:#FF9100;font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:bold;letter-spacing:0.15em;border-radius:4px;cursor:pointer;transition:all 0.2s;">DEEP DIVE ANALYTICS</button>
+      </div>`);
+    });
+
+    // ── Cyber Intel — Tor Exit Nodes ──
+    map.on('click', 'tor-dots', e => {
+      if (!e.features?.length) return;
+      const p = e.features[0].properties as any;
+      const coords = (e.features[0].geometry as any).coordinates;
+      popup(coords, `<div style="${pStyle}border:1px solid #7C4DFF40;box-shadow:inset 0 0 12px #7C4DFF15;">
+        <div style="display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid #7C4DFF40;padding-bottom:6px;margin-bottom:8px;">
+          <div style="color:#7C4DFF;font-size:12px;font-weight:700;letter-spacing:0.1em;text-shadow:0 0 4px #7C4DFF50;">[ TOR EXIT NODE ]</div>
+          <div style="color:#5C5A54;font-size:9px;">${p.country || 'UNKNOWN'}</div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:9px;margin-bottom:12px;background:rgba(0,0,0,0.3);padding:6px;border-radius:4px;">
+          <div><span style="color:#5C5A54;">IP</span><br/><span style="color:#00E5FF;font-family:monospace;">${p.ip}</span></div>
+          <div><span style="color:#5C5A54;">NETWORK</span><br/><span style="color:#39FF14;font-family:monospace;">TOR</span></div>
+        </div>
+        <div style="font-size:9px;color:#5C5A54;">This IP is a known Tor exit relay — traffic originates from the Tor anonymity network</div>
+        <button onclick="window.openOsirisIntel({ type: 'ip', ip: '${p.ip}', threat_type: 'tor_exit', status: 'active' })" style="width:100%;margin-top:8px;padding:8px 12px;background:linear-gradient(90deg,#7C4DFF15 0%,#7C4DFF25 100%);border:1px solid #7C4DFF80;color:#7C4DFF;font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:bold;letter-spacing:0.15em;border-radius:4px;cursor:pointer;transition:all 0.2s;">DEEP DIVE ANALYTICS</button>
+      </div>`);
+    });
+
+    // ── Cyber Intel — Active CVE Threats ──
+    map.on('click', 'cve-dots', e => {
+      if (!e.features?.length) return;
+      const p = e.features[0].properties as any;
+      const coords = (e.features[0].geometry as any).coordinates;
+      const cveColor = p.cvss >= 9 ? '#FF1744' : p.cvss >= 7 ? '#FF6D00' : p.cvss >= 4 ? '#FF9100' : '#00E5FF';
+      popup(coords, `<div style="${pStyle}border:1px solid ${cveColor}40;box-shadow:inset 0 0 12px ${cveColor}15;">
+        <div style="display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid ${cveColor}40;padding-bottom:6px;margin-bottom:8px;">
+          <div style="color:${cveColor};font-size:12px;font-weight:700;letter-spacing:0.1em;text-shadow:0 0 4px ${cveColor}50;">[ ${p.title} ]</div>
+          <div style="color:#5C5A54;font-size:9px;">CVSS ${p.cvss}</div>
+        </div>
+        <div style="font-size:10px;color:#E8E6E0;margin-bottom:10px;line-height:1.4;">${p.summary || 'No description available'}</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:9px;margin-bottom:12px;background:rgba(0,0,0,0.3);padding:6px;border-radius:4px;">
+          <div><span style="color:#5C5A54;">SEVERITY</span><br/><span style="color:${cveColor};font-weight:bold;">${p.severity}</span></div>
+          <div><span style="color:#5C5A54;">VENDORS</span><br/><span style="color:#39FF14;">${p.vendors || 'N/A'}</span></div>
+        </div>
+        <button onclick="window.openOsirisIntel({ type: 'cve', id: '${p.title}', cvss: ${p.cvss}, severity: '${p.severity}' })" style="width:100%;margin-top:8px;padding:8px 12px;background:linear-gradient(90deg,${cveColor}15 0%,${cveColor}25 100%);border:1px solid ${cveColor}80;color:${cveColor};font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:bold;letter-spacing:0.15em;border-radius:4px;cursor:pointer;transition:all 0.2s;">DEEP DIVE ANALYTICS</button>
+      </div>`);
+    });
+
+    // ── Cyber Intel — MITRE ATT&CK (APT Groups) ──
+    map.on('click', 'mitre-dots', e => {
+      if (!e.features?.length) return;
+      const p = e.features[0].properties as any;
+      const coords = (e.features[0].geometry as any).coordinates;
+      const techIds = p.techniques?.length ? p.techniques.split(',') : [];
+      const techNames = p.technique_names?.length ? p.technique_names.split('|') : [];
+      const techDescs = p.technique_descriptions?.length ? p.technique_descriptions.split('|') : [];
+      const techRows = techIds.map((id: string, i: number) => {
+        const name = techNames[i] || id;
+        const desc = techDescs[i] || '';
+        return `<div style="background:rgba(0,230,118,0.06);border-left:2px solid #00E67660;padding:4px 6px;margin-bottom:4px;border-radius:0 3px 3px 0;">
+          <div style="display:flex;gap:6px;align-items:baseline;">
+            <span style="color:#00E5FF;font-family:monospace;font-size:8px;font-weight:700;">${id}</span>
+            <span style="color:#E8E6E0;font-size:9px;font-weight:600;">${name}</span>
+          </div>
+          ${desc ? `<div style="color:#8A8A84;font-size:8px;margin-top:2px;line-height:1.4;">${desc}</div>` : ''}
+        </div>`;
+      }).join('');
+      popup(coords, `<div style="${pStyle}border:1px solid #00E67640;box-shadow:inset 0 0 12px #00E67615;max-width:280px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid #00E67640;padding-bottom:6px;margin-bottom:8px;">
+          <div style="color:#00E676;font-size:12px;font-weight:700;letter-spacing:0.1em;text-shadow:0 0 4px #00E67650;">[ ${p.name} ]</div>
+          <div style="color:#5C5A54;font-size:9px;">${p.country || 'UNKNOWN'}</div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:9px;margin-bottom:10px;background:rgba(0,0,0,0.3);padding:6px;border-radius:4px;">
+          <div><span style="color:#5C5A54;">GROUP ID</span><br/><span style="color:#00E5FF;font-family:monospace;">${p.group_id}</span></div>
+          <div><span style="color:#5C5A54;">COUNTRY</span><br/><span style="color:#39FF14;">${p.country}</span></div>
+        </div>
+        <div style="font-size:8px;color:#5C5A54;text-transform:uppercase;letter-spacing:0.12em;margin-bottom:4px;">TECHNIQUES (${techIds.length})</div>
+        ${techRows}
+        <div style="border-top:1px solid #00E67620;margin-top:8px;padding-top:6px;">
+          <button onclick="window.openOsirisIntel({ type: 'apt', group: '${p.name}', group_id: '${p.group_id}', country: '${p.country}', techniques: '${p.techniques || ''}' })" style="width:100%;padding:7px 12px;background:linear-gradient(90deg,#00E67615 0%,#00E67625 100%);border:1px solid #00E67680;color:#00E676;font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:bold;letter-spacing:0.15em;border-radius:4px;cursor:pointer;">DEEP DIVE ANALYTICS</button>
+        </div>
+      </div>`);
+    });
 
     // ── GDELT Conflicts (with source article) ──
     map.on('click', 'gdelt-dots', e => {
@@ -792,7 +1421,7 @@ function OsirisMap({ data, activeLayers, onEntityClick, onMouseCoords, onRightCl
     });
 
     // ── Generic hover for clickables ──
-    ['conflict-icons','cctv-dots','eq-circles','sat-dots','fires-heat','gdelt-dots','weather-dots','infra-dots','maritime-dots','choke-dots','news-dots','sigint-news-dots','balloon-dots','rad-dots','ship-dots','sweep-device-dots','scan-targets-dots','sdk-sea','sdk-sea-glow','sdk-sea-atmo','sdk-air','sdk-air-glow','sdk-air-atmo','sdk-intel','sdk-intel-glow','sdk-intel-atmo','malware-dots'].forEach(layer => {
+    ['conflict-icons','cctv-dots','eq-circles','sat-dots','sat-label','fires-heat','gdelt-dots','weather-dots','infra-dots','maritime-dots','choke-dots','news-dots','sigint-news-dots','balloon-dots','rad-dots','ship-dots','sweep-device-dots','scan-targets-dots','sdk-sea','sdk-sea-glow','sdk-sea-atmo','sdk-air','sdk-air-glow','sdk-air-atmo','sdk-intel','sdk-intel-glow','sdk-intel-atmo','malware-dots','ransomware-dots','power-plants-dots','cables-line','cable-landing-points-dots'].forEach(layer => {
       map.on('mouseenter', layer, () => { map.getCanvas().style.cursor = 'pointer'; });
       map.on('mouseleave', layer, () => { map.getCanvas().style.cursor = ''; });
     });
@@ -1014,6 +1643,100 @@ function OsirisMap({ data, activeLayers, onEntityClick, onMouseCoords, onRightCl
       });
     });
 
+    // ── Ransomware Victims (Ransomware.live) ──
+    map.on('click', 'ransomware-dots', e => {
+      if (!e.features?.length) return;
+      const p = e.features[0].properties as any;
+      const coords = (e.features[0].geometry as any).coordinates;
+      popup(coords, `<div style="${pStyle}border:1px solid rgba(255,23,68,0.4);box-shadow:inset 0 0 12px rgba(255,23,68,0.1);">
+        <div style="display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid rgba(255,23,68,0.3);padding-bottom:6px;margin-bottom:8px;">
+          <div style="color:#FF1744;font-size:12px;font-weight:700;letter-spacing:0.1em;text-shadow:0 0 4px rgba(255,23,68,0.5);">[ RANSOMWARE ]</div>
+          <div style="color:#5C5A54;font-size:9px;">${p.country || p.country_code || 'UNKNOWN'}</div>
+        </div>
+        <div style="color:#E8E6E0;font-size:11px;font-weight:bold;margin-bottom:10px;">${p.post_title || 'Ransomware Incident'}</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:9px;margin-bottom:12px;background:rgba(0,0,0,0.3);padding:6px;border-radius:4px;">
+          <div><span style="color:#5C5A54;">GROUP</span><br/><span style="color:#00E5FF;font-weight:bold;">${p.group_name || '—'}</span></div>
+          <div><span style="color:#5C5A54;">SECTOR</span><br/><span style="color:#E8E6E0;">${p.activity || '—'}</span></div>
+          <div><span style="color:#5C5A54;">DISCOVERED</span><br/><span style="color:#E8E6E0;">${p.discovered || '—'}</span></div>
+          <div><span style="color:#5C5A54;">PUBLISHED</span><br/><span style="color:#E8E6E0;">${p.published || '—'}</span></div>
+        </div>
+        ${p.revenue ? `<div style="font-size:9px;color:#5C5A54;margin-bottom:4px;">Revenue: <span style="color:#D4AF37;">$${Number(p.revenue).toLocaleString()}</span></div>` : ''}
+        ${p.employees ? `<div style="font-size:9px;color:#5C5A54;margin-bottom:4px;">Employees: <span style="color:#E8E6E0;">${Number(p.employees).toLocaleString()}</span></div>` : ''}
+        ${p.website ? `<a href="${p.website}" target="_blank" style="${linkStyle}color:#FF1744;border:1px solid rgba(255,23,68,0.4);background:rgba(255,23,68,0.1);">LEAK SITE ↗</a>` : ''}
+        <button onclick="window.openOsirisIntel({ type: 'ip', ip: '${p.group_name || ''}', threat_type: 'ransomware', status: 'active' })" style="width:100%;margin-top:8px;padding:8px 12px;background:linear-gradient(90deg, rgba(255,23,68,0.1) 0%, rgba(255,23,68,0.2) 100%);border:1px solid rgba(255,23,68,0.6);color:#FF1744;font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:bold;letter-spacing:0.15em;border-radius:4px;cursor:pointer;transition:all 0.2s;">DEEP DIVE ANALYTICS</button>
+      </div>`);
+    });
+
+    // ── Power Plants (WRI Global Database) ──
+    map.on('click', 'power-plants-dots', e => {
+      if (!e.features?.length) return;
+      const p = e.features[0].properties as any;
+      const coords = (e.features[0].geometry as any).coordinates;
+      const fuelColor = p.fuel_type === 'Solar' ? '#F9A825' : p.fuel_type === 'Wind' ? '#4FC3F7' : p.fuel_type === 'Hydro' ? '#1565C0' : p.fuel_type === 'Nuclear' ? '#D32F2F' : p.fuel_type === 'Coal' ? '#424242' : '#26A69A';
+      popup(coords, `<div style="${pStyle}border:1px solid ${fuelColor}40;">
+        <div style="color:${fuelColor};font-size:13px;font-weight:700;margin-bottom:4px;">⚡ ${p.name || 'Power Plant'}</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:9px;margin-bottom:8px;">
+          <div><span style="color:#5C5A54;">FUEL TYPE</span><br/><span style="color:${fuelColor};font-weight:bold;">${p.fuel_type || '—'}</span></div>
+          <div><span style="color:#5C5A54;">CAPACITY</span><br/><span style="color:#E8E6E0;">${p.capacity_mw ? Number(p.capacity_mw).toLocaleString() + ' MW' : '—'}</span></div>
+          <div><span style="color:#5C5A54;">COUNTRY</span><br/><span style="color:#E8E6E0;">${p.country_long || p.country || '—'}</span></div>
+          <div><span style="color:#5C5A54;">YEAR</span><br/><span style="color:#E8E6E0;">${p.commissioning_year || '—'}</span></div>
+        </div>
+        ${p.owner ? `<div style="font-size:9px;color:#5C5A54;">Owner: <span style="color:#E8E6E0;">${p.owner}</span></div>` : ''}
+        <a href="https://www.google.com/maps/@${coords[1]},${coords[0]},14z" target="_blank" style="${linkStyle}color:${fuelColor};border:1px solid ${fuelColor}40;background:${fuelColor}10;">SATELLITE VIEW</a>
+      </div>`);
+    });
+
+    // ── Submarine Cables ──
+    // Hide cable highlight on any map click
+    map.on('click', () => {
+      if (map.getLayer('cable-highlight')) {
+        map.setLayoutProperty('cable-highlight', 'visibility', 'none');
+      }
+    });
+
+    map.on('click', 'cables-line', e => {
+      if (!e.features?.length) return;
+      const p = e.features[0].properties as any;
+      const coords = e.lngLat;
+      const cableColor = p.color || '#FF6D00';
+      const cableUrl = p.id ? `https://www.submarinecablemap.com/cable/${p.id}` : 'https://www.submarinecablemap.com/';
+
+      // Set cable highlight
+      if (map.getLayer('cable-highlight') && p.feature_id) {
+        map.setFilter('cable-highlight', ['==', ['get', 'feature_id'], p.feature_id]);
+        map.setLayoutProperty('cable-highlight', 'visibility', 'visible');
+      }
+
+      const length = p.length || '—';
+      const rfsYear = p.rfs_year || '—';
+      const owners = p.owners || '—';
+      const landingPts = p.landing_points
+        ? `${Array.isArray(p.landing_points) ? p.landing_points.length : 0} landing points`
+        : '—';
+
+      popup([coords.lng, coords.lat], `<div style="${pStyle}border:1px solid ${cableColor}40;">
+        <div style="color:${cableColor};font-size:13px;font-weight:700;margin-bottom:4px;">🔌 ${p.name || 'Submarine Cable'}</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:9px;margin-bottom:8px;">
+          <div><span style="color:#5C5A54;">LENGTH</span><br/><span style="color:#E8E6E0;">${length}</span></div>
+          <div><span style="color:#5C5A54;">RFS YEAR</span><br/><span style="color:#E8E6E0;">${rfsYear}</span></div>
+          <div><span style="color:#5C5A54;">OWNERS</span><br/><span style="color:#E8E6E0;">${owners}</span></div>
+          <div><span style="color:#5C5A54;">LANDING PTS</span><br/><span style="color:#E8E6E0;">${landingPts}</span></div>
+        </div>
+        <a href="${cableUrl}" target="_blank" rel="noopener noreferrer" style="${linkStyle}color:${cableColor};border:1px solid ${cableColor}40;background:${cableColor}15;">VIEW ON SUBMARINECABLEMAP ↗</a>
+      </div>`);
+    });
+
+    map.on('click', 'cable-landing-points-dots', e => {
+      if (!e.features?.length) return;
+      const p = e.features[0].properties as any;
+      const coords = (e.features[0].geometry as any).coordinates;
+      const lpUrl = p.id ? `https://www.submarinecablemap.com/landing-point/${p.id}` : 'https://www.submarinecablemap.com/';
+      popup(coords, `<div style="${pStyle}border:1px solid rgba(255,109,0,0.4);">
+        <div style="color:#FF6D00;font-size:12px;font-weight:700;margin-bottom:4px;">📍 ${p.name || 'Landing Point'}</div>
+        <a href="${lpUrl}" target="_blank" rel="noopener noreferrer" style="${linkStyle}color:#FF6D00;border:1px solid rgba(255,109,0,0.4);background:rgba(255,109,0,0.1);">VIEW ON SUBMARINECABLEMAP ↗</a>
+      </div>`);
+    });
+
     return () => { map.remove(); mapRef.current = null; };
   }, []);
 
@@ -1106,6 +1829,8 @@ function OsirisMap({ data, activeLayers, onEntityClick, onMouseCoords, onRightCl
       updateMapIcon('plane-pink', flightGov, 24);
       updateMapIcon('plane-red', flightMil, 24);
       updateMapIcon('plane-grey', isGhost ? phantomPurple : '#546E7A', 24);
+
+
     }, [mapReady, theme]);
 
   // ── DECOUPLED LAYER RENDERERS (Performance Optimized) ──
@@ -1117,7 +1842,33 @@ function OsirisMap({ data, activeLayers, onEntityClick, onMouseCoords, onRightCl
 
   useEffect(() => {
     if (!mapReady) return;
-    setGeo('satellites', activeLayers.satellites && data.satellites ? data.satellites.map((s: any) => ({ type: 'Feature', geometry: { type: 'Point', coordinates: [s.lng, s.lat] }, properties: { name: s.name, color: s.color, mission: s.mission, alt: s.alt, noradId: s.noradId } })) : []);
+    const sats = activeLayers.satellites && data.satellites ? data.satellites : [];
+    setGeo('satellites', sats.length ? sats.map((s: any) => ({ type: 'Feature', geometry: { type: 'Point', coordinates: [s.lng, s.lat] }, properties: { name: s.name, color: s.color, mission: s.mission, alt: s.alt, noradId: s.noradId } })) : []);
+    // Orbit ground tracks — store all in ref, then filter by viewport
+    const allOrbitFeatures: any[] = [];
+    if (sats.length) {
+      for (const s of sats) {
+        if (s.groundTrack && s.groundTrack.length) {
+          allOrbitFeatures.push({
+            type: 'Feature',
+            geometry: { type: 'LineString', coordinates: s.groundTrack as [number, number][] },
+            properties: { color: s.color || '#B388FF' },
+          });
+        }
+      }
+    }
+    orbitFeaturesRef.current = allOrbitFeatures;
+    // Apply viewport filtering immediately
+    const map = mapRef.current;
+    if (map && map.getZoom() >= 5) {
+      const bounds = map.getBounds();
+      const filtered = allOrbitFeatures.filter((f: any) =>
+        f.geometry.coordinates.some(([lng, lat]: number[]) => bounds.contains([lng, lat]))
+      );
+      setGeo('orbit', filtered);
+    } else {
+      setGeo('orbit', allOrbitFeatures);
+    }
   }, [mapReady, data.satellites, activeLayers.satellites, setGeo]);
 
   useEffect(() => {
@@ -1130,6 +1881,37 @@ function OsirisMap({ data, activeLayers, onEntityClick, onMouseCoords, onRightCl
     if (!mapReady) return;
     setGeo('malware-nodes', activeLayers.malware && data.malware_threats ? data.malware_threats.map((t: any) => ({ type: 'Feature', geometry: { type: 'Point', coordinates: [t.lng, t.lat] }, properties: { ip: t.ip, malware: t.malware, status: t.status, threat_type: t.threat_type, country: t.country } })) : []);
   }, [mapReady, data.malware_threats, activeLayers.malware, setGeo]);
+
+  // Threat Intel (Blocklist.de, SSL Blacklist, PhishTank)
+  useEffect(() => {
+    if (!mapReady) return;
+    const anyActive = activeLayers.blocklist || activeLayers.phishing || activeLayers.ssl_blacklist;
+    setGeo('threat-intel-nodes', anyActive && data.threat_intel ? data.threat_intel.map((t: any) => ({ type: 'Feature', geometry: { type: 'Point', coordinates: [t.lng, t.lat] }, properties: { ip: t.ip, malware: t.malware, threat_type: t.threat_type, country: t.country, url: t.url || '' } })) : []);
+  }, [mapReady, data.threat_intel, activeLayers.blocklist, activeLayers.phishing, activeLayers.ssl_blacklist, setGeo]);
+
+  // Cyber Intel — Spamhaus DROP (BGP routing hostile CIDRs)
+  useEffect(() => {
+    if (!mapReady) return;
+    setGeo('drop-nodes', activeLayers.bgp_routes && data.cyber_intel?.spamhaus_drop ? data.cyber_intel.spamhaus_drop.map((t: any) => ({ type: 'Feature', geometry: { type: 'Point', coordinates: [t.lng, t.lat] }, properties: { cidr: t.cidr, ip: t.sample_ip, country: t.country, source: t.source, threat_type: t.threat_type } })) : []);
+  }, [mapReady, data.cyber_intel, activeLayers.bgp_routes, setGeo]);
+
+  // Cyber Intel — Tor Exit Nodes
+  useEffect(() => {
+    if (!mapReady) return;
+    setGeo('tor-nodes', activeLayers.tor_nodes && data.cyber_intel?.tor_exit_nodes ? data.cyber_intel.tor_exit_nodes.map((t: any) => ({ type: 'Feature', geometry: { type: 'Point', coordinates: [t.lng, t.lat] }, properties: { ip: t.ip, country: t.country, source: t.source, threat_type: t.threat_type } })) : []);
+  }, [mapReady, data.cyber_intel?.tor_exit_nodes, activeLayers.tor_nodes, setGeo]);
+
+  // Cyber Intel — Active CVE Threats
+  useEffect(() => {
+    if (!mapReady) return;
+    setGeo('cve-nodes', activeLayers.cve_feed && data.cyber_intel?.cve_nodes ? data.cyber_intel.cve_nodes.map((t: any) => ({ type: 'Feature', geometry: { type: 'Point', coordinates: [t.lng, t.lat] }, properties: { title: t.title, cvss: t.cvss, severity: t.severity, summary: t.summary?.slice(0, 120), vendors: t.vendors?.join(','), source: t.source, threat_type: t.threat_type } })) : []);
+  }, [mapReady, data.cyber_intel?.cve_nodes, activeLayers.cve_feed, setGeo]);
+
+  // Cyber Intel — MITRE ATT&CK (APT Groups)
+  useEffect(() => {
+    if (!mapReady) return;
+    setGeo('mitre-nodes', activeLayers.mitre_attack && data.cyber_intel?.mitre_nodes ? data.cyber_intel.mitre_nodes.map((t: any) => ({ type: 'Feature', geometry: { type: 'Point', coordinates: [t.lng, t.lat] }, properties: { name: t.name, group_id: t.id, country: t.country, techniques: t.techniques?.join(','), technique_names: t.technique_names?.join('|'), technique_descriptions: t.technique_descriptions?.join('|'), source: t.source, threat_type: t.threat_type } })) : []);
+  }, [mapReady, data.cyber_intel?.mitre_nodes, activeLayers.mitre_attack, setGeo]);
 
   // Network Mesh Generation (Nearest Neighbor Lattice)
   useEffect(() => {
@@ -1157,7 +1939,7 @@ function OsirisMap({ data, activeLayers, onEntityClick, onMouseCoords, onRightCl
 
   useEffect(() => {
     if (!mapReady) return;
-    setGeo('gps-jamming', activeLayers.gps_jamming && data.gps_jamming ? data.gps_jamming.map((z: any) => ({ type: 'Feature', geometry: { type: 'Point', coordinates: [z.lng, z.lat] }, properties: { severity: z.severity } })) : []);
+    setGeo('gps-jamming', activeLayers.gps_jamming && data.gps_jamming ? data.gps_jamming : []);
   }, [mapReady, data.gps_jamming, activeLayers.gps_jamming, setGeo]);
 
   useEffect(() => {
@@ -1209,35 +1991,8 @@ function OsirisMap({ data, activeLayers, onEntityClick, onMouseCoords, onRightCl
       return;
     }
 
-    const links: any[] = [];
-
-    // ── SEA DOMAIN: Real submarine cable data (1-for-1 Match) ──
-    if (activeLayers.sdk_sea && data.submarine_cables) {
-      const ignoredColors = new Set(['#9BB5CC', '#A0B8CD', '#8EABC2', '#9bb5cc', '#a0b8cd', '#8eabc2']);
-      for (const cable of data.submarine_cables) {
-        if (!cable.geometry) continue;
-        
-        // Remove the light blue background arcs
-        if (cable.properties?.color && ignoredColors.has(cable.properties.color)) continue;
-        
-        links.push({
-          type: 'Feature',
-          geometry: cable.geometry, // Raw topographic paths exactly from Submarine Map
-          properties: {
-            domain: 'SEA',
-            fromName: cable.properties?.name || 'Submarine Cable',
-            toName: cable.properties?.landing_points || '',
-            source: 'Global Subsea Cable Network',
-            url: 'https://www.submarinecablemap.com/',
-            ...cable.properties,
-            color: '#1976D2', // Darker blue as requested, more transparent in layer paint
-          },
-        });
-      }
-    }
-
-    setGeo('sdk-links', links);
-  }, [mapReady, activeLayers.sdk_sea, activeLayers.sdk_air, activeLayers.sdk_naval, data.submarine_cables, setGeo]);
+    setGeo('sdk-links', []);
+  }, [mapReady, activeLayers.sdk_sea, activeLayers.sdk_air, activeLayers.sdk_naval, setGeo]);
 
   useEffect(() => {
     if (!mapReady) return;
@@ -1255,6 +2010,34 @@ function OsirisMap({ data, activeLayers, onEntityClick, onMouseCoords, onRightCl
         }))
       : []);
   }, [mapReady, data.news, activeLayers.news_intel, setGeo]);
+
+  useEffect(() => {
+    if (!mapReady) return;
+    setGeo('cables', activeLayers.cables && data.submarine_cables ? data.submarine_cables.map((c: any) => ({
+      type: 'Feature', geometry: c.geometry,
+      properties: { name: c.properties?.name, color: c.properties?.color, length_km: c.properties?.length_km, rfs_year: c.properties?.rfs_year, owners: c.properties?.owners, landing_points: c.properties?.landing_points }
+    })) : []);
+    setGeo('cable-landing-points', activeLayers.cables && data.submarine_cables_landing_points ? data.submarine_cables_landing_points.map((lp: any) => ({
+      type: 'Feature', geometry: lp.geometry,
+      properties: { name: lp.properties?.name }
+    })) : []);
+  }, [mapReady, data.submarine_cables, data.submarine_cables_landing_points, activeLayers.cables, setGeo]);
+
+  useEffect(() => {
+    if (!mapReady) return;
+    setGeo('ransomware', activeLayers.ransomware && data.ransomware ? data.ransomware.map((r: any) => ({
+      type: 'Feature', geometry: r.geometry,
+      properties: { ...r.properties }
+    })) : []);
+  }, [mapReady, data.ransomware, activeLayers.ransomware, setGeo]);
+
+  useEffect(() => {
+    if (!mapReady) return;
+    setGeo('power_plants', activeLayers.power_plants && data.power_plants ? data.power_plants.map((p: any) => ({
+      type: 'Feature', geometry: p.geometry,
+      properties: { ...p.properties }
+    })) : []);
+  }, [mapReady, data.power_plants, activeLayers.power_plants, setGeo]);
 
   useEffect(() => {
     if (!mapReady) return;
@@ -1287,12 +2070,17 @@ function OsirisMap({ data, activeLayers, onEntityClick, onMouseCoords, onRightCl
   useEffect(() => {
     if (!mapReady) return;
     setVis(['eq-circles','eq-label'], activeLayers.earthquakes);
-    setVis(['sat-dots'], activeLayers.satellites);
+    setVis(['sat-glow','sat-dots','sat-label','orbit-line'], activeLayers.satellites);
     setVis(['gdelt-dots'], activeLayers.global_incidents);
 
     setVis(['malware-glow','malware-dots','malware-label'], activeLayers.malware);
     setVis(['network-mesh-atmo', 'network-mesh-glow', 'network-mesh-core'], activeLayers.internet_outages || activeLayers.malware);
-    setVis(['jam-fill','jam-label'], activeLayers.gps_jamming);
+    setVis(['threat-intel-glow','threat-intel-dots','threat-intel-label'], activeLayers.blocklist || activeLayers.phishing || activeLayers.ssl_blacklist);
+    setVis(['drop-glow','drop-dots','drop-label'], activeLayers.bgp_routes);
+    setVis(['tor-glow','tor-dots','tor-label'], activeLayers.tor_nodes);
+    setVis(['cve-glow','cve-dots','cve-label'], activeLayers.cve_feed);
+    setVis(['mitre-glow','mitre-dots','mitre-label'], activeLayers.mitre_attack);
+    setVis(['jam-fill','jam-line','jam-label'], activeLayers.gps_jamming);
     setVis(['day-night-fill'], activeLayers.day_night);
     setVis(['fl-commercial'], activeLayers.flights);
     setVis(['fl-private'], activeLayers.private);
@@ -1314,6 +2102,9 @@ function OsirisMap({ data, activeLayers, onEntityClick, onMouseCoords, onRightCl
     setVis(['sdk-sea','sdk-sea-glow','sdk-sea-atmo'], activeLayers.sdk_sea !== false);
     setVis(['sdk-air','sdk-air-glow','sdk-air-atmo'], activeLayers.sdk_air !== false);
     setVis(['sdk-intel','sdk-intel-glow','sdk-intel-atmo'], activeLayers.sdk_naval !== false);
+    setVis(['cables-line','cables-glow','cable-landing-points-dots'], activeLayers.cables);
+    setVis(['ransomware-glow','ransomware-dots','ransomware-label'], activeLayers.ransomware);
+    setVis(['power-plants-glow','power-plants-dots','power-plants-label'], activeLayers.power_plants);
     // Sweep layers always visible when data is present (controlled by useEffect)
     setVis(['sweep-connections','sweep-pulse-ring','sweep-device-glow','sweep-device-dots','sweep-device-labels'], true);
   }, [mapReady, activeLayers, setVis]);
