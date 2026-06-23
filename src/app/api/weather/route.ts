@@ -22,7 +22,7 @@ type WeatherEvent = {
   expires?: string;
   area?: string;
   source: string;
-  provider: 'NASA EONET' | 'NOAA/NWS';
+  provider: 'NASA EONET' | 'NOAA/NWS' | 'GDACS';
 };
 
 type EonetEvent = {
@@ -81,7 +81,7 @@ type NwsResponse = {
 
 export async function GET() {
   try {
-    const [eonetRes, nwsRes] = await Promise.allSettled([
+    const [eonetRes, nwsRes, gdacsRes] = await Promise.allSettled([
       stealthFetch('https://eonet.gsfc.nasa.gov/api/v3/events?status=open&limit=100', {
         signal: AbortSignal.timeout(10000),
       }),
@@ -90,6 +90,11 @@ export async function GET() {
           Accept: 'application/geo+json',
           'User-Agent': 'OSIRIS Severe Weather Layer',
         },
+        signal: AbortSignal.timeout(10000),
+      }),
+      // GDACS — global disaster alerts (cyclones, floods, droughts, volcanoes).
+      fetch('https://www.gdacs.org/gdacsapi/api/events/geteventlist/EVENTS4APP', {
+        headers: { 'User-Agent': 'OSIRIS Severe Weather Layer' },
         signal: AbortSignal.timeout(10000),
       }),
     ]);
@@ -180,6 +185,52 @@ export async function GET() {
         }
       } catch (error) {
         console.error('NOAA/NWS normalization error:', error);
+      }
+    }
+
+    if (gdacsRes.status === 'fulfilled' && gdacsRes.value.ok) {
+      try {
+        const data = (await gdacsRes.value.json()) as { features?: any[] };
+        providerSucceeded = true;
+
+        // Hazard types already covered by dedicated layers are skipped.
+        const skip = new Set(['EQ', 'WF']);
+        const typeLabels: Record<string, { label: string; icon: string }> = {
+          TC: { label: 'Tropical Cyclone', icon: 'cyclone' },
+          FL: { label: 'Flood', icon: 'flood' },
+          DR: { label: 'Drought', icon: 'drought' },
+          VO: { label: 'Volcano', icon: 'volcano' },
+          TS: { label: 'Tsunami', icon: 'tsunami' },
+        };
+
+        for (const f of data.features || []) {
+          const p = f.properties || {};
+          const code: string = p.eventtype || '';
+          if (skip.has(code)) continue;
+          const coords = f.geometry?.coordinates;
+          if (!coords || coords.length < 2) continue;
+
+          const meta = typeLabels[code] || { label: p.name || 'Disaster Alert', icon: 'alert' };
+          const color: string = (p.alertlevel || (/\/(Green|Orange|Red)\//.exec(p.icon || '')?.[1]) || '').toLowerCase();
+          const severity: Severity = color === 'red' ? 'high' : color === 'orange' ? 'medium' : 'low';
+
+          events.push({
+            id: `gdacs-${p.eventtype}-${p.eventid}`,
+            title: p.name || p.description || meta.label,
+            category: 'disasterAlerts',
+            type: meta.label,
+            icon: meta.icon,
+            severity,
+            lat: coords[1],
+            lng: coords[0],
+            date: p.fromdate || p.datemodified,
+            area: p.country || undefined,
+            source: p.url?.report || 'https://www.gdacs.org',
+            provider: 'GDACS',
+          });
+        }
+      } catch (error) {
+        console.error('GDACS normalization error:', error);
       }
     }
 

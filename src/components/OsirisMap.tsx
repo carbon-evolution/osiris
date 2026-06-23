@@ -1078,8 +1078,9 @@ map.addSource('mitre-nodes', { type: 'geojson', data: EMPTY_FC });
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;font-size:9px;">
           <div><span style="color:#5C5A54;">DEPTH</span><br/><span style="color:#E8E6E0;">${p.depth||'—'}km</span></div>
           <div><span style="color:#5C5A54;">COORDS</span><br/><span style="color:#E8E6E0;">${coords[1].toFixed(3)}, ${coords[0].toFixed(3)}</span></div>
+          <div><span style="color:#5C5A54;">SOURCE</span><br/><span style="color:#FFB74D;">${p.source||'USGS'}</span></div>
         </div>
-        <a href="${p.source === 'NIGGG-BAS' ? 'https://ndc.niggg.bas.bg/' : `https://earthquake.usgs.gov/earthquakes/eventpage/${p.id||''}`}" target="_blank" style="${linkStyle}color:#FF9500;border:1px solid rgba(255,149,0,0.4);background:rgba(255,149,0,0.1);">📊 ${p.source === 'NIGGG-BAS' ? 'NIGGG-BAS' : 'USGS DETAILS'}</a>
+        ${p.url ? `<a href="${p.url}" target="_blank" style="${linkStyle}color:#FF9500;border:1px solid rgba(255,149,0,0.4);background:rgba(255,149,0,0.1);">📊 ${p.source||'USGS'} DETAILS</a>` : ''}
       </div>`);
     });
 
@@ -1191,11 +1192,15 @@ map.addSource('mitre-nodes', { type: 'geojson', data: EMPTY_FC });
       if (!e.features?.length) return;
       const p = e.features[0].properties as any;
       const coords = (e.features[0].geometry as any).coordinates;
+      const isVolcano = p.type === 'volcano';
       popup(coords, `<div style="${pStyle}border:1px solid rgba(255,107,0,0.3);">
-        <div style="color:#FF6B00;font-size:12px;font-weight:700;margin-bottom:6px;">🔥 ACTIVE FIRE DETECTED</div>
+        <div style="color:#FF6B00;font-size:12px;font-weight:700;margin-bottom:6px;">${isVolcano ? '🌋 ' + (p.title || 'VOLCANO') : '🔥 ACTIVE FIRE DETECTED'}</div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;font-size:9px;margin-bottom:8px;">
           <div><span style="color:#5C5A54;">BRIGHTNESS</span><br/><span style="color:#FF6B00;">${p.brightness||'—'}K</span></div>
-          <div><span style="color:#5C5A54;">COORDS</span><br/><span style="color:#E8E6E0;">${coords[1].toFixed(3)}°, ${coords[0].toFixed(3)}°</span></div>
+          <div><span style="color:#5C5A54;">FIRE POWER</span><br/><span style="color:#FFB74D;">${p.frp ? Number(p.frp).toFixed(1)+' MW' : '—'}</span></div>
+          <div><span style="color:#5C5A54;">SATELLITE</span><br/><span style="color:#E8E6E0;">${p.satellite||'—'}</span></div>
+          <div><span style="color:#5C5A54;">CONFIDENCE</span><br/><span style="color:#E8E6E0;">${p.confidence||'—'}${p.daynight ? ' · '+String(p.daynight).toUpperCase() : ''}</span></div>
+          <div style="grid-column:1/3;"><span style="color:#5C5A54;">COORDS</span><br/><span style="color:#E8E6E0;">${coords[1].toFixed(3)}°, ${coords[0].toFixed(3)}°</span></div>
         </div>
         <a href="https://firms.modaps.eosdis.nasa.gov/map/#d:24hrs;l:noaa20-viirs,viirs,modis_a,modis_t;@${coords[0]},${coords[1]},10z" target="_blank" style="${linkStyle}color:#FF6B00;border:1px solid rgba(255,107,0,0.4);background:rgba(255,107,0,0.1);">🛰️ NASA FIRMS MAP</a>
       </div>`);
@@ -1361,10 +1366,19 @@ map.addSource('mitre-nodes', { type: 'geojson', data: EMPTY_FC });
         else sourceUrl = 'https://liveuamap.com/'; // Global fallback
       }
 
+      const catLabel = (p.category || (p.type ? String(p.type).toUpperCase() : 'INCIDENT'));
+      const isLiveua = sourceUrl.includes('liveuamap.com');
       popup(coords, `<div style="${pStyle}border:1px solid rgba(255,61,61,0.3);">
-        <div style="color:#FF3D3D;font-size:12px;font-weight:700;margin-bottom:6px;">⚠️ CONFLICT EVENT</div>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+          <div style="color:#FF3D3D;font-size:12px;font-weight:700;">⚠️ ${catLabel}</div>
+          ${p.source ? `<div style="color:#5C5A54;font-size:8px;letter-spacing:0.1em;">${p.source}</div>` : ''}
+        </div>
         <div style="font-size:9px;color:#E8E6E0;margin-bottom:8px;line-height:1.4;">${p.name||'Unclassified incident'}</div>
-        <a href="${sourceUrl}" target="_blank" style="${linkStyle}flex:1;text-align:center;color:#FF3D3D;border:1px solid rgba(255,61,61,0.4);background:rgba(255,61,61,0.15);display:inline-block;width:100%;box-sizing:border-box;margin-top:4px;">[ OPEN SOURCE ↗ ]</a>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;font-size:9px;margin-bottom:6px;">
+          <div><span style="color:#5C5A54;">REPORTS</span><br/><span style="color:#FF8A80;">${p.count||1}</span></div>
+          <div><span style="color:#5C5A54;">COORDS</span><br/><span style="color:#E8E6E0;">${coords[1].toFixed(2)}°, ${coords[0].toFixed(2)}°</span></div>
+        </div>
+        <a href="${sourceUrl}" target="_blank" style="${linkStyle}flex:1;text-align:center;color:#FF3D3D;border:1px solid rgba(255,61,61,0.4);background:rgba(255,61,61,0.15);display:inline-block;width:100%;box-sizing:border-box;margin-top:4px;">[ ${isLiveua ? 'LIVEUAMAP' : 'OPEN SOURCE'} ↗ ]</a>
       </div>`);
     });
 
@@ -1554,18 +1568,19 @@ map.addSource('mitre-nodes', { type: 'geojson', data: EMPTY_FC });
       if (!e.features?.length) return;
       const p = e.features[0].properties as any;
       const coords = (e.features[0].geometry as any).coordinates;
-      const iconEmoji = p.icon === 'cyclone' ? '🌀' : p.icon === 'volcano' ? '🌋' : '⚡';
+      const iconEmoji = p.icon === 'cyclone' ? '🌀' : p.icon === 'volcano' ? '🌋' : p.icon === 'flood' ? '🌊' : p.icon === 'drought' ? '🏜️' : p.icon === 'tsunami' ? '🌊' : '⚡';
+      const sevColor = p.severity === 'high' ? '#FF1744' : p.severity === 'medium' ? '#FF9500' : '#FFD700';
       popup(coords, `<div style="${pStyle}border:1px solid rgba(224,64,251,0.3);">
-        <div style="color:#E040FB;font-size:14px;font-weight:700;margin-bottom:6px;">${iconEmoji} ${p.type || 'Weather Event'}</div>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+          <div style="color:#E040FB;font-size:14px;font-weight:700;">${iconEmoji} ${p.type || 'Weather Event'}</div>
+          ${p.provider ? `<div style="color:#5C5A54;font-size:8px;letter-spacing:0.1em;">${p.provider}</div>` : ''}
+        </div>
         <div style="font-size:10px;color:#E8E6E0;margin-bottom:8px;line-height:1.4;">${p.title || 'Unknown event'}</div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;font-size:9px;margin-bottom:8px;">
-          <div><span style="color:#5C5A54;">SEVERITY</span><br/><span style="color:${p.severity === 'high' ? '#FF1744' : '#FFD700'};">${(p.severity||'low').toUpperCase()}</span></div>
-          <div><span style="color:#5C5A54;">COORDS</span><br/><span style="color:#E8E6E0;">${coords[1].toFixed(3)}°, ${coords[0].toFixed(3)}°</span></div>
+          <div><span style="color:#5C5A54;">SEVERITY</span><br/><span style="color:${sevColor};">${(p.severity||'low').toUpperCase()}</span></div>
+          ${p.area ? `<div><span style="color:#5C5A54;">AREA</span><br/><span style="color:#E8E6E0;">${p.area}</span></div>` : `<div><span style="color:#5C5A54;">COORDS</span><br/><span style="color:#E8E6E0;">${coords[1].toFixed(2)}°, ${coords[0].toFixed(2)}°</span></div>`}
         </div>
-        <div style="display:flex;gap:6px;">
-          ${p.source ? `<a href="${p.source}" target="_blank" style="${linkStyle}color:#E040FB;border:1px solid rgba(224,64,251,0.4);background:rgba(224,64,251,0.1);">📡 SOURCE</a>` : ''}
-          <a href="https://eonet.gsfc.nasa.gov/api/v3/events/${p.id || ''}" target="_blank" style="${linkStyle}color:#D4AF37;border:1px solid rgba(212,175,55,0.4);background:rgba(212,175,55,0.1);">🛰️ NASA EONET</a>
-        </div>
+        ${p.source ? `<a href="${p.source}" target="_blank" style="${linkStyle}color:#E040FB;border:1px solid rgba(224,64,251,0.4);background:rgba(224,64,251,0.1);display:inline-block;width:100%;box-sizing:border-box;text-align:center;">📡 ${p.provider || 'SOURCE'} ↗</a>` : ''}
       </div>`);
     });
 
@@ -1837,7 +1852,7 @@ map.addSource('mitre-nodes', { type: 'geojson', data: EMPTY_FC });
 
   useEffect(() => {
     if (!mapReady) return;
-    setGeo('earthquakes', activeLayers.earthquakes && data.earthquakes ? data.earthquakes.map((eq: any) => ({ type: 'Feature', geometry: { type: 'Point', coordinates: [eq.lng, eq.lat] }, properties: { magnitude: eq.magnitude, place: eq.place } })) : []);
+    setGeo('earthquakes', activeLayers.earthquakes && data.earthquakes ? data.earthquakes.map((eq: any) => ({ type: 'Feature', geometry: { type: 'Point', coordinates: [eq.lng, eq.lat] }, properties: { magnitude: eq.magnitude, place: eq.place, depth: eq.depth, source: eq.source || 'USGS', url: eq.url || '' } })) : []);
   }, [mapReady, data.earthquakes, activeLayers.earthquakes, setGeo]);
 
   useEffect(() => {
@@ -1873,7 +1888,7 @@ map.addSource('mitre-nodes', { type: 'geojson', data: EMPTY_FC });
 
   useEffect(() => {
     if (!mapReady) return;
-    setGeo('gdelt', activeLayers.global_incidents && data.gdelt ? data.gdelt.map((e: any) => ({ type: 'Feature', geometry: { type: 'Point', coordinates: [e.lng, e.lat] }, properties: { name: e.name } })) : []);
+    setGeo('gdelt', activeLayers.global_incidents && data.gdelt ? data.gdelt.map((e: any) => ({ type: 'Feature', geometry: { type: 'Point', coordinates: [e.lng, e.lat] }, properties: { name: e.name, category: e.category || '', type: e.type || '', source: e.source || '', url: e.url || '', count: e.count || 1 } })) : []);
   }, [mapReady, data.gdelt, activeLayers.global_incidents, setGeo]);
 
   // Malware Threats
@@ -1949,12 +1964,12 @@ map.addSource('mitre-nodes', { type: 'geojson', data: EMPTY_FC });
 
   useEffect(() => {
     if (!mapReady) return;
-    setGeo('fires', activeLayers.fires && data.fires ? data.fires.map((f: any) => ({ type: 'Feature', geometry: { type: 'Point', coordinates: [f.lng, f.lat] }, properties: { brightness: f.brightness } })) : []);
+    setGeo('fires', activeLayers.fires && data.fires ? data.fires.map((f: any) => ({ type: 'Feature', geometry: { type: 'Point', coordinates: [f.lng, f.lat] }, properties: { brightness: f.brightness, satellite: f.satellite || '', confidence: f.confidence || '', frp: f.frp || 0, daynight: f.daynight || '', type: f.type || 'fire', title: f.title || '' } })) : []);
   }, [mapReady, data.fires, activeLayers.fires, setGeo]);
 
   useEffect(() => {
     if (!mapReady) return;
-    setGeo('weather', activeLayers.weather && data.weather_events ? data.weather_events.map((w: any) => ({ type: 'Feature', geometry: { type: 'Point', coordinates: [w.lng, w.lat] }, properties: { title: w.title, type: w.type, icon: w.icon, severity: w.severity, source: w.source, id: w.id } })) : []);
+    setGeo('weather', activeLayers.weather && data.weather_events ? data.weather_events.map((w: any) => ({ type: 'Feature', geometry: { type: 'Point', coordinates: [w.lng, w.lat] }, properties: { title: w.title, type: w.type, icon: w.icon, severity: w.severity, source: w.source, id: w.id, provider: w.provider || '', area: w.area || '' } })) : []);
   }, [mapReady, data.weather_events, activeLayers.weather, setGeo]);
 
   useEffect(() => {

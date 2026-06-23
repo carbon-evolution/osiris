@@ -11,21 +11,27 @@ export const dynamic = 'force-dynamic';
 
 export async function GET() {
   try {
-    // GDELT GEO 2.0 API — returns real events with actual coordinates
-    const queries = [
-      'protest OR riot OR unrest',
-      'conflict OR military OR attack OR strike',
-      'coup OR revolution OR emergency',
+    // GDELT GEO 2.0 API — real events with actual coordinates. Each query is
+    // tagged with an incident category so the map/popup can show what kind of
+    // event it is. Categories broadened beyond protest/conflict/coup.
+    const queries: { q: string; type: string; category: string }[] = [
+      { q: 'protest OR riot OR unrest OR demonstration', type: 'unrest', category: 'Civil Unrest' },
+      { q: 'conflict OR military OR attack OR strike OR shelling', type: 'conflict', category: 'Armed Conflict' },
+      { q: 'explosion OR blast OR bombing OR airstrike', type: 'conflict', category: 'Explosion / Strike' },
+      { q: 'terror OR terrorist OR hostage OR insurgent', type: 'conflict', category: 'Terrorism' },
+      { q: 'coup OR revolution OR emergency OR martial law', type: 'political', category: 'Political Crisis' },
+      { q: 'refugees OR displacement OR humanitarian OR famine OR evacuation', type: 'humanitarian', category: 'Humanitarian' },
+      { q: 'cyberattack OR ransomware OR data breach OR hacking', type: 'cyber', category: 'Cyber' },
     ];
-    
+
     const allEvents: any[] = [];
     let eventId = 0;
 
-    for (const query of queries) {
+    for (const { q, type, category } of queries) {
       try {
-        const encodedQuery = encodeURIComponent(query);
+        const encodedQuery = encodeURIComponent(q);
         const url = `https://api.gdeltproject.org/api/v2/geo/geo?query=${encodedQuery}&format=GeoJSON&timespan=24h&maxpoints=100`;
-        
+
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 5000);
 
@@ -46,10 +52,11 @@ export async function GET() {
 
           const props = feature.properties || {};
           const name = props.name || props.html?.replace(/<[^>]*>/g, '').slice(0, 120) || 'GDELT Event';
-          const url = props.url || props.shareimage || '';
+          // Pull the first article link out of the GDELT html bubble for detail.
+          const articleUrl = props.url || (/href="([^"]+)"/.exec(props.html || '')?.[1]) || '';
 
           // Deduplicate by proximity (within 0.5 degrees)
-          const isDupe = allEvents.some(e => 
+          const isDupe = allEvents.some(e =>
             Math.abs(e.lat - coords[1]) < 0.5 && Math.abs(e.lng - coords[0]) < 0.5 && e.name === name
           );
           if (isDupe) continue;
@@ -59,11 +66,13 @@ export async function GET() {
             lat: coords[1],
             lng: coords[0],
             name,
-            url,
+            url: articleUrl,
             html: props.html || '',
-            type: query.includes('protest') ? 'unrest' : query.includes('conflict') ? 'conflict' : 'political',
+            type,
+            category,
             count: props.count || 1,
             shareimage: props.shareimage || '',
+            source: 'GDELT',
           });
         }
       } catch {
