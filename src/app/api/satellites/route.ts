@@ -6,16 +6,22 @@ import { stealthFetch } from '@/lib/stealthFetch';
  * OSIRIS — Satellite Tracking API
  * Fetches TLE data from multiple sources with fallbacks
  * Computes real-time positions using simplified SGP4
+ * Returns orbit ground track for trajectory visualization
  */
 
-// Mission classification by NORAD name keywords
+// ── COLOR DECONFLICTION ──
+// Satellite mission colors are tuned to avoid the flight layer palette:
+//   flights=#00E5FF, private=#FFD700, gov=#FF9500, military=#FF3D3D
+// Also avoids maritime teal (#26C6DA), malware red (#D32F2F), news rose (#EC407A)
+// Satellite palette leans toward purple/violet/blue/green spectrum
+
 const MISSION_CLASSIFY: Record<string, { mission: string; color: string }> = {
-  'USA': { mission: 'Military Recon', color: '#FF3D3D' },
-  'NROL': { mission: 'NRO Classified', color: '#FF3D3D' },
-  'LACROSSE': { mission: 'SAR Imaging', color: '#00E5FF' },
-  'MENTOR': { mission: 'SIGINT', color: '#FFFFFF' },
-  'ORION': { mission: 'SIGINT', color: '#FFFFFF' },
-  'TRUMPET': { mission: 'SIGINT', color: '#FFFFFF' },
+  'USA': { mission: 'Military Recon', color: '#E040FB' },
+  'NROL': { mission: 'NRO Classified', color: '#E040FB' },
+  'LACROSSE': { mission: 'SAR Imaging', color: '#1DE9B6' },
+  'MENTOR': { mission: 'SIGINT', color: '#F5F5F5' },
+  'ORION': { mission: 'SIGINT', color: '#F5F5F5' },
+  'TRUMPET': { mission: 'SIGINT', color: '#F5F5F5' },
   'GPS': { mission: 'Navigation', color: '#448AFF' },
   'NAVSTAR': { mission: 'Navigation', color: '#448AFF' },
   'GLONASS': { mission: 'Navigation', color: '#448AFF' },
@@ -25,22 +31,22 @@ const MISSION_CLASSIFY: Record<string, { mission: string; color: string }> = {
   'DSP': { mission: 'Early Warning', color: '#FF00FF' },
   'STARLINK': { mission: 'Commercial Comms', color: '#00E676' },
   'ONEWEB': { mission: 'Commercial Comms', color: '#00E676' },
-  'PLANET': { mission: 'Earth Imaging', color: '#00E676' },
-  'WORLDVIEW': { mission: 'Commercial Imaging', color: '#00E676' },
-  'ISS': { mission: 'Space Station', color: '#FFD700' },
-  'TIANGONG': { mission: 'Space Station', color: '#FFD700' },
-  'COSMOS': { mission: 'Russian Military', color: '#FF6B6B' },
-  'YAOGAN': { mission: 'Chinese Recon', color: '#FF6B6B' },
+  'PLANET': { mission: 'Earth Imaging', color: '#69F0AE' },
+  'WORLDVIEW': { mission: 'Commercial Imaging', color: '#69F0AE' },
+  'ISS': { mission: 'Space Station', color: '#FFC400' },
+  'TIANGONG': { mission: 'Space Station', color: '#FFC400' },
+  'COSMOS': { mission: 'Russian Military', color: '#FF5252' },
+  'YAOGAN': { mission: 'Chinese Recon', color: '#FF5252' },
   'FENGYUN': { mission: 'Weather', color: '#87CEEB' },
   'GOES': { mission: 'Weather', color: '#87CEEB' },
   'NOAA': { mission: 'Weather', color: '#87CEEB' },
   'METEOSAT': { mission: 'Weather', color: '#87CEEB' },
-  'LANDSAT': { mission: 'Earth Observation', color: '#90EE90' },
-  'SENTINEL': { mission: 'Earth Observation', color: '#90EE90' },
-  'TERRA': { mission: 'Earth Science', color: '#90EE90' },
-  'AQUA': { mission: 'Earth Science', color: '#90EE90' },
-  'HUBBLE': { mission: 'Space Telescope', color: '#FFD700' },
-  'JAMES WEBB': { mission: 'Space Telescope', color: '#FFD700' },
+  'LANDSAT': { mission: 'Earth Observation', color: '#81C784' },
+  'SENTINEL': { mission: 'Earth Observation', color: '#81C784' },
+  'TERRA': { mission: 'Earth Science', color: '#A5D6A7' },
+  'AQUA': { mission: 'Earth Science', color: '#A5D6A7' },
+  'HUBBLE': { mission: 'Space Telescope', color: '#FF9100' },
+  'JAMES WEBB': { mission: 'Space Telescope', color: '#FF9100' },
 };
 
 function classifySatellite(name: string): { mission: string; color: string } {
@@ -48,7 +54,7 @@ function classifySatellite(name: string): { mission: string; color: string } {
   for (const [keyword, info] of Object.entries(MISSION_CLASSIFY)) {
     if (upper.includes(keyword)) return info;
   }
-  return { mission: 'Unknown', color: '#00E5FF' };
+  return { mission: 'Unknown', color: '#B388FF' };
 }
 
 function gmst(jd: number): number {
@@ -57,9 +63,7 @@ function gmst(jd: number): number {
   return ((gmstSec % 86400) / 86400.0) * 2 * Math.PI;
 }
 
-// No longer needed: function parseTLE(tleText: string) {}
-
-function propagateSGP4Simple(line1: string, line2: string): { lat: number; lng: number; alt: number } | null {
+function propagateSGP4Simple(line1: string, line2: string, timeOffsetMin: number = 0): { lat: number; lng: number; alt: number } | null {
   try {
     const incDeg = parseFloat(line2.substring(8, 16));
     const raanDeg = parseFloat(line2.substring(17, 25));
@@ -80,11 +84,10 @@ function propagateSGP4Simple(line1: string, line2: string): { lat: number; lng: 
     epochDate.setDate(epochDate.getDate() + epochDay - 1);
     const elapsedMin = (now.getTime() - epochDate.getTime()) / 60000;
 
-    // Reject stale TLEs (> 30 days old) unless it's the emergency fallback
     if (Math.abs(elapsedMin) > 43200 && !line1.includes('27885-3')) return null;
 
     const n = meanMotion * 2 * Math.PI / 1440;
-    const M = ((meanAnomDeg * Math.PI / 180) + n * elapsedMin) % (2 * Math.PI);
+    const M = ((meanAnomDeg * Math.PI / 180) + n * (elapsedMin + timeOffsetMin)) % (2 * Math.PI);
 
     let E = M;
     for (let j = 0; j < 10; j++) {
@@ -118,7 +121,7 @@ function propagateSGP4Simple(line1: string, line2: string): { lat: number; lng: 
     const alt = r - 6371;
 
     if (isNaN(lat) || isNaN(lng) || Math.abs(lat) > 90) return null;
-    if (alt < 100 || alt > 50000) return null; // sanity check
+    if (alt < 100 || alt > 50000) return null;
 
     return {
       lat: Math.round(lat * 10000) / 10000,
@@ -128,6 +131,21 @@ function propagateSGP4Simple(line1: string, line2: string): { lat: number; lng: 
   } catch {
     return null;
   }
+}
+
+function computeGroundTrack(line1: string, line2: string, meanMotion: number): [number, number][] | null {
+  const orbitPeriod = 1440 / meanMotion;
+  const steps = 48;
+  const points: [number, number][] = [];
+  const halfPeriod = orbitPeriod / 2;
+
+  for (let i = 0; i < steps; i++) {
+    const offset = -halfPeriod + (i / (steps - 1)) * orbitPeriod;
+    const pos = propagateSGP4Simple(line1, line2, offset);
+    if (pos) points.push([pos.lng, pos.lat]);
+  }
+
+  return points.length > 4 ? points : null;
 }
 
 // SatNOGS Open API - Provides full TLE JSON without API keys or IP blocks
@@ -142,13 +160,13 @@ export async function GET() {
     let allSats: any[] = globalCachedSats;
     let source = 'memory-cache';
 
-    if (globalCachedSats.length === 0 || nowTime - globalCacheTime > 3600000) { // 1 hour cache
+    if (globalCachedSats.length === 0 || nowTime - globalCacheTime > 3600000) {
       try {
         const res = await stealthFetch(SATNOGS_API, {
           signal: AbortSignal.timeout(15000),
           headers: { 'Accept': 'application/json' },
         });
-        
+
         if (res.ok) {
           const data = await res.json();
           const fetchedSats: any[] = [];
@@ -166,7 +184,7 @@ export async function GET() {
               });
             }
           }
-          
+
           if (fetchedSats.length > 0) {
             globalCachedSats = fetchedSats;
             globalCacheTime = nowTime;
@@ -179,14 +197,12 @@ export async function GET() {
       }
     }
 
-    // Emergency Fallback if cache is totally empty and SatNOGS is down
     if (allSats.length === 0) {
       const issFallback = "1 25544U 98067A   24146.40251785  .00015505  00000-0  27885-3 0  9997\n2 25544  51.6402 189.7042 0004381 334.8091 106.8778 15.50091157455243";
       allSats = [{ name: 'ISS (FALLBACK)', line1: issFallback.split('\n')[0], line2: issFallback.split('\n')[1] }];
       source = 'emergency-fallback';
     }
 
-    // Sample for performance (max 2000 satellites)
     const sampled = allSats.length > 2000
       ? allSats.filter((_, i) => i % Math.ceil(allSats.length / 2000) === 0)
       : allSats;
@@ -196,7 +212,9 @@ export async function GET() {
       const pos = propagateSGP4Simple(sat.line1, sat.line2);
       if (!pos) continue;
 
+      const meanMotion = parseFloat(sat.line2.substring(52, 63));
       const classification = classifySatellite(sat.name);
+
       satellites.push({
         name: sat.name,
         lat: pos.lat,
@@ -205,11 +223,12 @@ export async function GET() {
         mission: classification.mission,
         color: classification.color,
         noradId: sat.line1.substring(2, 7).trim(),
+        groundTrack: computeGroundTrack(sat.line1, sat.line2, meanMotion),
       });
     }
 
-    const cacheControl = satellites.length < 10 
-      ? 'no-store, max-age=0' 
+    const cacheControl = satellites.length < 10
+      ? 'no-store, max-age=0'
       : 'public, s-maxage=120, stale-while-revalidate=300';
 
     return NextResponse.json({
@@ -228,4 +247,3 @@ export async function GET() {
     return NextResponse.json({ satellites: [], error: 'Failed to fetch satellite data' }, { status: 500 });
   }
 }
-

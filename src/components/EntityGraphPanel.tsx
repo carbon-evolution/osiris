@@ -16,7 +16,7 @@ const ForceGraph2D = dynamic(() => import('react-force-graph-2d'), { ssr: false 
 interface EntityNode {
   id: string;
   label: string;
-  type: 'aircraft' | 'vessel' | 'company' | 'person' | 'country' | 'event' | 'sanction' | 'ip';
+  type: 'aircraft' | 'vessel' | 'company' | 'person' | 'country' | 'event' | 'sanction' | 'ip' | 'apt' | 'cve';
   properties?: Record<string, any>;
   x?: number; y?: number;
 }
@@ -34,13 +34,13 @@ interface GraphData { nodes: EntityNode[]; links: EntityLink[]; }
 const TYPE_COLORS: Record<string, string> = {
   aircraft: '#00E5FF', vessel: '#00BCD4', company: '#D4AF37',
   person: '#B388FF', country: '#76FF03', event: '#FF9500', sanction: '#FF1744',
-  ip: '#FF6D00',
+  ip: '#FF6D00', apt: '#00E676', cve: '#FF1744',
 };
 
 const TYPE_ICONS: Record<string, typeof Plane> = {
   aircraft: Plane, vessel: Ship, company: Building2,
   person: User, country: Globe, event: Newspaper, sanction: ShieldAlert,
-  ip: Wifi,
+  ip: Wifi, apt: ShieldAlert, cve: ShieldAlert,
 };
 
 // ── PROPS ──
@@ -63,7 +63,15 @@ function EntityGraphPanel({ entity, onClose }: Props) {
   const mergeGraph = useCallback((existing: GraphData, incoming: GraphData): GraphData => {
     const nodeMap = new Map<string, EntityNode>();
     for (const n of existing.nodes) nodeMap.set(n.id, n);
-    for (const n of incoming.nodes) if (!nodeMap.has(n.id)) nodeMap.set(n.id, n);
+    for (const n of incoming.nodes) {
+      if (nodeMap.has(n.id)) {
+        // Merge properties from incoming node into existing node
+        const existing = nodeMap.get(n.id)!;
+        nodeMap.set(n.id, { ...existing, properties: { ...existing.properties, ...n.properties } });
+      } else {
+        nodeMap.set(n.id, n);
+      }
+    }
     const linkSet = new Set(existing.links.map(l => {
       const s = typeof l.source === 'string' ? l.source : l.source.id;
       const t = typeof l.target === 'string' ? l.target : l.target.id;
@@ -111,11 +119,15 @@ function EntityGraphPanel({ entity, onClose }: Props) {
     expandEntity(entity.type, entity.id, entity.properties);
   }, [entity]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  const RESOLVABLE_TYPES = new Set(['aircraft', 'vessel', 'company', 'person', 'ip', 'country', 'apt', 'cve']);
+
   const handleNodeClick = useCallback((node: any) => {
     const n = node as EntityNode;
     setSelectedNode(n);
     const rawId = n.id.includes(':') ? n.id.split(':').slice(1).join(':') : n.id;
-    if (!expandedIds.has(`${n.type}:${rawId}`)) expandEntity(n.type, rawId);
+    if (RESOLVABLE_TYPES.has(n.type) && !expandedIds.has(`${n.type}:${rawId}`)) {
+      expandEntity(n.type, rawId);
+    }
   }, [expandedIds, expandEntity]);
 
   const paintNode = useCallback((node: any, ctx: CanvasRenderingContext2D, globalScale: number) => {
@@ -327,7 +339,7 @@ function EntityGraphPanel({ entity, onClose }: Props) {
                   ))}
                 </div>
               )}
-              {!expandedIds.has(`${selectedNode.type}:${selectedNode.id.includes(':') ? selectedNode.id.split(':').slice(1).join(':') : selectedNode.id}`) && (
+              {RESOLVABLE_TYPES.has(selectedNode.type) && !expandedIds.has(`${selectedNode.type}:${selectedNode.id.includes(':') ? selectedNode.id.split(':').slice(1).join(':') : selectedNode.id}`) && (
                 <button onClick={() => {
                   const rawId = selectedNode.id.includes(':') ? selectedNode.id.split(':').slice(1).join(':') : selectedNode.id;
                   expandEntity(selectedNode.type, rawId);

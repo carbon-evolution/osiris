@@ -1375,10 +1375,15 @@ map.addSource('mitre-nodes', { type: 'geojson', data: EMPTY_FC });
         </div>
         <div style="font-size:9px;color:#E8E6E0;margin-bottom:8px;line-height:1.4;">${p.name||'Unclassified incident'}</div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;font-size:9px;margin-bottom:6px;">
-          <div><span style="color:#5C5A54;">REPORTS</span><br/><span style="color:#FF8A80;">${p.count||1}</span></div>
-          <div><span style="color:#5C5A54;">COORDS</span><br/><span style="color:#E8E6E0;">${coords[1].toFixed(2)}°, ${coords[0].toFixed(2)}°</span></div>
+          ${p.source === 'ACLED'
+            ? `<div><span style="color:#5C5A54;">FATALITIES</span><br/><span style="color:#FF1744;font-weight:700;">${p.fatalities ?? 0}</span></div>
+               <div><span style="color:#5C5A54;">DATE</span><br/><span style="color:#E8E6E0;">${p.date||'—'}</span></div>
+               ${p.actors ? `<div style="grid-column:1/3;"><span style="color:#5C5A54;">ACTORS</span><br/><span style="color:#FFB74D;">${p.actors}</span></div>` : ''}
+               <div style="grid-column:1/3;"><span style="color:#5C5A54;">LOCATION</span><br/><span style="color:#E8E6E0;">${p.country || ''} · ${coords[1].toFixed(2)}°, ${coords[0].toFixed(2)}°</span></div>`
+            : `<div><span style="color:#5C5A54;">REPORTS</span><br/><span style="color:#FF8A80;">${p.count||1}</span></div>
+               <div><span style="color:#5C5A54;">COORDS</span><br/><span style="color:#E8E6E0;">${coords[1].toFixed(2)}°, ${coords[0].toFixed(2)}°</span></div>`}
         </div>
-        <a href="${sourceUrl}" target="_blank" style="${linkStyle}flex:1;text-align:center;color:#FF3D3D;border:1px solid rgba(255,61,61,0.4);background:rgba(255,61,61,0.15);display:inline-block;width:100%;box-sizing:border-box;margin-top:4px;">[ ${isLiveua ? 'LIVEUAMAP' : 'OPEN SOURCE'} ↗ ]</a>
+        <a href="${sourceUrl}" target="_blank" style="${linkStyle}flex:1;text-align:center;color:#FF3D3D;border:1px solid rgba(255,61,61,0.4);background:rgba(255,61,61,0.15);display:inline-block;width:100%;box-sizing:border-box;margin-top:4px;">[ ${p.source === 'ACLED' ? 'ACLED RECORD' : isLiveua ? 'LIVEUAMAP' : 'OPEN SOURCE'} ↗ ]</a>
       </div>`);
     });
 
@@ -1888,7 +1893,7 @@ map.addSource('mitre-nodes', { type: 'geojson', data: EMPTY_FC });
 
   useEffect(() => {
     if (!mapReady) return;
-    setGeo('gdelt', activeLayers.global_incidents && data.gdelt ? data.gdelt.map((e: any) => ({ type: 'Feature', geometry: { type: 'Point', coordinates: [e.lng, e.lat] }, properties: { name: e.name, category: e.category || '', type: e.type || '', source: e.source || '', url: e.url || '', count: e.count || 1 } })) : []);
+    setGeo('gdelt', activeLayers.global_incidents && data.gdelt ? data.gdelt.map((e: any) => ({ type: 'Feature', geometry: { type: 'Point', coordinates: [e.lng, e.lat] }, properties: { name: e.name, category: e.category || '', type: e.type || '', source: e.source || '', url: e.url || '', count: e.count || 1, fatalities: e.fatalities ?? '', actors: e.actors || '', country: e.country || '', date: e.date || '' } })) : []);
   }, [mapReady, data.gdelt, activeLayers.global_incidents, setGeo]);
 
   // Malware Threats

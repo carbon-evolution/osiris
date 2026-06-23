@@ -32,6 +32,9 @@ const TABS = [
   { id: 'leaks', label: 'DATA LEAKS', icon: ShieldAlert, placeholder: 'Email address', color: '#E040FB' },
   { id: 'github', label: 'GITHUB RECON', icon: Terminal, placeholder: 'GitHub username', color: '#87CEEB' },
   { id: 'sweep', label: 'IP SWEEP', icon: Crosshair, placeholder: 'Enter IP address (e.g. 8.8.8.8)', color: '#FF3D3D' },
+  { id: 'ismalicious', label: 'ISMALICIOUS', icon: ShieldAlert, placeholder: 'IP, domain, or hash', color: '#FF006E' },
+  { id: 'urlhaus', label: 'URLHAUS', icon: Bug, placeholder: 'Host, URL, or payload hash', color: '#00E5FF' },
+  { id: 'dnsthreat', label: 'DNS THREAT', icon: Network, placeholder: 'IP or domain', color: '#FFD700' },
 ];
 
 interface OsintPanelProps { isOpen?: boolean; onClose?: () => void; isMobile?: boolean; onSweepVisualize?: (data: any) => void; onScanGeolocate?: (target: string, data: any) => void; }
@@ -202,6 +205,22 @@ function OsintPanelInner({ isMobile, onSweepVisualize, onScanGeolocate }: OsintP
         case 'subdomains': url = `/api/scanner?target=${encodeURIComponent(query)}&type=subdomains`; break;
         case 'tech': url = `/api/scanner?target=${encodeURIComponent(query)}&type=tech`; break;
         case 'shodan': url = `https://internetdb.shodan.io/${encodeURIComponent(query)}`; break;
+        case 'ismalicious': url = `/api/osint/ismalicious?query=${encodeURIComponent(query)}&enrichment=standard`; break;
+        case 'urlhaus': {
+          if (query.match(/^https?:\/\//i)) {
+            url = `/api/osint/urlhaus?url=${encodeURIComponent(query)}`;
+          } else if (query.match(/^[a-fA-F0-9]{32}$|^[a-fA-F0-9]{40}$|^[a-fA-F0-9]{64}$/)) {
+            url = `/api/osint/urlhaus?hash=${encodeURIComponent(query)}`;
+          } else {
+            url = `/api/osint/urlhaus?host=${encodeURIComponent(query)}`;
+          }
+          break;
+        }
+        case 'dnsthreat': {
+          const isIp = /^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(query);
+          url = isIp ? `/api/osint/dns-threat?ip=${encodeURIComponent(query)}` : `/api/osint/dns-threat?domain=${encodeURIComponent(query)}`;
+          break;
+        }
       }
       const res = await fetch(url, activeTab === 'shodan' ? { cache: 'no-store' } : undefined);
       if (activeTab === 'shodan' && res.status === 404) {
@@ -247,7 +266,7 @@ function OsintPanelInner({ isMobile, onSweepVisualize, onScanGeolocate }: OsintP
           if (data.lat && data.lng && onScanGeolocate) {
              onScanGeolocate(query, { lat: data.lat, lng: data.lng, type: 'phone', region: data.region });
           }
-        } else if (activeTab !== 'sweep' && activeTab !== 'vuln' && activeTab !== 'crypto' && activeTab !== 'mac' && activeTab !== 'bgp' && activeTab !== 'github' && activeTab !== 'leaks' && activeTab !== 'phone') {
+        } else if (activeTab !== 'sweep' && activeTab !== 'vuln' && activeTab !== 'crypto' && activeTab !== 'mac' && activeTab !== 'bgp' && activeTab !== 'github' && activeTab !== 'leaks' && activeTab !== 'phone' && activeTab !== 'ismalicious' && activeTab !== 'urlhaus' && activeTab !== 'dnsthreat') {
           fetch(`/api/osint/ip?ip=${encodeURIComponent(query)}`)
             .then(r => r.json())
             .then(locData => {
@@ -663,6 +682,327 @@ function OsintPanelInner({ isMobile, onSweepVisualize, onScanGeolocate }: OsintP
     }
 
 
+
+    if (activeTab === 'ismalicious') {
+      const rep = r.reputation || {};
+      const total = rep.total || 0;
+      const malCount = rep.malicious || 0;
+      return (
+        <div>
+          <SectionHeader title="ISMALICIOUS THREAT INTELLIGENCE" icon={ShieldAlert} color="#FF006E" />
+          <ResultRow label="Query" value={r.query} color="#FF006E" />
+          <ResultRow label="Type" value={r.type} />
+          {r.malicious !== null && r.malicious !== undefined && (
+            <ResultRow label="Malicious" value={r.malicious ? 'YES' : 'NO'} color={r.malicious ? '#FF3D3D' : '#00E676'} />
+          )}
+          {r.risk_score !== null && r.risk_score !== undefined && (
+            <ResultRow label="Risk Score" value={r.risk_score} color={r.risk_score > 70 ? '#FF3D3D' : r.risk_score > 40 ? '#FF9500' : '#00E676'} />
+          )}
+
+          {total > 0 && (
+            <div className="mt-2 p-2 border border-[#FF006E]/20 bg-[#FF006E]/5 rounded">
+              <div className="text-[9px] font-mono text-[#FF006E] tracking-wider mb-1">REPUTATION SCORE</div>
+              <div className="flex h-2 rounded-full overflow-hidden bg-[#1A1A18] mb-1">
+                {malCount > 0 && <div className="bg-red-500 h-full" style={{ width: `${(malCount / total) * 100}%` }} title={`Malicious: ${malCount}`} />}
+                {(rep.suspicious || 0) > 0 && <div className="bg-orange-500 h-full" style={{ width: `${((rep.suspicious || 0) / total) * 100}%` }} title={`Suspicious: ${rep.suspicious}`} />}
+                {(rep.harmless || 0) > 0 && <div className="bg-green-500 h-full" style={{ width: `${((rep.harmless || 0) / total) * 100}%` }} title={`Harmless: ${rep.harmless}`} />}
+              </div>
+              <div className="flex justify-between text-[8px] font-mono text-[var(--text-muted)]">
+                <span className="text-red-400">{malCount} malicious</span>
+                <span className="text-orange-400">{rep.suspicious || 0} suspicious</span>
+                <span className="text-green-400">{rep.harmless || 0} harmless</span>
+                <span>{total} total</span>
+              </div>
+            </div>
+          )}
+
+          {r.blocklist_sources && r.blocklist_sources.length > 0 && (
+            <div className="mt-2">
+              <span className="text-[9px] font-mono text-[var(--text-muted)] tracking-wider">BLOCKLIST SOURCES ({r.total_blocklists})</span>
+              <div className="flex flex-wrap gap-1 mt-1">
+                {r.blocklist_sources.slice(0, 15).map((bs: any, i: number) => (
+                  <span key={i} className="text-[8px] font-mono px-1.5 py-0.5 rounded bg-[#1A1A18] border border-[var(--border-secondary)]/30"
+                    style={{ color: bs.status === 'malicious' ? '#FF3D3D' : bs.status === 'suspicious' ? '#FF9500' : '#E8E6E0' }}>
+                    {bs.name}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {r.whois && r.whois.domain && (
+            <SectionHeader title="WHOIS" icon={FileText} color="#FFD700" />
+          )}
+          {r.whois?.registrar && <ResultRow label="Registrar" value={r.whois.registrar} />}
+          {r.whois?.created_date && <ResultRow label="Created" value={r.whois.created_date} />}
+          {r.whois?.expiration_date && <ResultRow label="Expires" value={r.whois.expiration_date} />}
+          {r.whois?.name_servers?.length > 0 && <ResultRow label="Nameservers" value={r.whois.name_servers.join(', ')} />}
+
+          {r.geo && (
+            <>
+              <SectionHeader title="GEOLOCATION" icon={MapPin} color="#00E5FF" />
+              <ResultRow label="Country" value={`${r.geo.country} (${r.geo.country_code})`} />
+              <ResultRow label="City" value={r.geo.city} />
+              <ResultRow label="ISP" value={r.geo.isp} />
+              <ResultRow label="Organization" value={r.geo.org} />
+              {r.geo.as_number && <ResultRow label="ASN" value={r.geo.as_number} />}
+            </>
+          )}
+
+          {r.otx && r.otx.pulse_count > 0 && (
+            <>
+              <SectionHeader title="ALIENVAULT OTX" icon={Radio} color="#9C27B0" />
+              <ResultRow label="Reputation Score" value={r.otx.reputation_score} />
+              <ResultRow label="Pulses" value={r.otx.pulse_count} />
+              {r.otx.pulses?.map((p: any, i: number) => (
+                <div key={i} className="mt-1 p-1.5 border border-[#9C27B0]/20 bg-[#9C27B0]/5 rounded">
+                  <div className="text-[9px] font-mono font-bold text-[#E8E6E0]">{p.name}</div>
+                  <div className="text-[8px] font-mono text-[var(--text-muted)]">{p.description}</div>
+                  {p.tags?.length > 0 && (
+                    <div className="flex flex-wrap gap-1 mt-1">
+                      {p.tags.map((t: string, ti: number) => (
+                        <span key={ti} className="text-[7px] font-mono px-1 py-0.5 rounded bg-[#1A1A18] text-[var(--text-muted)]">{t}</span>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </>
+          )}
+
+          {r.labs_reputation && (
+            <>
+              <SectionHeader title="LEVELBLUE LABS" icon={Shield} color="#448AFF" />
+              <ResultRow label="Score" value={r.labs_reputation.score} />
+              <ResultRow label="Classification" value={r.labs_reputation.classification} color={r.labs_reputation.classification === 'malicious' ? '#FF3D3D' : r.labs_reputation.classification === 'suspicious' ? '#FF9500' : '#00E676'} />
+            </>
+          )}
+
+          {r.passive_dns && r.passive_dns.length > 0 && (
+            <>
+              <SectionHeader title="PASSIVE DNS" icon={Network} color="#00BCD4" />
+              {r.passive_dns.slice(0, 10).map((pd: any, i: number) => (
+                <div key={i} className="text-[8px] font-mono py-0.5 border-b border-[var(--border-secondary)]/10 last:border-0">
+                  <span className="text-[#E8E6E0]">{pd.hostname}</span>
+                  <span className="text-[var(--text-muted)]"> ({pd.record_type})</span>
+                </div>
+              ))}
+            </>
+          )}
+
+          {r.file_analysis?.sha256 && (
+            <>
+              <SectionHeader title="FILE ANALYSIS" icon={Bug} color="#FF3D3D" />
+              <ResultRow label="File Name" value={r.file_analysis.file_name} />
+              <ResultRow label="File Type" value={r.file_analysis.file_type} />
+              <ResultRow label="Signature" value={r.file_analysis.signature} />
+              <ResultRow label="SHA256" value={r.file_analysis.sha256} mono={true} />
+            </>
+          )}
+          {renderFallbackExcluding(['source','query','type','malicious','risk_score','reputation','blocklist_sources','total_blocklists','whois','geo','otx','labs_reputation','passive_dns','file_analysis','api_key_configured','timestamp'])}
+        </div>
+      );
+    }
+
+    if (activeTab === 'urlhaus') {
+      const urls = r.urls || [];
+      return (
+        <div>
+          <SectionHeader title="URLHAUS MALWARE INTELLIGENCE" icon={Bug} color="#00E5FF" />
+          <ResultRow label="Query" value={r.query} color="#00E5FF" />
+          <ResultRow label="Type" value={r.type} />
+          <ResultRow label="Malicious" value={r.malicious !== undefined ? (r.malicious ? 'YES' : 'NO') : undefined} color={r.malicious ? '#FF3D3D' : '#00E676'} />
+          {r.total_urls !== undefined && <ResultRow label="Total URLs" value={r.total_urls} color={r.total_urls > 0 ? '#FF3D3D' : '#00E676'} />}
+
+          {r.type === 'hash' && (
+            <>
+              <SectionHeader title="PAYLOAD DETAILS" icon={Bug} color="#FF9500" />
+              {r.md5 && <ResultRow label="MD5" value={r.md5} />}
+              {r.sha1 && <ResultRow label="SHA1" value={r.sha1} />}
+              {r.sha256 && <ResultRow label="SHA256" value={r.sha256} />}
+              {r.file_type && <ResultRow label="File Type" value={r.file_type} />}
+              {r.signature && <ResultRow label="Signature" value={r.signature} />}
+              {r.first_seen && <ResultRow label="First Seen" value={r.first_seen} />}
+              {r.last_seen && <ResultRow label="Last Seen" value={r.last_seen} />}
+              {r.tags?.length > 0 && (
+                <div className="mt-1 flex flex-wrap gap-1">
+                  {r.tags.map((t: string, i: number) => (
+                    <span key={i} className="text-[8px] font-mono px-1.5 py-0.5 rounded bg-[#1A1A18] border border-[#FF9500]/20 text-[#FF9500]">{t}</span>
+                  ))}
+                </div>
+              )}
+            </>
+          )}
+
+          {r.type === 'url' && r.found && (
+            <>
+              <SectionHeader title="URL DETAILS" icon={Bug} color="#FF3D3D" />
+              <ResultRow label="Threat" value={r.threat} color="#FF3D3D" />
+              <ResultRow label="Status" value={r.status} />
+              <ResultRow label="Host" value={r.host} />
+              <ResultRow label="Date Added" value={r.date_added} />
+              <ResultRow label="Last Online" value={r.last_online} />
+              <ResultRow label="Filename" value={r.filename} />
+              {r.tags?.length > 0 && (
+                <div className="mt-1 flex flex-wrap gap-1">
+                  {r.tags.map((t: string, i: number) => (
+                    <span key={i} className="text-[8px] font-mono px-1.5 py-0.5 rounded bg-[#1A1A18] border border-[#FF3D3D]/20 text-[#FF3D3D]">{t}</span>
+                  ))}
+                </div>
+              )}
+              {r.payload?.md5 && (
+                <div className="mt-2 p-2 border border-[#FF9500]/20 bg-[#FF9500]/5 rounded">
+                  <span className="text-[9px] font-mono text-[#FF9500] block mb-1">PAYLOAD</span>
+                  <ResultRow label="MD5" value={r.payload.md5} />
+                  <ResultRow label="SHA256" value={r.payload.sha256} />
+                  <ResultRow label="Signature" value={r.payload.signature} />
+                  <ResultRow label="File Type" value={r.payload.file_type} />
+                </div>
+              )}
+            </>
+          )}
+
+          {r.type === 'host' && urls.length > 0 && (
+            <>
+              <SectionHeader title={`MALICIOUS URLS (${urls.length})`} icon={Bug} color="#FF3D3D" />
+              {urls.slice(0, 15).map((u: any, i: number) => (
+                <div key={i} className="py-1.5 border-b border-[var(--border-secondary)]/10 last:border-0">
+                  <div className="flex items-start gap-2">
+                    <span className="text-[8px] font-mono mt-0.5 flex-shrink-0 px-1 py-0.5 rounded"
+                      style={{
+                        backgroundColor: u.status === 'online' ? '#FF3D3D20' : '#8A888020',
+                        color: u.status === 'online' ? '#FF3D3D' : '#8A8880',
+                        border: `1px solid ${u.status === 'online' ? '#FF3D3D40' : '#8A888040'}`
+                      }}>
+                      {u.status === 'online' ? 'LIVE' : u.status === 'offline' ? 'DOWN' : u.status}
+                    </span>
+                    <div className="flex-1 min-w-0">
+                      <div className="text-[9px] font-mono text-[#E8E6E0] break-all">{u.url}</div>
+                      <div className="flex items-center gap-2 mt-0.5">
+                        <span className="text-[8px] font-mono text-[#FF9500]">{u.threat}</span>
+                        {u.date_added && <span className="text-[7px] font-mono text-[var(--text-muted)]">{u.date_added}</span>}
+                      </div>
+                    </div>
+                  </div>
+                  {u.payload?.sha256 && (
+                    <div className="mt-1 ml-7 text-[7px] font-mono text-[var(--text-muted)]">
+                      Payload: {u.payload.signature || u.payload.file_type || 'N/A'} · {u.payload.sha256?.slice(0, 16)}...
+                    </div>
+                  )}
+                </div>
+              ))}
+              {urls.length > 15 && (
+                <div className="text-[8px] font-mono text-[var(--text-muted)] text-center py-1">
+                  + {urls.length - 15} more URLs · <a href={r.urlhaus_reference} target="_blank" rel="noreferrer" className="text-[#00E5FF] hover:underline">View all on URLhaus</a>
+                </div>
+              )}
+            </>
+          )}
+
+          {r.urlhaus_reference && (
+            <div className="mt-2 text-center">
+              <a href={r.urlhaus_reference} target="_blank" rel="noreferrer"
+                className="inline-flex items-center gap-1 text-[9px] font-mono text-[#00E5FF] hover:underline">
+                <ExternalLink className="w-2.5 h-2.5" /> View on URLhaus
+              </a>
+            </div>
+          )}
+          {renderFallbackExcluding(['source','query','type','malicious','total_urls','urls','urlhaus_reference','md5','sha1','sha256','file_type','signature','first_seen','last_seen','tags','threat','status','host','date_added','last_online','filename','found','urlhaus_id','payload','timestamp'])}
+        </div>
+      );
+    }
+
+    if (activeTab === 'dnsthreat') {
+      return (
+        <div>
+          <SectionHeader title="DNS THREAT CHECK" icon={Network} color="#FFD700" />
+          <ResultRow label="Query" value={r.query} color="#FFD700" />
+          <ResultRow label="Type" value={r.type} />
+
+          <div className="mt-1 p-2 rounded border"
+            style={{
+              borderColor: r.risk_level === 'HIGH' ? '#FF3D3D40' : r.risk_level === 'MEDIUM' ? '#FF950040' : '#00E67640',
+              backgroundColor: r.risk_level === 'HIGH' ? '#FF3D3D10' : r.risk_level === 'MEDIUM' ? '#FF950010' : '#00E67610'
+            }}>
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] font-mono tracking-wider"
+                style={{ color: r.risk_level === 'HIGH' ? '#FF3D3D' : r.risk_level === 'MEDIUM' ? '#FF9500' : '#00E676' }}>
+                RISK: {r.risk_level}
+              </span>
+              <span className="text-[8px] font-mono text-[var(--text-muted)]">
+                {r.risk_factors?.join(', ') || 'No risk factors'}
+              </span>
+            </div>
+          </div>
+
+          {r.spamhaus && (
+            <>
+              <SectionHeader title="SPAMHAUS" icon={Shield} color="#FF9500" />
+              <ResultRow label="Host Listed" value={r.spamhaus.host_in_spamhaus ? 'YES' : 'NO'} color={r.spamhaus.host_in_spamhaus ? '#FF3D3D' : '#00E676'} />
+              <ResultRow label="CIDR Blocks" value={r.spamhaus.cidr_blocks_loaded} />
+              <ResultRow label="Malicious ASNs" value={r.spamhaus.malicious_asns_loaded} />
+              {r.spamhaus.cidr_matches?.length > 0 && (
+                <div className="mt-1 p-1.5 border border-red-500/20 bg-red-500/5 rounded">
+                  <span className="text-[8px] font-mono text-red-400">CIDR MATCHES</span>
+                  {r.spamhaus.cidr_matches.map((m: any, i: number) => (
+                    <div key={i} className="text-[8px] font-mono text-[#E8E6E0]">{m.ip} &isin; {m.cidr}</div>
+                  ))}
+                </div>
+              )}
+              {r.spamhaus.asn_matches?.length > 0 && (
+                <div className="mt-1 p-1.5 border border-red-500/20 bg-red-500/5 rounded">
+                  <span className="text-[8px] font-mono text-red-400">ASN MATCHES</span>
+                  {r.spamhaus.asn_matches.map((m: any, i: number) => (
+                    <div key={i} className="text-[8px] font-mono text-[#E8E6E0]">AS{m.asn} &mdash; {m.org}</div>
+                  ))}
+                </div>
+              )}
+            </>
+          )}
+
+          {r.dnsbl && (
+            <>
+              <SectionHeader title="DNSBL STATUS" icon={Globe} color="#448AFF" />
+              <ResultRow label="Listed on DNSBL" value={r.dnsbl.listed ? 'YES' : 'NO'} color={r.dnsbl.listed ? '#FF3D3D' : '#00E676'} />
+              {r.dnsbl.blocklists?.length > 0 && (
+                <div className="space-y-1 mt-1">
+                  {r.dnsbl.blocklists.map((b: any, i: number) => (
+                    <div key={i} className="flex items-center justify-between px-2 py-1 rounded bg-[#1A1A18] border border-[var(--border-secondary)]/20">
+                      <span className="text-[8px] font-mono text-[#E8E6E0]">{b.dnsbl}</span>
+                      <span className="text-[7px] font-mono text-red-400">listed (rc: {b.return_code})</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </>
+          )}
+
+          {r.reputation && (
+            <>
+              <SectionHeader title="REPUTATION SUMMARY" icon={AlertTriangle} color="#FF9500" />
+              <ResultRow label="Unique IPs" value={r.reputation.unique_ips} />
+              <ResultRow label="ASN Count" value={r.reputation.asn_count} />
+              <ResultRow label="Spamhaus" value={r.reputation.on_spamhaus ? 'LISTED' : 'CLEAN'} color={r.reputation.on_spamhaus ? '#FF3D3D' : '#00E676'} />
+              <ResultRow label="DNSBL" value={r.reputation.on_dnsbl ? 'LISTED' : 'CLEAN'} color={r.reputation.on_dnsbl ? '#FF3D3D' : '#00E676'} />
+            </>
+          )}
+
+          {r.resolved_ips?.length > 0 && (
+            <div className="mt-1">
+              <span className="text-[9px] font-mono text-[var(--text-muted)] tracking-wider">RESOLVED IPs</span>
+              <div className="flex flex-wrap gap-1 mt-1">
+                {r.resolved_ips.map((ip: string, i: number) => (
+                  <span key={i} className="text-[8px] font-mono px-1.5 py-0.5 rounded bg-[#1A1A18] border border-[var(--border-secondary)]/30 text-[#E8E6E0]">{ip}</span>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {r.sanctions_match && <SanctionsBadge match={r.sanctions_match} />}
+          {renderFallbackExcluding(['source','query','type','risk_level','risk_factors','spamhaus','dnsbl','reputation','resolved_ips','sanctions_match','timestamp','checks'])}
+        </div>
+      );
+    }
 
     // Fallback for other tools
     return renderFallback();

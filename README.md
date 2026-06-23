@@ -4,242 +4,157 @@
 
 ### Open Source Intelligence & Reconnaissance Integrated System
 
-[![Live Demo](https://img.shields.io/badge/osirisai.live-00E5FF?style=for-the-badge&logo=vercel&logoColor=white)](https://osirislive.app)
-[![Support OSIRIS](https://img.shields.io/badge/Support_Project-Patreon-FF424D?style=for-the-badge&logo=patreon&logoColor=white)](https://www.patreon.com/posts/159077425)
-[![Next.js](https://img.shields.io/badge/Next.js-16-black?style=for-the-badge&logo=next.js)](https://nextjs.org)
-[![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?style=for-the-badge&logo=typescript&logoColor=white)](https://typescriptlang.org)
-[![MapLibre](https://img.shields.io/badge/MapLibre_GL-GPU_Rendered-396CB2?style=for-the-badge)](https://maplibre.org)
-[![License](https://img.shields.io/badge/License-MIT-D4AF37?style=for-the-badge)](LICENSE)
+**A real-time global intelligence dashboard** that aggregates live flight tracking, government highway CCTV networks, earthquake & wildfire monitoring, conflict-zone mapping, cyber-threat intel and 24/7 news into a single GPU-accelerated map.
 
-**A real-time global intelligence dashboard that aggregates live flight tracking, CCTV networks, earthquake monitoring, conflict zone mapping, and 24/7 news feeds into a single GPU-accelerated interface.**
-
-[Live Demo](https://osirisai.live) · [Report Bug](https://github.com/simplifaisoul/osiris/issues) · [Request Feature](https://github.com/simplifaisoul/osiris/issues) · [Join Discord](https://discord.gg/umBykEpb98)
+Built with **Next.js 16 · React 19 · MapLibre GL (WebGL)**.
 
 </div>
 
 ---
 
-## Overview
+## 📸 Screenshots
 
-Osiris is a production-grade OSINT platform that provides situational awareness across multiple intelligence domains. Built with Next.js 16 and MapLibre GL, every data point is rendered via WebGL for 60fps performance even with thousands of concurrent entities on-screen.
+| Live CCTV feed over the multi-layer map | CCTV camera markers | Threat / intel layers |
+|---|---|---|
+| ![Overview with live CCTV feed](docs/screenshots/01-overview-cctv-feed.jpg) | ![CCTV markers](docs/screenshots/02-cctv-camera-markers.jpg) | ![Intel layers](docs/screenshots/03-intel-layers.jpg) |
 
-### Key Capabilities
-
-| Domain | Data Points | Sources |
-|--------|------------|---------|
-| **Aviation** | Commercial, Private, Military, Jets | OpenSky Network |
-| **Maritime** | 39 Global Ports, 10 Chokepoints | Static Naval Intel |
-| **CCTV** | 2,000+ Cameras | TfL, WSDOT, Caltrans, NYC DOT, VicRoads + more |
-| **Seismic** | Real-time M2.5+ | USGS Earthquake API |
-| **Fires** | Active Hotspots | NASA FIRMS |
-| **News** | 24/7 Live Streams | 25+ Global Broadcasters |
-| **Weather** | Severe Events | NASA EONET |
-| **Space** | Solar Weather, Satellites | NOAA SWPC, N2YO |
-| **Cyber** | CVE Threats, Vulnerability Scanning | NVD, Custom Scanner |
-| **Conflict** | 13 Active Zones | Static OSINT Intel |
-| **Crypto** | BTC + ETH Wallet Tracing, OFAC SDN Match | blockstream.info, Blockscout, OpenSanctions |
-| **Sanctions** | Person / Org / Vessel SDN Search | OpenSanctions (US OFAC SDN mirror) |
-| **Telegram OSINT** | Geoparsed Posts from Public Channels | `t.me/s/<channel>` web preview |
+*Every resource type has its own map icon (camera = CCTV, flame = fire, triangle = incident, ⚓ = port, etc.); resources without a distinct icon fall back to a colour-coded dot.*
 
 ---
 
-## Architecture
+## 🗺️ Map options (layers) & data sources
 
-```
-┌─────────────────────────────────────────────────┐
-│                  OSIRIS CLIENT                   │
-│  ┌──────────┐  ┌──────────┐  ┌───────────────┐ │
-│  │ MapLibre  │  │  HUD     │  │  RECON Toolkit│ │
-│  │  GL (GPU) │  │ Panels   │  │  Port Scan    │ │
-│  │  WebGL    │  │ Layers   │  │  DNS / WHOIS  │ │
-│  │  Render   │  │ Controls │  │  Vuln Scanner │ │
-│  └──────────┘  └──────────┘  └───────────────┘ │
-├─────────────────────────────────────────────────┤
-│               NEXT.JS API ROUTES                 │
-│  /api/flights         /api/earthquakes          │
-│  /api/cctv            /api/news                 │
-│  /api/fires           /api/maritime             │
-│  /api/gdelt           /api/satellites           │
-│  /api/weather         /api/scanner              │
-│  /api/sentinel        /api/telegram-feed        │
-│  /api/osint/*  (whois, dns, ip, cve, sanctions, │
-│                 crypto, sweep, threats, …)      │
-├─────────────────────────────────────────────────┤
-│              EXTERNAL DATA SOURCES               │
-│  OpenSky · USGS · NASA · NOAA · TfL · NVD      │
-│  GDACS · EONET · FIRMS · N2YO · RSS Feeds      │
-│  blockstream.info · Blockscout · OpenSanctions  │
-│  t.me public previews                            │
-└─────────────────────────────────────────────────┘
-```
+Layers are grouped in the left rail. Each toggles a live data source on the map.
 
----
+| Group | Layer | Source | Notes / limitations |
+|-------|-------|--------|---------------------|
+| **AVIATION** | Commercial / Private / Jets / Military flights | OpenSky Network | Keyless feed works; an OpenSky app key raises rate limits. |
+| **MARITIME** | Ports / Ships / Chokepoints | Static naval intel + AIS (`aisstream.io`) | Live ship positions need a free `AIS_API_KEY`; ports/chokepoints are static. |
+| | Submarine Cables | TeleGeography-derived static GeoJSON | Static reference data. |
+| | Satellites | CelesTrak TLE (+ optional N2YO) | Keyless TLE; `N2YO_API_KEY` only for extra detail. |
+| **SURVEIL** | **CCTV Cameras** | Government traffic authorities + `open-webcams` (~6,000 global) | See **CCTV coverage** below — *not all feeds work everywhere*. |
+| | Live News Feeds | Curated 24/7 YouTube/stream embeds | Some streams go offline over time. |
+| **HAZARD** | Earthquakes (24h) | **USGS + EMSC**, merged & deduped | Keyless. EMSC adds strong EU/Asia coverage USGS misses. |
+| | Active Fires | **NASA FIRMS** — VIIRS S-NPP / NOAA-20 / NOAA-21 + MODIS, + EONET volcanoes | Keyless. Capped to ~3,000 hotspots for performance. |
+| | Severe Weather | **NASA EONET + NOAA/NWS + GDACS** | Keyless. NWS alerts are US-only; GDACS adds global cyclones/floods/droughts. |
+| **THREAT** | Nuclear Facilities / Power Plants | Static + open datasets | Reference data. |
+| | Global Incidents | **GDELT 2.0 GEO** + **ACLED** (opt-in) + simulated fallback | GDELT's GEO endpoint is intermittently down upstream; ACLED needs an account with API access (see below); liveuamap has **no API** (popups link out to it). A simulated set shows only if all live sources fail. |
+| | GPS Jamming | Aggregated reports | Sparse / best-effort. |
+| | Ransomware Victims | `ransomware.live` | Public feed. |
+| **NETWORK** | Live Malware / Blocklisted IPs / Phishing / SSL Blacklist | abuse.ch, Blocklist.de, PhishTank, AbuseIPDB | AbuseIPDB enrichment uses `.abuseipdb_key` if present. |
+| **CYBER INTEL** | Active CVE Threats | NVD | Keyless. |
+| | Routing Intel (DROP) | Spamhaus DROP | Keyless. |
+| | Tor Exit Nodes | Tor Project | Keyless. |
+| | MITRE ATT&CK | MITRE ATT&CK STIX | Keyless. |
+| **DISPLAY** | Day/Night · 3D Terrain | Computed / MapLibre terrain | Visual only. |
+| **RECON** (toolkit) | Port scan · SSL · headers · DNS · WHOIS · vuln | Companion **`osiris-scanner`** sidecar | Optional separate service; needs `SCANNER_KEY` (see below). |
 
-## Features
+### 🎥 CCTV coverage — and its limits
 
-### Intelligence Layers
-- **16 toggleable data layers** with real-time entity counts
-- **GPU-accelerated rendering** — all map data rendered via WebGL, not DOM
-- **Progressive loading** — data fetched on-demand when layers are activated
-- **Viewport-aware** — only loads relevant data for the visible region
+CCTV is sourced from **official government transport-authority feeds** plus a global open-webcam dataset. Highlights and **known limitations**:
 
-### RECON Toolkit
-- **Port Scanner** — TCP connect scan with service fingerprinting
-- **DNS Lookup** — Full record resolution (A, AAAA, MX, NS, TXT, CNAME)
-- **WHOIS** — Domain/IP registration data (auto-cross-checked against OFAC SDN)
-- **SSL/TLS Inspector** — Certificate chain analysis
-- **IP Intelligence** — Geolocation, ASN, threat reputation (auto-cross-checked against OFAC SDN)
-- **Vulnerability Scanner** — CVE lookup against NVD database
-- **Crypto Wallet Trace** — BTC + ETH lookup (balance, tx history, OFAC SDN sanctions flag)
-- **OFAC Sanctions Search** — query persons, organizations, vessels and aircraft against the US OFAC SDN list
+- **Taiwan** (THB freeway + provincial, ~3,700 cams) — works globally. ✅
+- **Indonesia** (Jasa Marga / Bina Marga) — many feeds are **geo-restricted to Indonesian IPs** and return empty/black off-shore; CORS-inconsistent HLS feeds are routed through a same-origin proxy. ⚠️
+- **EU / US / HK / AU / NZ / Japan** and others — included; coverage and uptime vary by authority.
+- **`open-webcams`** — ~6,000 public webcams across 80+ countries (keyless), so most regions show *something* even without a national feed.
 
-### Live Broadcast Network
-- **25+ live 24/7 news streams** from global broadcasters
-- Click any news dot on the map to open the live stream
-- Feeds from NBC, CBS, ABC, Sky News, Al Jazeera, France 24, NHK, WION, and more
+**General CCTV caveats:** individual cameras go offline; some authorities serve `http`-only or slow MJPEG (handled by the proxy with `http→https` upgrade and a load-driven frame refresh); geo-restricted national feeds cannot be made to work from outside that country.
 
-### Telegram OSINT Layer
-- **Public-channel feed** scraped from the unauthenticated `t.me/s/<channel>` web preview — no Bot API token, no MTProto
-- Default curated set of 5 channels (EN + RU/UA war reporting), overridable via `OSIRIS_TELEGRAM_CHANNELS`
-- Posts are geoparsed against a multilingual place dictionary (EN + Cyrillic + Arabic) and plotted on the map
-- Click any cyan dot to read the post and jump to the original on Telegram
-
-### Crypto Wallet Intelligence
-- **BTC** lookups via [blockstream.info](https://blockstream.info) (Esplora API, keyless)
-- **ETH** lookups via [Blockscout](https://github.com/blockscout/blockscout)'s public ETH instance (`eth.blockscout.com`, keyless)
-- Every lookup is cross-checked against the OFAC SDN sanctioned-address list (mirrored from [`0xB10C/ofac-sanctioned-digital-currency-addresses`](https://github.com/0xB10C/ofac-sanctioned-digital-currency-addresses))
-- Sanctioned wallets surface a red **SANCTIONED — OFAC SDN** badge in the RECON panel
-
-### OFAC SDN Cross-Check
-- Standalone `SANCTIONS` tab in the RECON toolkit — full-text search across persons, organisations, vessels and aircraft
-- WHOIS and IP-intel routes auto-cross-check registrant / ASN-owner names against the SDN list and surface an inline alert
-- Data sourced from [OpenSanctions](https://www.opensanctions.org) (CC-BY 4.0) — keyless, ~7 MB cached in-memory for 24h
-
-### Conflict Zone Monitoring
-- **13 active conflict/tension zones** with severity-coded warning markers
-- Active Wars: Ukraine, Gaza, Sudan, Myanmar, DRC, Yemen
-- High Tension: Syria, Lebanon, Sahel, Somalia, Red Sea
-- Elevated: Taiwan Strait, Korean DMZ
-
-### Performance Optimized
-- **75% reduction in edge requests** vs initial release
-- Aggressive polling relaxation (15-30 min intervals for stable data)
-- Static data served from memory (zero external API calls for news feeds)
-- `layerFetchedRef` prevents duplicate API requests
+> ℹ️ Adding more national highway-CCTV networks (Japan, South Korea, more EU/APAC) is tracked in `.omo/plans/cctv-gov-highways.md`.
 
 ---
 
-## Quick Start
+## ⚠️ "Not all data is workable"
+
+This is a research/educational aggregator of third-party open sources. Expect:
+
+- **Upstream outages** — e.g. GDELT's GEO API returns 404s for everyone at times.
+- **Geo-restrictions** — some CCTV/government feeds only respond to in-country IPs.
+- **Gated data** — ACLED requires an account *with API access granted*; some feeds need a free key.
+- **Stale / offline endpoints** — individual cameras, news streams and reports come and go.
+
+Routes are written defensively: each source has its own timeout and a failing source never breaks the rest of the map.
+
+---
+
+## 💻 Requirements
+
+**Software**
+- **Node.js ≥ 20** (developed on Node 26) and **npm**.
+- A modern **WebGL2** browser (Chrome/Edge/Firefox/Safari).
+- OS: macOS / Linux / Windows.
+- *(Optional, for RECON)* the `osiris-scanner` Node sidecar.
+
+**Hardware**
+- GPU-accelerated browser strongly recommended (the map renders thousands of WebGL points).
+- ~2 GB free RAM for the dev server; ~1.5 GB disk for `node_modules`/build.
+
+**Resources / accounts** — *the app runs fully without any keys.* Keys/credentials only unlock extra sources (see Configuration).
+
+---
+
+## 🚀 Download & run
 
 ```bash
-git clone https://github.com/simplifaisoul/osiris.git
+# 1. Clone
+git clone https://github.com/<your-username>/osiris.git
 cd osiris
+
+# 2. Install dependencies
 npm install
+
+# 3. Configure (all keys are OPTIONAL — copy the template and fill what you want)
+cp .env.example .env.local
+#   edit .env.local and add any keys/credentials you have
+
+# 4. Run the dashboard
 npm run dev
+#   → open http://localhost:3000
 ```
 
-Open [http://localhost:3000](http://localhost:3000)
-
-### Docker / Self-Hosting
+**Run with the RECON scanner too** (optional): place the `osiris-scanner` sidecar as a sibling folder and use the bundled launcher, which starts both:
 
 ```bash
-git clone https://github.com/simplifaisoul/osiris.git
-cd osiris
-cp .env.template .env     # optional — configure keys / port
-docker compose up -d
+npm run osiris      # starts the scanner (:7700) + dashboard (:3000)
 ```
 
-Open [http://localhost:3000](http://localhost:3000). The image is a multi-stage
-`node:22-alpine` standalone build (~220 MB, non-root). The compose file also
-carries CasaOS app metadata (`x-casaos:`) for one-click install on
-[CasaOS](https://casaos.io). See **[DOCKER.md](DOCKER.md)** for the full Docker,
-CasaOS and API-key guide.
-
-**Prebuilt image (GHCR)** — skip the build and pull it directly:
+Build for production:
 
 ```bash
-docker pull ghcr.io/aiacos/osiris:latest
-docker run -d -p 3000:3000 --env-file .env ghcr.io/aiacos/osiris:latest
+npm run build && npm start
 ```
 
-**Custom port** — the container always listens on `3000`; set `OSIRIS_PORT` in
-`.env` to change the published host port (e.g. `OSIRIS_PORT=3005`) without
-editing the compose file.
+---
 
-### Environment Variables
+## 🔑 Configuration (`.env.local`)
 
-OSIRIS works **partially without any API keys** — all core feeds use public,
-keyless sources. Copy [`.env.template`](.env.template) to `.env` and set only
-what you need:
+Copy `.env.example` → `.env.local`. **Nothing is required** — every variable is optional and the matching feature simply stays off (keyless) when unset.
 
-```env
-# Published host port (container always listens on 3000). Default: 3000
-OSIRIS_PORT=3000
+| Variable | Unlocks | Where to get it |
+|----------|---------|-----------------|
+| `SCANNER_URL`, `SCANNER_KEY` | RECON toolkit (port scan, SSL, DNS, WHOIS, vuln) | Generate a key and set the same value as the `osiris-scanner` sidecar's `OSIRIS_KEY`. |
+| `ACLED_EMAIL`, `ACLED_PASSWORD` | ACLED structured conflict events in Global Incidents | Free account at <https://acleddata.com/register/>. **Requires API access on your account** — request it from ACLED (corporate/commercial use may need a licence). SSO/Google accounts must set a password. |
+| `FIRMS_API_KEY` | Per-area FIRMS API (the global fire CSV is already keyless) | <https://firms.modaps.eosdis.nasa.gov/api/map_key/> |
+| `OPENSKY_CLIENT_ID/SECRET` | Higher aviation rate limits | <https://opensky-network.org/> |
+| `AIS_API_KEY` | Live ship positions (AIS) | <https://aisstream.io/> |
+| `ISMALICIOUS_KEY` | IP/domain reputation enrichment | <https://ismalicious.com/> |
 
-# RECON scanner backend (the only vars the current code reads).
-# SCANNER_KEY must match the backend's OSIRIS_KEY — generate with: openssl rand -hex 32
-SCANNER_URL=
-SCANNER_KEY=
+After editing `.env.local`, **restart the dev server** (Next.js reads env at startup).
 
-# Optional, for higher rate limits / future sources (see DOCKER.md for signup links)
-FIRMS_API_KEY=                # NASA FIRMS  — firms.modaps.eosdis.nasa.gov/api/map_key/
-OPENSKY_CLIENT_ID=            # OpenSky OAuth2 (since Mar 2025) — opensky-network.org
-OPENSKY_CLIENT_SECRET=
-N2YO_API_KEY=                 # N2YO satellites — n2yo.com (Profile → API key)
-AIS_API_KEY=                 # aisstream.io maritime
-```
-
-> Without `SCANNER_URL`/`SCANNER_KEY` the RECON toolkit returns `503`; every
-> other layer works out of the box. `.env` is gitignored — only the template is committed.
+> 🔒 `.env.local` and key files (`.abuseipdb_key`, etc.) are git-ignored — never commit credentials.
 
 ---
 
-## Tech Stack
+## 🧩 Architecture (brief)
 
-| Layer | Technology |
-|-------|-----------|
-| Framework | Next.js 16 (App Router, Turbopack) |
-| Language | TypeScript 5 |
-| Map Engine | MapLibre GL JS (WebGL) |
-| Animations | Framer Motion |
-| Icons | Lucide React |
-| Styling | Custom CSS Design System |
-| Deployment | Vercel Edge Network |
+- **Frontend:** Next.js 16 App Router, React 19, MapLibre GL. The map and layer logic live in `src/components/OsirisMap.tsx`; layer registry in `src/components/LayerPanel.tsx`; per-layer marker icons in `src/components/mapMarkers.ts`; the CCTV viewer in `src/components/CameraViewer.tsx`.
+- **Backend:** Next.js API routes under `src/app/api/*` — one route per data domain (`cctv`, `earthquakes`, `fires`, `weather`, `gdelt`, …). CCTV per-country sources live in `src/app/api/cctv/<country>.ts` and are aggregated by `src/app/api/cctv/route.ts`. Cross-origin camera streams are proxied by `src/app/api/cctv/proxy` (MJPEG) and `src/app/api/cctv/hls` (HLS).
+- **RECON:** the optional `osiris-scanner` sidecar exposes the scan endpoints the dashboard proxies via `/api/scanner`.
 
 ---
 
-## Keyboard Shortcuts
+## 📜 License & attribution
 
-| Key | Action |
-|-----|--------|
-| `F` | Toggle flight layers |
-| `E` | Toggle earthquakes |
-| `S` | Toggle satellites |
-| `D` | Toggle day/night cycle |
-| `Escape` | Close panels |
+Released under the **MIT License** — see [`LICENSE`](LICENSE).
 
----
-
-## License
-
-MIT — see [LICENSE](LICENSE) for details.
-
----
-
-<div align="center">
-
-**🛠️ SUPPORT THE OSIRIS PROJECT**
-The OSIRIS Global Intelligence Grid is entirely open-source, but running the backend scanners and data firehoses isn't cheap.
-
-If you want to help keep the servers alive, and support us to get access to better tools  unlock the **Special OSIRIS Console**, Currently Just a Cool UI. a you can officially support the project here : 
-
-🔗 [Support OSIRIS on Patreon](https://www.patreon.com/posts/159077425)
-
-*Supporters receive the `🔴 RedTeam Console` role and access to encrypted developer comms.*
-
-
-**Built by [simplifaisoul](https://github.com/simplifaisoul)**
-
-[Join our Discord to be a part of this movement!](https://discord.gg/umBykEpb98)
-
-</div>
+OSIRIS is built on the open-source [OSIRIS project by simplifaisoul](https://github.com/simplifaisoul/osiris). All third-party data belongs to its respective providers (NASA, USGS, EMSC, GDELT, ACLED, government transport authorities, abuse.ch, MITRE, etc.) and is subject to their terms — this project is for research and educational use.

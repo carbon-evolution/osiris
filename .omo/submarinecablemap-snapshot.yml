@@ -1,0 +1,1453 @@
+- generic [ref=e3]:
+  - generic [ref=e4]:
+    - generic [ref=e55]:
+      - generic:
+        - button "Keyboard shortcuts"
+      - region "Map" [active] [ref=e56]
+      - generic [ref=e57]:
+        - dialog [ref=e971]:
+          - generic [ref=e976]: 2Africa
+        - iframe [ref=e198]:
+          
+        - button "Map camera controls" [ref=e200] [cursor=pointer]
+        - link "Open this area in Google Maps (opens a new window)" [ref=e202] [cursor=pointer]:
+          - /url: https://maps.google.com/maps?ll=20.154397,71.415969&z=7&t=m&hl=en-US&gl=US&mapclient=apiv3
+          - img "Google" [ref=e204]
+        - generic [ref=e205]:
+          - button "Keyboard shortcuts" [ref=e211] [cursor=pointer]
+          - generic [ref=e216]: Map data ©2026 Google
+          - link "Terms (opens in new tab)" [ref=e221] [cursor=pointer]:
+            - /url: https://www.google.com/intl/en-US_US/help/terms_maps.html
+            - text: Terms
+    - generic [ref=e222]: Last updated Jun 11, 2026
+  - generic [ref=e8]:
+    - generic [ref=e9]:
+      - generic [ref=e10]:
+        - generic [ref=e11]:
+          - link "TeleGeography" [ref=e12] [cursor=pointer]:
+            - /url: https://www2.telegeography.com/?__hstc=196094579.661b44c647a6d097e5ba52ca44f49239.1781945101606.1781945101606.1781945101606.1&__hssc=196094579.1.1781945101606&__hsfp=7952f2ac6604c8c8922079d1c3c1ae27
+            - img [ref=e13]
+          - generic [ref=e33]:
+            - generic [ref=e35]:
+              - link [ref=e36] [cursor=pointer]:
+                - /url: https://www.youtube.com/@TeleGeographyData
+                - img [ref=e37]
+              - link "Facebook" [ref=e39] [cursor=pointer]:
+                - /url: http://www.facebook.com/sharer.php?u=http://www.submarinecablemap.com/
+                - img "Facebook" [ref=e40]
+            - generic [ref=e42] [cursor=pointer]: About
+            - link "Contact" [ref=e43] [cursor=pointer]:
+              - /url: mailto:cablemap@telegeography.com
+        - generic [ref=e44]:
+          - heading "Submarine Cable Map" [level=1] [ref=e45]
+          - paragraph [ref=e46]:
+            - text: The Submarine Cable Map is a free and regularly updated resource from
+            - link "TeleGeography" [ref=e47] [cursor=pointer]:
+              - /url: https://www2.telegeography.com/?__hstc=196094579.661b44c647a6d097e5ba52ca44f49239.1781945101606.1781945101606.1781945101606.1&__hssc=196094579.1.1781945101606&__hsfp=7952f2ac6604c8c8922079d1c3c1ae27
+            - text: .
+          - generic [ref=e50]:
+            - generic [ref=e51]: Sponsored by
+            - link "Aqua Comms" [ref=e53] [cursor=pointer]:
+              - /url: https://bit.ly/3GNqTRW
+              - img "Aqua Comms" [ref=e223]
+      - generic [ref=e224]:
+        - img [ref=e226] [cursor=pointer]
+        - img [ref=e229] [cursor=pointer]
+      - combobox [ref=e230]:
+        - textbox "Search" [ref=e231]:
+          - /placeholder: Search by cable, landing, country, year ...
+        - listbox "Search results"
+        - img [ref=e232]
+      - generic [ref=e234]:
+        - generic [ref=e235]:
+          - heading "Submarine Cables" [level=2] [ref=e236]
+          - link "2Africa" [ref=e237] [cursor=pointer]:
+            - /url: /submarine-cable/2africa
+          - link "5 Villages 6 Islands" [ref=e238] [cursor=pointer]:
+            - /url: /submarine-cable/5-villages-6-islands
+          - link "ACS Alaska-Oregon Network (AKORN)" [ref=e239] [cursor=pointer]:
+            - /url: /submarine-cable/acs-alaska-oregon-network-akorn
+          - link "Adamasia Cable System 1" [ref=e240] [cursor=pointer]:
+            - /url: /submarine-cable/adamasia-cable-system-1
+          - link "Aden-Djibouti" [ref=e241] [cursor=pointer]:
+            - /url: /submarine-cable/aden-djibouti
+          - link "Adria-1" [ref=e242] [cursor=pointer]:
+            - /url: /submarine-cable/adria-1
+          - link "AEC-1" [ref=e243] [cursor=pointer]:
+            - /url: /submarine-cable/aec-1
+          - link "Africa-1" [ref=e244] [cursor=pointer]:
+            - /url: /submarine-cable/africa-1
+          - link "Africa Coast to Europe (ACE)" [ref=e245] [cursor=pointer]:
+            - /url: /submarine-cable/africa-coast-to-europe-ace
+          - link "Airraq" [ref=e246] [cursor=pointer]:
+            - /url: /submarine-cable/airraq
+          - link "Alaska United East (AU-East)" [ref=e247] [cursor=pointer]:
+            - /url: /submarine-cable/alaska-united-east-au-east
+          - link "Alaska United Southeast (AU-SE)" [ref=e248] [cursor=pointer]:
+            - /url: /submarine-cable/alaska-united-southeast-au-se
+          - link "Alaska United Turnagain Arm (AUTA)" [ref=e249] [cursor=pointer]:
+            - /url: /submarine-cable/alaska-united-turnagain-arm-auta
+          - link "Alaska United West (AU-West)" [ref=e250] [cursor=pointer]:
+            - /url: /submarine-cable/alaska-united-west-au-west
+          - link "ALBA-1" [ref=e251] [cursor=pointer]:
+            - /url: /submarine-cable/alba-1
+          - link "Aletar" [ref=e252] [cursor=pointer]:
+            - /url: /submarine-cable/aletar
+          - link "Almería-Melilla (ALME)" [ref=e253] [cursor=pointer]:
+            - /url: /submarine-cable/almera-melilla-alme
+          - link "Alonso de Ojeda" [ref=e254] [cursor=pointer]:
+            - /url: /submarine-cable/alonso-de-ojeda
+          - link "America Movil Submarine Cable System-1 (AMX-1)" [ref=e255] [cursor=pointer]:
+            - /url: /submarine-cable/america-movil-submarine-cable-system-1-amx-1
+          - link "AmeriCan-1" [ref=e256] [cursor=pointer]:
+            - /url: /submarine-cable/american-1
+          - link "Americas-I North" [ref=e257] [cursor=pointer]:
+            - /url: /submarine-cable/americas-i-north
+          - link "Americas-II West" [ref=e258] [cursor=pointer]:
+            - /url: /submarine-cable/americas-ii-west
+          - link "Amerigo Vespucci" [ref=e259] [cursor=pointer]:
+            - /url: /submarine-cable/amerigo-vespucci
+          - link "Amitie" [ref=e260] [cursor=pointer]:
+            - /url: /submarine-cable/amitie
+          - link "ANDROMEDA" [ref=e261] [cursor=pointer]:
+            - /url: /submarine-cable/andromeda
+          - link "Anjana" [ref=e262] [cursor=pointer]:
+            - /url: /submarine-cable/anjana
+          - link "Antigua-St.Kitts" [ref=e263] [cursor=pointer]:
+            - /url: /submarine-cable/antigua-st-kitts
+          - link "Antillas 1" [ref=e264] [cursor=pointer]:
+            - /url: /submarine-cable/antillas-1
+          - link "APCN-2" [ref=e265] [cursor=pointer]:
+            - /url: /submarine-cable/apcn-2
+          - link "APOCS 1" [ref=e266] [cursor=pointer]:
+            - /url: /submarine-cable/apocs-1
+          - link "APOCS 2" [ref=e267] [cursor=pointer]:
+            - /url: /submarine-cable/apocs-2
+          - link "Apollo" [ref=e268] [cursor=pointer]:
+            - /url: /submarine-cable/apollo
+          - link "Apollo East and West" [ref=e269] [cursor=pointer]:
+            - /url: /submarine-cable/apollo-east-and-west
+          - link "Apricot" [ref=e270] [cursor=pointer]:
+            - /url: /submarine-cable/apricot
+          - link "APX East" [ref=e271] [cursor=pointer]:
+            - /url: /submarine-cable/apx-east
+          - link "Aqualink" [ref=e272] [cursor=pointer]:
+            - /url: /submarine-cable/aqualink
+          - link "ARCOS" [ref=e273] [cursor=pointer]:
+            - /url: /submarine-cable/arcos
+          - link "Arctic Way" [ref=e274] [cursor=pointer]:
+            - /url: /submarine-cable/arctic-way
+          - link "ARIMAO" [ref=e275] [cursor=pointer]:
+            - /url: /submarine-cable/arimao
+          - link "ARSAT Submarine Fiber Optic Cable" [ref=e276] [cursor=pointer]:
+            - /url: /submarine-cable/arsat-submarine-fiber-optic-cable
+          - link "Asia Africa Europe-1 (AAE-1)" [ref=e277] [cursor=pointer]:
+            - /url: /submarine-cable/asia-africa-europe-1-aae-1
+          - link "Asia-America Gateway (AAG) Cable System" [ref=e278] [cursor=pointer]:
+            - /url: /submarine-cable/asia-america-gateway-aag-cable-system
+          - link "Asia Connect Cable-1 (ACC-1)" [ref=e279] [cursor=pointer]:
+            - /url: /submarine-cable/asia-connect-cable-1-acc-1
+          - link "Asia Direct Cable (ADC)" [ref=e280] [cursor=pointer]:
+            - /url: /submarine-cable/asia-direct-cable-adc
+          - link "Asia Link Cable (ALC)" [ref=e281] [cursor=pointer]:
+            - /url: /submarine-cable/asia-link-cable-alc
+          - link "Asia Pacific Gateway (APG)" [ref=e282] [cursor=pointer]:
+            - /url: /submarine-cable/asia-pacific-gateway-apg
+          - link "Asia Submarine-cable Express (ASE)/Cahaya Malaysia" [ref=e283] [cursor=pointer]:
+            - /url: /submarine-cable/asia-submarine-cable-express-asecahaya-malaysia
+          - link "Asia United Gateway East (AUG East)" [ref=e284] [cursor=pointer]:
+            - /url: /submarine-cable/asia-united-gateway-east-aug-east
+          - link "Atisa" [ref=e285] [cursor=pointer]:
+            - /url: /submarine-cable/atisa
+          - link "Atlantic Crossing-1 (AC-1)" [ref=e286] [cursor=pointer]:
+            - /url: /submarine-cable/atlantic-crossing-1-ac-1
+          - link "Atlas Offshore" [ref=e287] [cursor=pointer]:
+            - /url: /submarine-cable/atlas-offshore
+          - link "AU-Aleutian" [ref=e288] [cursor=pointer]:
+            - /url: /submarine-cable/au-aleutian
+          - link "Aurora" [ref=e289] [cursor=pointer]:
+            - /url: /submarine-cable/aurora
+          - link "Australia-Japan Cable (AJC)" [ref=e290] [cursor=pointer]:
+            - /url: /submarine-cable/australia-japan-cable-ajc
+          - link "Australia-Singapore Cable (ASC)" [ref=e291] [cursor=pointer]:
+            - /url: /submarine-cable/australia-singapore-cable-asc
+          - link "Avassa" [ref=e292] [cursor=pointer]:
+            - /url: /submarine-cable/avassa
+          - link "Awashima-Murakami" [ref=e293] [cursor=pointer]:
+            - /url: /submarine-cable/awashima-murakami
+          - link "Azores Fiber Optic System (AFOS)" [ref=e294] [cursor=pointer]:
+            - /url: /submarine-cable/azores-fiber-optic-system-afos
+          - link "Bahamas 2" [ref=e295] [cursor=pointer]:
+            - /url: /submarine-cable/bahamas-2
+          - link "Bahamas Domestic Submarine Network (BDSNi)" [ref=e296] [cursor=pointer]:
+            - /url: /submarine-cable/bahamas-domestic-submarine-network-bdsni
+          - link "Bahamas Internet Cable System (BICS)" [ref=e297] [cursor=pointer]:
+            - /url: /submarine-cable/bahamas-internet-cable-system-bics
+          - link "Balalink" [ref=e298] [cursor=pointer]:
+            - /url: /submarine-cable/balalink
+          - link "BALOK" [ref=e299] [cursor=pointer]:
+            - /url: /submarine-cable/balok
+          - link "Baltic Sea Submarine Cable" [ref=e300] [cursor=pointer]:
+            - /url: /submarine-cable/baltic-sea-submarine-cable
+          - link "Baltica" [ref=e301] [cursor=pointer]:
+            - /url: /submarine-cable/baltica
+          - link "Bangladesh Private Cable System (BPCS)" [ref=e302] [cursor=pointer]:
+            - /url: /submarine-cable/bangladesh-private-cable-system-bpcs
+          - link "Barat Timur Indonesia-1 (BTI-1)" [ref=e303] [cursor=pointer]:
+            - /url: /submarine-cable/barat-timur-indonesia-1-bti-1
+          - link "Barat Timur Indonesia-2 (BTI-2)" [ref=e304] [cursor=pointer]:
+            - /url: /submarine-cable/barat-timur-indonesia-2-bti-2
+          - link "Barracuda" [ref=e305] [cursor=pointer]:
+            - /url: /submarine-cable/barracuda
+          - link "Bass Strait-1" [ref=e306] [cursor=pointer]:
+            - /url: /submarine-cable/bass-strait-1
+          - link "Bass Strait-2" [ref=e307] [cursor=pointer]:
+            - /url: /submarine-cable/bass-strait-2
+          - link "Basslink" [ref=e308] [cursor=pointer]:
+            - /url: /submarine-cable/basslink
+          - link "Batam Dumai Melaka (BDM)" [ref=e309] [cursor=pointer]:
+            - /url: /submarine-cable/batam-dumai-melaka-bdm
+          - link "Batam-Rengit Cable System (BRCS)" [ref=e310] [cursor=pointer]:
+            - /url: /submarine-cable/batam-rengit-cable-system-brcs
+          - link "Batam Sarawak Internet Cable System (BaSICS)" [ref=e311] [cursor=pointer]:
+            - /url: /submarine-cable/batam-sarawak-internet-cable-system-basics
+          - link "Batam Singapore Cable System (BSCS)" [ref=e312] [cursor=pointer]:
+            - /url: /submarine-cable/batam-singapore-cable-system-bscs
+          - link "Bay of Bengal Gateway (BBG)" [ref=e313] [cursor=pointer]:
+            - /url: /submarine-cable/bay-of-bengal-gateway-bbg
+          - link "BCS East" [ref=e314] [cursor=pointer]:
+            - /url: /submarine-cable/bcs-east
+          - link "BCS East-West Interlink" [ref=e315] [cursor=pointer]:
+            - /url: /submarine-cable/bcs-east-west-interlink
+          - link "BCS North - Phase 1" [ref=e316] [cursor=pointer]:
+            - /url: /submarine-cable/bcs-north---phase-1
+          - link "BCS North - Phase 2" [ref=e317] [cursor=pointer]:
+            - /url: /submarine-cable/bcs-north---phase-2
+          - link "Beaufort" [ref=e318] [cursor=pointer]:
+            - /url: /submarine-cable/beaufort
+          - link "Bernacchi-1" [ref=e319] [cursor=pointer]:
+            - /url: /submarine-cable/bernacchi-1
+          - link "BERYTAR" [ref=e320] [cursor=pointer]:
+            - /url: /submarine-cable/berytar
+          - link "Besut-Perhentian Islands" [ref=e321] [cursor=pointer]:
+            - /url: /submarine-cable/besut-perhentian-islands
+          - link "Bharat Lanka Cable System" [ref=e322] [cursor=pointer]:
+            - /url: /submarine-cable/bharat-lanka-cable-system
+          - link "Bicentenario" [ref=e323] [cursor=pointer]:
+            - /url: /submarine-cable/bicentenario
+          - link "Bifrost" [ref=e324] [cursor=pointer]:
+            - /url: /submarine-cable/bifrost
+          - link "Biznet Nusantara Cable System-1 (BNCS-1)" [ref=e325] [cursor=pointer]:
+            - /url: /submarine-cable/biznet-nusantara-cable-system-1-bncs-1
+          - link "Blue" [ref=e326] [cursor=pointer]:
+            - /url: /submarine-cable/blue
+          - link "Bodo-Rost Cable" [ref=e327] [cursor=pointer]:
+            - /url: /submarine-cable/bodo-rost-cable
+          - link "Boracay-Palawan Submarine Cable System (BPSCS)" [ref=e328] [cursor=pointer]:
+            - /url: /submarine-cable/boracay-palawan-submarine-cable-system-bpscs
+          - link "Bosun" [ref=e329] [cursor=pointer]:
+            - /url: /submarine-cable/bosun
+          - link "Botnia" [ref=e330] [cursor=pointer]:
+            - /url: /submarine-cable/botnia
+          - link "Brazilian Festoon" [ref=e331] [cursor=pointer]:
+            - /url: /submarine-cable/brazilian-festoon
+          - link "BRUSA" [ref=e332] [cursor=pointer]:
+            - /url: /submarine-cable/brusa
+          - link "BT Highlands and Islands Submarine Cable System" [ref=e333] [cursor=pointer]:
+            - /url: /submarine-cable/bt-highlands-and-islands-submarine-cable-system
+          - link "BT-MT-1" [ref=e334] [cursor=pointer]:
+            - /url: /submarine-cable/bt-mt-1
+          - link "BUGIO" [ref=e335] [cursor=pointer]:
+            - /url: /submarine-cable/bugio
+          - link "Bulikula" [ref=e336] [cursor=pointer]:
+            - /url: /submarine-cable/bulikula
+          - link "C-Lion1" [ref=e337] [cursor=pointer]:
+            - /url: /submarine-cable/c-lion1
+          - link "Cabo Verde Telecom Domestic Submarine Cable Phase 1" [ref=e338] [cursor=pointer]:
+            - /url: /submarine-cable/cabo-verde-telecom-domestic-submarine-cable-phase-1
+          - link "Cabo Verde Telecom Domestic Submarine Cable Phase 2" [ref=e339] [cursor=pointer]:
+            - /url: /submarine-cable/cabo-verde-telecom-domestic-submarine-cable-phase-2
+          - link "Cabo Verde Telecom Domestic Submarine Cable Phase 3" [ref=e340] [cursor=pointer]:
+            - /url: /submarine-cable/cabo-verde-telecom-domestic-submarine-cable-phase-3
+          - link "CADMOS" [ref=e341] [cursor=pointer]:
+            - /url: /submarine-cable/cadmos
+          - link "CADMOS-2" [ref=e342] [cursor=pointer]:
+            - /url: /submarine-cable/cadmos-2
+          - link "Calvi-St. Florent" [ref=e343] [cursor=pointer]:
+            - /url: /submarine-cable/calvi-st-florent
+          - link "CAM Ring" [ref=e344] [cursor=pointer]:
+            - /url: /submarine-cable/cam-ring
+          - link "Canalink" [ref=e345] [cursor=pointer]:
+            - /url: /submarine-cable/canalink
+          - link "CANDALTA" [ref=e346] [cursor=pointer]:
+            - /url: /submarine-cable/candalta
+          - link "Candle" [ref=e347] [cursor=pointer]:
+            - /url: /submarine-cable/candle
+          - link "CANTAT-3" [ref=e348] [cursor=pointer]:
+            - /url: /submarine-cable/cantat-3
+          - link "Caribbean-Bermuda U.S. (CBUS)" [ref=e349] [cursor=pointer]:
+            - /url: /submarine-cable/caribbean-bermuda-u-s-cbus
+          - link "Caribbean Regional Communications Infrastructure Program (CARCIP)" [ref=e350] [cursor=pointer]:
+            - /url: /submarine-cable/caribbean-regional-communications-infrastructure-program-carcip
+          - link "Carnival Submarine Network-1 (CSN-1)" [ref=e351] [cursor=pointer]:
+            - /url: /submarine-cable/carnival-submarine-network-1-csn-1
+          - link "CAT Submarine Network (CSN)" [ref=e352] [cursor=pointer]:
+            - /url: /submarine-cable/cat-submarine-network-csn
+          - link "Caucasus Cable System" [ref=e353] [cursor=pointer]:
+            - /url: /submarine-cable/caucasus-cable-system
+          - link "Cayman-Jamaica Fiber System (CJFS)" [ref=e354] [cursor=pointer]:
+            - /url: /submarine-cable/cayman-jamaica-fiber-system-cjfs
+          - link "Ceiba-1" [ref=e355] [cursor=pointer]:
+            - /url: /submarine-cable/ceiba-1
+          - link "Ceiba-2" [ref=e356] [cursor=pointer]:
+            - /url: /submarine-cable/ceiba-2
+          - link "CELIA" [ref=e357] [cursor=pointer]:
+            - /url: /submarine-cable/celia
+          - link "CeltixConnect-1 (CC-1)" [ref=e358] [cursor=pointer]:
+            - /url: /submarine-cable/celtixconnect-1-cc-1
+          - link "Challenger One Bermuda" [ref=e359] [cursor=pointer]:
+            - /url: /submarine-cable/challenger-one-bermuda
+          - link "Channel Islands-9 Liberty Submarine Cable" [ref=e360] [cursor=pointer]:
+            - /url: /submarine-cable/channel-islands-9-liberty-submarine-cable
+          - link "Chennai-Andaman & Nicobar Islands Cable (CANI)" [ref=e361] [cursor=pointer]:
+            - /url: /submarine-cable/chennai-andaman-nicobar-islands-cable-cani
+          - link "CHI" [ref=e362] [cursor=pointer]:
+            - /url: /submarine-cable/chi
+          - link "Chuuk-Pohnpei Cable" [ref=e363] [cursor=pointer]:
+            - /url: /submarine-cable/chuuk-pohnpei-cable
+          - link "Circe North" [ref=e364] [cursor=pointer]:
+            - /url: /submarine-cable/circe-north
+          - link "Circe South" [ref=e365] [cursor=pointer]:
+            - /url: /submarine-cable/circe-south
+          - link "COBRAcable" [ref=e366] [cursor=pointer]:
+            - /url: /submarine-cable/cobracable
+          - link "COGIM" [ref=e367] [cursor=pointer]:
+            - /url: /submarine-cable/cogim
+          - link "Colombia-Florida Express (CFX-1)" [ref=e368] [cursor=pointer]:
+            - /url: /submarine-cable/colombia-florida-express-cfx-1
+          - link "Colombian Festoon" [ref=e369] [cursor=pointer]:
+            - /url: /submarine-cable/colombian-festoon
+          - link "Columbus-II b" [ref=e370] [cursor=pointer]:
+            - /url: /submarine-cable/columbus-ii-b
+          - link "Columbus-III Azores-Portugal" [ref=e371] [cursor=pointer]:
+            - /url: /submarine-cable/columbus-iii-azores-portugal
+          - link "Comoros Domestic Cable System" [ref=e372] [cursor=pointer]:
+            - /url: /submarine-cable/comoros-domestic-cable-system
+          - link "Concerto" [ref=e373] [cursor=pointer]:
+            - /url: /submarine-cable/concerto
+          - link "Connected Coast" [ref=e374] [cursor=pointer]:
+            - /url: /submarine-cable/connected-coast
+          - link "Continente-Madeira" [ref=e375] [cursor=pointer]:
+            - /url: /submarine-cable/continente-madeira
+          - link "Converge Domestic Submarine Cable Network (CDSCN)" [ref=e376] [cursor=pointer]:
+            - /url: /submarine-cable/converge-domestic-submarine-cable-network-cdscn
+          - link "Cook Strait" [ref=e377] [cursor=pointer]:
+            - /url: /submarine-cable/cook-strait
+          - link "Coral Bridge" [ref=e378] [cursor=pointer]:
+            - /url: /submarine-cable/coral-bridge
+          - link "Coral Sea Cable System (CS²)" [ref=e379] [cursor=pointer]:
+            - /url: /submarine-cable/coral-sea-cable-system-cs
+          - link "Corse-Continent 4 (CC4)" [ref=e380] [cursor=pointer]:
+            - /url: /submarine-cable/corse-continent-4-cc4
+          - link "Corse-Continent 5 (CC5)" [ref=e381] [cursor=pointer]:
+            - /url: /submarine-cable/corse-continent-5-cc5
+          - link "Cowes-Fawley 2" [ref=e382] [cursor=pointer]:
+            - /url: /submarine-cable/cowes-fawley-2
+          - link "Cross Sound Cable" [ref=e383] [cursor=pointer]:
+            - /url: /submarine-cable/cross-sound-cable
+          - link "Cross-Straits Cable Network (CSCN)" [ref=e384] [cursor=pointer]:
+            - /url: /submarine-cable/cross-straits-cable-network-cscn
+          - link "CrossChannel Fibre" [ref=e385] [cursor=pointer]:
+            - /url: /submarine-cable/crosschannel-fibre
+          - link "Crosslake Fibre" [ref=e386] [cursor=pointer]:
+            - /url: /submarine-cable/crosslake-fibre
+          - link "Curie" [ref=e387] [cursor=pointer]:
+            - /url: /submarine-cable/curie
+          - link "Cyclades A" [ref=e388] [cursor=pointer]:
+            - /url: /submarine-cable/cyclades-a
+          - link "Cyclades B" [ref=e389] [cursor=pointer]:
+            - /url: /submarine-cable/cyclades-b
+          - link "Daito Loop" [ref=e390] [cursor=pointer]:
+            - /url: /submarine-cable/daito-loop
+          - link "Dalian-Yantai Cable" [ref=e391] [cursor=pointer]:
+            - /url: /submarine-cable/dalian-yantai-cable
+          - link "DAMAI Cable System" [ref=e392] [cursor=pointer]:
+            - /url: /submarine-cable/damai-cable-system
+          - link "Danica North" [ref=e393] [cursor=pointer]:
+            - /url: /submarine-cable/danica-north
+          - link "DANICE" [ref=e394] [cursor=pointer]:
+            - /url: /submarine-cable/danice
+          - link "Daraja" [ref=e395] [cursor=pointer]:
+            - /url: /submarine-cable/daraja
+          - link "Darwin-Jakarta-Singapore Cable (DJSC)" [ref=e396] [cursor=pointer]:
+            - /url: /submarine-cable/darwin-jakarta-singapore-cable-djsc
+          - link "Deep Blue One" [ref=e397] [cursor=pointer]:
+            - /url: /submarine-cable/deep-blue-one
+          - link "Denmark-Sweden 17" [ref=e398] [cursor=pointer]:
+            - /url: /submarine-cable/denmark-sweden-17
+          - link "Denmark-Sweden 18" [ref=e399] [cursor=pointer]:
+            - /url: /submarine-cable/denmark-sweden-18
+          - link "Denpasar-Waingapu Cable Systems" [ref=e400] [cursor=pointer]:
+            - /url: /submarine-cable/denpasar-waingapu-cable-systems
+          - link "Dhiraagu Cable Network" [ref=e401] [cursor=pointer]:
+            - /url: /submarine-cable/dhiraagu-cable-network
+          - link "Dhiraagu-SLT Submarine Cable Network" [ref=e402] [cursor=pointer]:
+            - /url: /submarine-cable/dhiraagu-slt-submarine-cable-network
+          - link "Dhivaru" [ref=e403] [cursor=pointer]:
+            - /url: /submarine-cable/dhivaru
+          - link "Didon" [ref=e404] [cursor=pointer]:
+            - /url: /submarine-cable/didon
+          - link "Djibouti Africa Regional Express 1 (DARE 1)" [ref=e405] [cursor=pointer]:
+            - /url: /submarine-cable/djibouti-africa-regional-express-1-dare-1
+          - link "Domestic Submarine Cable of Maldives (DSCoM)" [ref=e406] [cursor=pointer]:
+            - /url: /submarine-cable/domestic-submarine-cable-of-maldives-dscom
+          - link "DOS CONTINENTES l & ll" [ref=e407] [cursor=pointer]:
+            - /url: /submarine-cable/dos-continentes-l-ll
+          - link "Dumai-Melaka Cable System (DMCS)" [ref=e408] [cursor=pointer]:
+            - /url: /submarine-cable/dumai-melaka-cable-system-dmcs
+          - link "Dunant" [ref=e409] [cursor=pointer]:
+            - /url: /submarine-cable/dunant
+          - link "E-FINEST" [ref=e410] [cursor=pointer]:
+            - /url: /submarine-cable/e-finest
+          - link "E-LLAN" [ref=e411] [cursor=pointer]:
+            - /url: /submarine-cable/e-llan
+          - link "E2A" [ref=e412] [cursor=pointer]:
+            - /url: /submarine-cable/e2a
+          - link "EAC-C2C" [ref=e413] [cursor=pointer]:
+            - /url: /submarine-cable/eac-c2c
+          - link "EAGLE" [ref=e414] [cursor=pointer]:
+            - /url: /submarine-cable/eagle
+          - link "East Micronesia Cable System (EMCS)" [ref=e415] [cursor=pointer]:
+            - /url: /submarine-cable/east-micronesia-cable-system-emcs
+          - link "East-West Cable (EWC)" [ref=e416] [cursor=pointer]:
+            - /url: /submarine-cable/east-west-cable-ewc
+          - link "East-West Submarine Cable System" [ref=e417] [cursor=pointer]:
+            - /url: /submarine-cable/east-west-submarine-cable-system
+          - link "Eastern Africa Submarine System (EASSy)" [ref=e418] [cursor=pointer]:
+            - /url: /submarine-cable/eastern-africa-submarine-system-eassy
+          - link "Eastern Caribbean Fiber System (ECFS)" [ref=e419] [cursor=pointer]:
+            - /url: /submarine-cable/eastern-caribbean-fiber-system-ecfs
+          - link "Eastern Light Sweden-Finland I" [ref=e420] [cursor=pointer]:
+            - /url: /submarine-cable/eastern-light-sweden-finland-i
+          - link "Eastern Light Sweden-Finland II" [ref=e421] [cursor=pointer]:
+            - /url: /submarine-cable/eastern-light-sweden-finland-ii
+          - link "EAUFON 1" [ref=e422] [cursor=pointer]:
+            - /url: /submarine-cable/eaufon-1
+          - link "EAUFON 2" [ref=e423] [cursor=pointer]:
+            - /url: /submarine-cable/eaufon-2
+          - link "EAUFON 3" [ref=e424] [cursor=pointer]:
+            - /url: /submarine-cable/eaufon-3
+          - link "EC Link" [ref=e425] [cursor=pointer]:
+            - /url: /submarine-cable/ec-link
+          - link "Echo" [ref=e426] [cursor=pointer]:
+            - /url: /submarine-cable/echo
+          - link "Elektra-GlobalConnect 1 (GC1)" [ref=e427] [cursor=pointer]:
+            - /url: /submarine-cable/elektra-globalconnect-1-gc1
+          - link "EllaLink" [ref=e428] [cursor=pointer]:
+            - /url: /submarine-cable/ellalink
+          - link "EMC West-1" [ref=e429] [cursor=pointer]:
+            - /url: /submarine-cable/emc-west-1
+          - link "EMC West-2" [ref=e430] [cursor=pointer]:
+            - /url: /submarine-cable/emc-west-2
+          - link "Emerald Bridge Fibres" [ref=e431] [cursor=pointer]:
+            - /url: /submarine-cable/emerald-bridge-fibres
+          - link "Energinet Laeso-Varberg" [ref=e432] [cursor=pointer]:
+            - /url: /submarine-cable/energinet-laeso-varberg
+          - link "Energinet Lyngsa-Laeso" [ref=e433] [cursor=pointer]:
+            - /url: /submarine-cable/energinet-lyngsa-laeso
+          - link "Energy Bridge Cable" [ref=e434] [cursor=pointer]:
+            - /url: /submarine-cable/energy-bridge-cable
+          - link "Epic Malta-Sicily Cable System (EMSCS)" [ref=e435] [cursor=pointer]:
+            - /url: /submarine-cable/epic-malta-sicily-cable-system-emscs
+          - link "Equiano" [ref=e436] [cursor=pointer]:
+            - /url: /submarine-cable/equiano
+          - link "ESAT-2" [ref=e437] [cursor=pointer]:
+            - /url: /submarine-cable/esat-2
+          - link "Est-Tet" [ref=e438] [cursor=pointer]:
+            - /url: /submarine-cable/est-tet
+          - link "Europe India Gateway (EIG)" [ref=e439] [cursor=pointer]:
+            - /url: /submarine-cable/europe-india-gateway-eig
+          - link "Eviny Digital" [ref=e440] [cursor=pointer]:
+            - /url: /submarine-cable/eviny-digital
+          - link "EXA Express" [ref=e441] [cursor=pointer]:
+            - /url: /submarine-cable/exa-express
+          - link "EXA North and South" [ref=e442] [cursor=pointer]:
+            - /url: /submarine-cable/exa-north-and-south
+          - link "Exelera North" [ref=e443] [cursor=pointer]:
+            - /url: /submarine-cable/exelera-north
+          - link "FALCON" [ref=e444] [cursor=pointer]:
+            - /url: /submarine-cable/falcon
+          - link "Far East Submarine Cable System" [ref=e445] [cursor=pointer]:
+            - /url: /submarine-cable/far-east-submarine-cable-system
+          - link "Farewell-Change-Fogo" [ref=e446] [cursor=pointer]:
+            - /url: /submarine-cable/farewell-change-fogo
+          - link "FARICE-1" [ref=e447] [cursor=pointer]:
+            - /url: /submarine-cable/farice-1
+          - link "Farland North" [ref=e448] [cursor=pointer]:
+            - /url: /submarine-cable/farland-north
+          - link "FASTER" [ref=e449] [cursor=pointer]:
+            - /url: /submarine-cable/faster
+          - link "Fastnet" [ref=e450] [cursor=pointer]:
+            - /url: /submarine-cable/fastnet
+          - link "FEA" [ref=e451] [cursor=pointer]:
+            - /url: /submarine-cable/fea
+          - link "Fehmarn Bält" [ref=e452] [cursor=pointer]:
+            - /url: /submarine-cable/fehmarn-blt
+          - link "Fiber Optic Gulf (FOG)" [ref=e453] [cursor=pointer]:
+            - /url: /submarine-cable/fiber-optic-gulf-fog
+          - link "Fibra Optica al Pacífico" [ref=e454] [cursor=pointer]:
+            - /url: /submarine-cable/fibra-optica-al-pacfico
+          - link "Fibra Optica Austral" [ref=e455] [cursor=pointer]:
+            - /url: /submarine-cable/fibra-optica-austral
+          - link "Fibralink" [ref=e456] [cursor=pointer]:
+            - /url: /submarine-cable/fibralink
+          - link "Fibre in Gulf (FIG)" [ref=e457] [cursor=pointer]:
+            - /url: /submarine-cable/fibre-in-gulf-fig
+          - link "Finland-Estonia 2 (EESF-2)" [ref=e458] [cursor=pointer]:
+            - /url: /submarine-cable/finland-estonia-2-eesf-2
+          - link "Finland-Estonia 3 (EESF-3)" [ref=e459] [cursor=pointer]:
+            - /url: /submarine-cable/finland-estonia-3-eesf-3
+          - link "Finland Estonia Connection 1 (FEC-1)" [ref=e460] [cursor=pointer]:
+            - /url: /submarine-cable/finland-estonia-connection-1-fec-1
+          - link "Finland Estonia Connection 2 (FEC-2)" [ref=e461] [cursor=pointer]:
+            - /url: /submarine-cable/finland-estonia-connection-2-fec-2
+          - link "Firmina" [ref=e462] [cursor=pointer]:
+            - /url: /submarine-cable/firmina
+          - link "FISH North" [ref=e463] [cursor=pointer]:
+            - /url: /submarine-cable/fish-north
+          - link "FISH South" [ref=e464] [cursor=pointer]:
+            - /url: /submarine-cable/fish-south
+          - link "FISH West" [ref=e465] [cursor=pointer]:
+            - /url: /submarine-cable/fish-west
+          - link "FLAG Atlantic-1 (FA-1)" [ref=e466] [cursor=pointer]:
+            - /url: /submarine-cable/flag-atlantic-1-fa-1
+          - link "FLAG North Asia Loop/REACH North Asia Loop" [ref=e467] [cursor=pointer]:
+            - /url: /submarine-cable/flag-north-asia-loopreach-north-asia-loop
+          - link "Flores-Corvo Cable System" [ref=e468] [cursor=pointer]:
+            - /url: /submarine-cable/flores-corvo-cable-system
+          - link "FLY-LION3" [ref=e469] [cursor=pointer]:
+            - /url: /submarine-cable/fly-lion3
+          - link "FOS Quellon-Chacabuco" [ref=e470] [cursor=pointer]:
+            - /url: /submarine-cable/fos-quellon-chacabuco
+          - link "GC-LNZ-FU Ring" [ref=e471] [cursor=pointer]:
+            - /url: /submarine-cable/gc-lnz-fu-ring
+          - link "Gemini Bermuda" [ref=e472] [cursor=pointer]:
+            - /url: /submarine-cable/gemini-bermuda
+          - link "Geo-Eirgrid" [ref=e473] [cursor=pointer]:
+            - /url: /submarine-cable/geo-eirgrid
+          - link "Georgia-Russia" [ref=e474] [cursor=pointer]:
+            - /url: /submarine-cable/georgia-russia
+          - link "Germany-Denmark 3" [ref=e475] [cursor=pointer]:
+            - /url: /submarine-cable/germany-denmark-3
+          - link "Glo-1" [ref=e476] [cursor=pointer]:
+            - /url: /submarine-cable/glo-1
+          - link "Global Caribbean Network (GCN)" [ref=e477] [cursor=pointer]:
+            - /url: /submarine-cable/global-caribbean-network-gcn
+          - link "GlobalConnect 2 (GC2)" [ref=e478] [cursor=pointer]:
+            - /url: /submarine-cable/globalconnect-2-gc2
+          - link "GlobalConnect 3 (GC3)" [ref=e479] [cursor=pointer]:
+            - /url: /submarine-cable/globalconnect-3-gc3
+          - link "GlobalConnect 6 (GC6)" [ref=e480] [cursor=pointer]:
+            - /url: /submarine-cable/globalconnect-6-gc6
+          - link "GlobalConnect Denmark-Sweden" [ref=e481] [cursor=pointer]:
+            - /url: /submarine-cable/globalconnect-denmark-sweden
+          - link "GlobalConnect-KPN" [ref=e482] [cursor=pointer]:
+            - /url: /submarine-cable/globalconnect-kpn
+          - link "GlobeNet" [ref=e483] [cursor=pointer]:
+            - /url: /submarine-cable/globenet
+          - link "GO-1 Mediterranean Cable System" [ref=e484] [cursor=pointer]:
+            - /url: /submarine-cable/go-1-mediterranean-cable-system
+          - link "Gondwana-1" [ref=e485] [cursor=pointer]:
+            - /url: /submarine-cable/gondwana-1
+          - link "Gondwana-2/Picot-2" [ref=e486] [cursor=pointer]:
+            - /url: /submarine-cable/gondwana-2picot-2
+          - link "Grace Hopper" [ref=e487] [cursor=pointer]:
+            - /url: /submarine-cable/grace-hopper
+          - link "Grand Bahama Bimini Submarine Cable" [ref=e488] [cursor=pointer]:
+            - /url: /submarine-cable/grand-bahama-bimini-submarine-cable
+          - link "Greenland Connect" [ref=e489] [cursor=pointer]:
+            - /url: /submarine-cable/greenland-connect
+          - link "Greenland Connect North" [ref=e490] [cursor=pointer]:
+            - /url: /submarine-cable/greenland-connect-north
+          - link "Groix 4" [ref=e491] [cursor=pointer]:
+            - /url: /submarine-cable/groix-4
+          - link "Groote Eylandt" [ref=e492] [cursor=pointer]:
+            - /url: /submarine-cable/groote-eylandt
+          - link "GTMO-1" [ref=e493] [cursor=pointer]:
+            - /url: /submarine-cable/gtmo-1
+          - link "GTMO-PR" [ref=e494] [cursor=pointer]:
+            - /url: /submarine-cable/gtmo-pr
+          - link "Guadeloupe Cable des Iles du Sud (GCIS)" [ref=e495] [cursor=pointer]:
+            - /url: /submarine-cable/guadeloupe-cable-des-iles-du-sud-gcis
+          - link "Guam Okinawa Kyushu Incheon (GOKI)" [ref=e496] [cursor=pointer]:
+            - /url: /submarine-cable/guam-okinawa-kyushu-incheon-goki
+          - link "Guernsey-Jersey-4" [ref=e497] [cursor=pointer]:
+            - /url: /submarine-cable/guernsey-jersey-4
+          - link "Gulf Bridge International Cable System/Middle East North Africa Cable System (GBICS/MENA)" [ref=e498] [cursor=pointer]:
+            - /url: /submarine-cable/gulf-bridge-international-cable-systemmiddle-east-north-africa-cable-system-gbicsmena
+          - link "Gulf of California Cable" [ref=e499] [cursor=pointer]:
+            - /url: /submarine-cable/gulf-of-california-cable
+          - link "Gulf of Mexico Fiber Optic Network" [ref=e500] [cursor=pointer]:
+            - /url: /submarine-cable/gulf-of-mexico-fiber-optic-network
+          - link "Gulf2Africa (G2A)" [ref=e501] [cursor=pointer]:
+            - /url: /submarine-cable/gulf2africa-g2a
+          - link "Hachijojima-Mainland" [ref=e502] [cursor=pointer]:
+            - /url: /submarine-cable/hachijojima-mainland
+          - link "Haikou-Beihai Cable" [ref=e503] [cursor=pointer]:
+            - /url: /submarine-cable/haikou-beihai-cable
+          - link "Hainan to Hong Kong Express (H2HE)" [ref=e504] [cursor=pointer]:
+            - /url: /submarine-cable/hainan-to-hong-kong-express-h2he
+          - link "Halaihai" [ref=e505] [cursor=pointer]:
+            - /url: /submarine-cable/halaihai
+          - link "HANNIBAL System" [ref=e506] [cursor=pointer]:
+            - /url: /submarine-cable/hannibal-system
+          - link "HANTRU1 Cable System" [ref=e507] [cursor=pointer]:
+            - /url: /submarine-cable/hantru1-cable-system
+          - link "Havfrue/AEC-2" [ref=e508] [cursor=pointer]:
+            - /url: /submarine-cable/havfrueaec-2
+          - link "Havhingsten/CeltixConnect-2 (CC-2)" [ref=e509] [cursor=pointer]:
+            - /url: /submarine-cable/havhingstenceltixconnect-2-cc-2
+          - link "Havhingsten/North Sea Connect (NSC)" [ref=e510] [cursor=pointer]:
+            - /url: /submarine-cable/havhingstennorth-sea-connect-nsc
+          - link "Havsil" [ref=e511] [cursor=pointer]:
+            - /url: /submarine-cable/havsil
+          - link "Hawaii Inter-Island Cable System (HICS)" [ref=e512] [cursor=pointer]:
+            - /url: /submarine-cable/hawaii-inter-island-cable-system-hics
+          - link "Hawaii Island Fibre Network (HIFN)" [ref=e513] [cursor=pointer]:
+            - /url: /submarine-cable/hawaii-island-fibre-network-hifn
+          - link "Hawaiian Islands Fiber Link (HIFL)" [ref=e514] [cursor=pointer]:
+            - /url: /submarine-cable/hawaiian-islands-fiber-link-hifl
+          - link "Hawaiki" [ref=e515] [cursor=pointer]:
+            - /url: /submarine-cable/hawaiki
+          - link "Hawaiki Nui 1" [ref=e516] [cursor=pointer]:
+            - /url: /submarine-cable/hawaiki-nui-1
+          - link "Hawk" [ref=e517] [cursor=pointer]:
+            - /url: /submarine-cable/hawk
+          - link "High-capacity Undersea Guernsey Optical-fibre (HUGO)" [ref=e518] [cursor=pointer]:
+            - /url: /submarine-cable/high-capacity-undersea-guernsey-optical-fibre-hugo
+          - link "Hokkaido-Akita Cable" [ref=e519] [cursor=pointer]:
+            - /url: /submarine-cable/hokkaido-akita-cable
+          - link "Hokkaido-Rebun-Rishiri" [ref=e520] [cursor=pointer]:
+            - /url: /submarine-cable/hokkaido-rebun-rishiri
+          - link "Hokkaido-Sakhalin Cable System (HSCS)" [ref=e521] [cursor=pointer]:
+            - /url: /submarine-cable/hokkaido-sakhalin-cable-system-hscs
+          - link "Honomoana" [ref=e522] [cursor=pointer]:
+            - /url: /submarine-cable/honomoana
+          - link "Honotua" [ref=e523] [cursor=pointer]:
+            - /url: /submarine-cable/honotua
+          - link "Hronn" [ref=e524] [cursor=pointer]:
+            - /url: /submarine-cable/hronn
+          - link "I-AM Cable" [ref=e525] [cursor=pointer]:
+            - /url: /submarine-cable/i-am-cable
+          - link "i2i Cable Network (i2icn)" [ref=e526] [cursor=pointer]:
+            - /url: /submarine-cable/i2i-cable-network-i2icn
+          - link "Iceni" [ref=e527] [cursor=pointer]:
+            - /url: /submarine-cable/iceni
+          - link "IMEWE" [ref=e528] [cursor=pointer]:
+            - /url: /submarine-cable/imewe
+          - link "India Asia Xpress (IAX)" [ref=e529] [cursor=pointer]:
+            - /url: /submarine-cable/india-asia-xpress-iax
+          - link "India Europe Xpress (IEX)" [ref=e530] [cursor=pointer]:
+            - /url: /submarine-cable/india-europe-xpress-iex
+          - link "INDIGO-Central" [ref=e531] [cursor=pointer]:
+            - /url: /submarine-cable/indigo-central
+          - link "INDIGO-West" [ref=e532] [cursor=pointer]:
+            - /url: /submarine-cable/indigo-west
+          - link "Indonesia Global Gateway (IGG) System" [ref=e533] [cursor=pointer]:
+            - /url: /submarine-cable/indonesia-global-gateway-igg-system
+          - link "Indonesia Tengah Cable Systems" [ref=e534] [cursor=pointer]:
+            - /url: /submarine-cable/indonesia-tengah-cable-systems
+          - link "INGRID" [ref=e535] [cursor=pointer]:
+            - /url: /submarine-cable/ingrid
+          - link "INSICA" [ref=e536] [cursor=pointer]:
+            - /url: /submarine-cable/insica
+          - link "Interchange Cable Network 1 (ICN1)" [ref=e537] [cursor=pointer]:
+            - /url: /submarine-cable/interchange-cable-network-1-icn1
+          - link "IOEMA-1" [ref=e538] [cursor=pointer]:
+            - /url: /submarine-cable/ioema-1
+          - link "IOKWE" [ref=e539] [cursor=pointer]:
+            - /url: /submarine-cable/iokwe
+          - link "Ionian" [ref=e540] [cursor=pointer]:
+            - /url: /submarine-cable/ionian
+          - link "IRIS" [ref=e541] [cursor=pointer]:
+            - /url: /submarine-cable/iris
+          - link "Isle Au Haut Cable" [ref=e542] [cursor=pointer]:
+            - /url: /submarine-cable/isle-au-haut-cable
+          - link "Isles of Scilly Cable" [ref=e543] [cursor=pointer]:
+            - /url: /submarine-cable/isles-of-scilly-cable
+          - link "Israel Coasting 1 (IC-1)" [ref=e544] [cursor=pointer]:
+            - /url: /submarine-cable/israel-coasting-1-ic-1
+          - link "Italy-Albania" [ref=e545] [cursor=pointer]:
+            - /url: /submarine-cable/italy-albania
+          - link "Italy-Croatia" [ref=e546] [cursor=pointer]:
+            - /url: /submarine-cable/italy-croatia
+          - link "Italy-Greece 1 (IG-1)" [ref=e547] [cursor=pointer]:
+            - /url: /submarine-cable/italy-greece-1-ig-1
+          - link "Italy-Libya" [ref=e548] [cursor=pointer]:
+            - /url: /submarine-cable/italy-libya
+          - link "Italy-Malta" [ref=e549] [cursor=pointer]:
+            - /url: /submarine-cable/italy-malta
+          - link "Italy-Monaco" [ref=e550] [cursor=pointer]:
+            - /url: /submarine-cable/italy-monaco
+          - link "Ithaafushi-Maafushi-Hulhumale" [ref=e551] [cursor=pointer]:
+            - /url: /submarine-cable/ithaafushi-maafushi-hulhumale
+          - link "Ixchel" [ref=e552] [cursor=pointer]:
+            - /url: /submarine-cable/ixchel
+          - link "Izu Islands Cable System" [ref=e553] [cursor=pointer]:
+            - /url: /submarine-cable/izu-islands-cable-system
+          - link "JaKa2LaDeMa" [ref=e554] [cursor=pointer]:
+            - /url: /submarine-cable/jaka2ladema
+          - link "JAKABARE" [ref=e555] [cursor=pointer]:
+            - /url: /submarine-cable/jakabare
+          - link "Jakarta-Bangka-Batam-Singapore (B2JS)" [ref=e556] [cursor=pointer]:
+            - /url: /submarine-cable/jakarta-bangka-batam-singapore-b2js
+          - link "Jakarta-Bangka-Bintan-Batam-Singapore (B3JS)" [ref=e557] [cursor=pointer]:
+            - /url: /submarine-cable/jakarta-bangka-bintan-batam-singapore-b3js
+          - link "Jakarta Surabaya Cable System (JAYABAYA)" [ref=e558] [cursor=pointer]:
+            - /url: /submarine-cable/jakarta-surabaya-cable-system-jayabaya
+          - link "JAKO" [ref=e559] [cursor=pointer]:
+            - /url: /submarine-cable/jako
+          - link "Jalapati" [ref=e560] [cursor=pointer]:
+            - /url: /submarine-cable/jalapati
+          - link "Jamaica Submarine Cable Festoon System (JSCFS)" [ref=e561] [cursor=pointer]:
+            - /url: /submarine-cable/jamaica-submarine-cable-festoon-system-jscfs
+          - link "Jambi-Batam Cable System (JIBA)" [ref=e562] [cursor=pointer]:
+            - /url: /submarine-cable/jambi-batam-cable-system-jiba
+          - link "Janna" [ref=e563] [cursor=pointer]:
+            - /url: /submarine-cable/janna
+          - link "Japan-Guam-Australia North (JGA-N)" [ref=e564] [cursor=pointer]:
+            - /url: /submarine-cable/japan-guam-australia-north-jga-n
+          - link "Japan-Guam-Australia South (JGA-S)" [ref=e565] [cursor=pointer]:
+            - /url: /submarine-cable/japan-guam-australia-south-jga-s
+          - link "Japan Information Highway (JIH)" [ref=e566] [cursor=pointer]:
+            - /url: /submarine-cable/japan-information-highway-jih
+          - link "JaSuKa" [ref=e567] [cursor=pointer]:
+            - /url: /submarine-cable/jasuka
+          - link "Java Bali Cable System (JBCS)" [ref=e568] [cursor=pointer]:
+            - /url: /submarine-cable/java-bali-cable-system-jbcs
+          - link "Java-Kalimantan-Sulawesi (JAKASUSI)" [ref=e569] [cursor=pointer]:
+            - /url: /submarine-cable/java-kalimantan-sulawesi-jakasusi
+          - link "JAVALI" [ref=e570] [cursor=pointer]:
+            - /url: /submarine-cable/javali
+          - link "Jeju-Mainland 2" [ref=e571] [cursor=pointer]:
+            - /url: /submarine-cable/jeju-mainland-2
+          - link "Jeju-Mainland 3" [ref=e572] [cursor=pointer]:
+            - /url: /submarine-cable/jeju-mainland-3
+          - link "Jeju-Udo" [ref=e573] [cursor=pointer]:
+            - /url: /submarine-cable/jeju-udo
+          - link "Jerry Newton" [ref=e574] [cursor=pointer]:
+            - /url: /submarine-cable/jerry-newton
+          - link "Jonah" [ref=e575] [cursor=pointer]:
+            - /url: /submarine-cable/jonah
+          - link "Junior" [ref=e576] [cursor=pointer]:
+            - /url: /submarine-cable/junior
+          - link "JUNO" [ref=e577] [cursor=pointer]:
+            - /url: /submarine-cable/juno
+          - link "JUPITER" [ref=e578] [cursor=pointer]:
+            - /url: /submarine-cable/jupiter
+          - link "KAFOS" [ref=e579] [cursor=pointer]:
+            - /url: /submarine-cable/kafos
+          - link "Kanawa" [ref=e580] [cursor=pointer]:
+            - /url: /submarine-cable/kanawa
+          - link "Kangaroo Island 2" [ref=e581] [cursor=pointer]:
+            - /url: /submarine-cable/kangaroo-island-2
+          - link "Kardesa" [ref=e582] [cursor=pointer]:
+            - /url: /submarine-cable/kardesa
+          - link "Kattegat 2" [ref=e583] [cursor=pointer]:
+            - /url: /submarine-cable/kattegat-2
+          - link "Kattegat Cable" [ref=e584] [cursor=pointer]:
+            - /url: /submarine-cable/kattegat-cable
+          - link "Kerch Strait Cable" [ref=e585] [cursor=pointer]:
+            - /url: /submarine-cable/kerch-strait-cable
+          - link "KetchCan1 Submarine Fiber Cable System" [ref=e586] [cursor=pointer]:
+            - /url: /submarine-cable/ketchcan1-submarine-fiber-cable-system
+          - link "Kingisepp-Kaliningrad System (Baltika)" [ref=e587] [cursor=pointer]:
+            - /url: /submarine-cable/kingisepp-kaliningrad-system-baltika
+          - link "Kitadaito Island" [ref=e588] [cursor=pointer]:
+            - /url: /submarine-cable/kitadaito-island
+          - link "Kochi-Lakshadweep Islands (KLI-SOFC)" [ref=e589] [cursor=pointer]:
+            - /url: /submarine-cable/kochi-lakshadweep-islands-kli-sofc
+          - link "Kodiak Kenai Fiber Link (KKFL)" [ref=e590] [cursor=pointer]:
+            - /url: /submarine-cable/kodiak-kenai-fiber-link-kkfl
+          - link "Konstanz-Friedrichshafen" [ref=e591] [cursor=pointer]:
+            - /url: /submarine-cable/konstanz-friedrichshafen
+          - link "Konstanz-Meersburg" [ref=e592] [cursor=pointer]:
+            - /url: /submarine-cable/konstanz-meersburg
+          - link "Korea-Japan Cable Network (KJCN)" [ref=e593] [cursor=pointer]:
+            - /url: /submarine-cable/korea-japan-cable-network-kjcn
+          - link "Kumul Domestic Submarine Cable System" [ref=e594] [cursor=pointer]:
+            - /url: /submarine-cable/kumul-domestic-submarine-cable-system
+          - link "Kunoa North" [ref=e595] [cursor=pointer]:
+            - /url: /submarine-cable/kunoa-north
+          - link "Kupang-Alor Cable Systems" [ref=e596] [cursor=pointer]:
+            - /url: /submarine-cable/kupang-alor-cable-systems
+          - link "Kuwait-Iran" [ref=e597] [cursor=pointer]:
+            - /url: /submarine-cable/kuwait-iran
+          - link "La Gomera-El Hierro" [ref=e598] [cursor=pointer]:
+            - /url: /submarine-cable/la-gomera-el-hierro
+          - link "Labuan-Brunei Submarine Cable" [ref=e599] [cursor=pointer]:
+            - /url: /submarine-cable/labuan-brunei-submarine-cable
+          - link "Lake Albert 1" [ref=e600] [cursor=pointer]:
+            - /url: /submarine-cable/lake-albert-1
+          - link "Lake Albert 2" [ref=e601] [cursor=pointer]:
+            - /url: /submarine-cable/lake-albert-2
+          - link "Lake Michigan Chicago Crossing" [ref=e602] [cursor=pointer]:
+            - /url: /submarine-cable/lake-michigan-chicago-crossing
+          - link "Lake Michigan Crossing Peninsula and Island Connection" [ref=e603] [cursor=pointer]:
+            - /url: /submarine-cable/lake-michigan-crossing-peninsula-and-island-connection
+          - link "Lake Tanganyika" [ref=e604] [cursor=pointer]:
+            - /url: /submarine-cable/lake-tanganyika
+          - link "Lanis-1" [ref=e605] [cursor=pointer]:
+            - /url: /submarine-cable/lanis-1
+          - link "Lanis-2" [ref=e606] [cursor=pointer]:
+            - /url: /submarine-cable/lanis-2
+          - link "Lanis-3" [ref=e607] [cursor=pointer]:
+            - /url: /submarine-cable/lanis-3
+          - link "Latvia-Sweden 1 (LV-SE 1)" [ref=e608] [cursor=pointer]:
+            - /url: /submarine-cable/latvia-sweden-1-lv-se-1
+          - link "Lazaro Cardenas-Manzanillo Santiago Submarine Cable System (LCMSSCS)" [ref=e609] [cursor=pointer]:
+            - /url: /submarine-cable/lazaro-cardenas-manzanillo-santiago-submarine-cable-system-lcmsscs
+          - link "Le Vasa" [ref=e610] [cursor=pointer]:
+            - /url: /submarine-cable/le-vasa
+          - link "Îles d'Hyères Cable" [ref=e611] [cursor=pointer]:
+            - /url: /submarine-cable/les-dhyres-cable
+          - link "LFON (Libyan Fiber Optic Network)" [ref=e612] [cursor=pointer]:
+            - /url: /submarine-cable/lfon-libyan-fiber-optic-network
+          - link "Libreville-Port Gentil Cable" [ref=e613] [cursor=pointer]:
+            - /url: /submarine-cable/libreville-port-gentil-cable
+          - link "Lic-Lin-Lamp" [ref=e614] [cursor=pointer]:
+            - /url: /submarine-cable/lic-lin-lamp
+          - link "Link 1 Phase-1" [ref=e615] [cursor=pointer]:
+            - /url: /submarine-cable/link-1-phase-1
+          - link "Link 1 Phase-2" [ref=e616] [cursor=pointer]:
+            - /url: /submarine-cable/link-1-phase-2
+          - link "Link 2 Phase-1" [ref=e617] [cursor=pointer]:
+            - /url: /submarine-cable/link-2-phase-1
+          - link "Link 2 Phase-2" [ref=e618] [cursor=pointer]:
+            - /url: /submarine-cable/link-2-phase-2
+          - link "Link 3 Phase-1" [ref=e619] [cursor=pointer]:
+            - /url: /submarine-cable/link-3-phase-1
+          - link "Link 3 Phase-2" [ref=e620] [cursor=pointer]:
+            - /url: /submarine-cable/link-3-phase-2
+          - link "Link 4 Phase-2" [ref=e621] [cursor=pointer]:
+            - /url: /submarine-cable/link-4-phase-2
+          - link "Link 5 Phase-2" [ref=e622] [cursor=pointer]:
+            - /url: /submarine-cable/link-5-phase-2
+          - link "Longyearbyen-Ny-Ålesund" [ref=e623] [cursor=pointer]:
+            - /url: /submarine-cable/longyearbyen-ny-lesund
+          - link "Lower Indian Ocean Network 2 (LION2)" [ref=e624] [cursor=pointer]:
+            - /url: /submarine-cable/lower-indian-ocean-network-2-lion2
+          - link "Lower Indian Ocean Network (LION)" [ref=e625] [cursor=pointer]:
+            - /url: /submarine-cable/lower-indian-ocean-network-lion
+          - link "Lumut-Pangkor Island" [ref=e626] [cursor=pointer]:
+            - /url: /submarine-cable/lumut-pangkor-island
+          - link "Luwuk Tutuyan Cable System (LTCS)" [ref=e627] [cursor=pointer]:
+            - /url: /submarine-cable/luwuk-tutuyan-cable-system-ltcs
+          - link "Lynn Canal Fiber" [ref=e628] [cursor=pointer]:
+            - /url: /submarine-cable/lynn-canal-fiber
+          - link "MainOne" [ref=e629] [cursor=pointer]:
+            - /url: /submarine-cable/mainone
+          - link "Malaysia-Cambodia-Thailand (MCT) Cable" [ref=e630] [cursor=pointer]:
+            - /url: /submarine-cable/malaysia-cambodia-thailand-mct-cable
+          - link "Malbec" [ref=e631] [cursor=pointer]:
+            - /url: /submarine-cable/malbec
+          - link "Maldives Sri Lanka Cable (MSC)" [ref=e632] [cursor=pointer]:
+            - /url: /submarine-cable/maldives-sri-lanka-cable-msc
+          - link "Malta-Gozo Cable" [ref=e633] [cursor=pointer]:
+            - /url: /submarine-cable/malta-gozo-cable
+          - link "Malta-Italy Interconnector" [ref=e634] [cursor=pointer]:
+            - /url: /submarine-cable/malta-italy-interconnector
+          - link "Manatua" [ref=e635] [cursor=pointer]:
+            - /url: /submarine-cable/manatua
+          - link "MANTA" [ref=e636] [cursor=pointer]:
+            - /url: /submarine-cable/manta
+          - link "Manx-Northern Ireland" [ref=e637] [cursor=pointer]:
+            - /url: /submarine-cable/manx-northern-ireland
+          - link "MAREA" [ref=e638] [cursor=pointer]:
+            - /url: /submarine-cable/marea
+          - link "Mariana-Guam Cable" [ref=e639] [cursor=pointer]:
+            - /url: /submarine-cable/mariana-guam-cable
+          - link "Maroc Telecom West Africa" [ref=e640] [cursor=pointer]:
+            - /url: /submarine-cable/maroc-telecom-west-africa
+          - link "Mataram Kupang Cable System (MKCS)" [ref=e641] [cursor=pointer]:
+            - /url: /submarine-cable/mataram-kupang-cable-system-mkcs
+          - link "Matrix Cable System" [ref=e642] [cursor=pointer]:
+            - /url: /submarine-cable/matrix-cable-system
+          - link "Mauritius and Rodrigues Submarine Cable System (MARS)" [ref=e643] [cursor=pointer]:
+            - /url: /submarine-cable/mauritius-and-rodrigues-submarine-cable-system-mars
+          - link "Maya-1.2" [ref=e644] [cursor=pointer]:
+            - /url: /submarine-cable/maya-1-2
+          - link "Med Cable Network" [ref=e645] [cursor=pointer]:
+            - /url: /submarine-cable/med-cable-network
+          - link "Medloop" [ref=e646] [cursor=pointer]:
+            - /url: /submarine-cable/medloop
+          - link "MedNautilus Submarine System" [ref=e647] [cursor=pointer]:
+            - /url: /submarine-cable/mednautilus-submarine-system
+          - link "Medusa Submarine Cable System" [ref=e648] [cursor=pointer]:
+            - /url: /submarine-cable/medusa-submarine-cable-system
+          - link "Melita 1" [ref=e649] [cursor=pointer]:
+            - /url: /submarine-cable/melita-1
+          - link "Meltingpot Indianoceanic Submarine System (METISS)" [ref=e650] [cursor=pointer]:
+            - /url: /submarine-cable/meltingpot-indianoceanic-submarine-system-metiss
+          - link "Mercator" [ref=e651] [cursor=pointer]:
+            - /url: /submarine-cable/mercator
+          - link "Mid-Atlantic Crossing (MAC)" [ref=e652] [cursor=pointer]:
+            - /url: /submarine-cable/mid-atlantic-crossing-mac
+          - link "Middle East North Africa (MENA) Cable System/Gulf Bridge International" [ref=e653] [cursor=pointer]:
+            - /url: /submarine-cable/middle-east-north-africa-mena-cable-systemgulf-bridge-international
+          - link "Minamidaito Island" [ref=e654] [cursor=pointer]:
+            - /url: /submarine-cable/minamidaito-island
+          - link "Minoas East and West" [ref=e655] [cursor=pointer]:
+            - /url: /submarine-cable/minoas-east-and-west
+          - link "Mishima Village" [ref=e656] [cursor=pointer]:
+            - /url: /submarine-cable/mishima-village
+          - link "MIST" [ref=e657] [cursor=pointer]:
+            - /url: /submarine-cable/mist
+          - link "Miyazaki-Okinawa Cable (MOC)" [ref=e658] [cursor=pointer]:
+            - /url: /submarine-cable/miyazaki-okinawa-cable-moc
+          - link "Mjolner East" [ref=e659] [cursor=pointer]:
+            - /url: /submarine-cable/mjolner-east
+          - link "Mjolner West" [ref=e660] [cursor=pointer]:
+            - /url: /submarine-cable/mjolner-west
+          - link "Mobily Red Sea Cable (MRSC)" [ref=e661] [cursor=pointer]:
+            - /url: /submarine-cable/mobily-red-sea-cable-mrsc
+          - link "Monet" [ref=e662] [cursor=pointer]:
+            - /url: /submarine-cable/monet
+          - link "Moratelindo International Cable System-1 (MIC-1)" [ref=e663] [cursor=pointer]:
+            - /url: /submarine-cable/moratelindo-international-cable-system-1-mic-1
+          - link "Muroran-Hachinohe" [ref=e664] [cursor=pointer]:
+            - /url: /submarine-cable/muroran-hachinohe
+          - link "N0r5ke Viking" [ref=e665] [cursor=pointer]:
+            - /url: /submarine-cable/n0r5ke-viking
+          - link "National Digital Transmission Network (NDTN)" [ref=e666] [cursor=pointer]:
+            - /url: /submarine-cable/national-digital-transmission-network-ndtn
+          - link "Nationwide Submarine Cable Ooredoo Maldives (NaSCOM)" [ref=e667] [cursor=pointer]:
+            - /url: /submarine-cable/nationwide-submarine-cable-ooredoo-maldives-nascom
+          - link "Natitua" [ref=e668] [cursor=pointer]:
+            - /url: /submarine-cable/natitua
+          - link "Natitua Sud" [ref=e669] [cursor=pointer]:
+            - /url: /submarine-cable/natitua-sud
+          - link "Nelson-Levin" [ref=e670] [cursor=pointer]:
+            - /url: /submarine-cable/nelson-levin
+          - link "New CAM Ring" [ref=e671] [cursor=pointer]:
+            - /url: /submarine-cable/new-cam-ring
+          - link "New Cross Pacific (NCP) Cable System" [ref=e672] [cursor=pointer]:
+            - /url: /submarine-cable/new-cross-pacific-ncp-cable-system
+          - link "Nigeria Cameroon Submarine Cable System (NCSCS)" [ref=e673] [cursor=pointer]:
+            - /url: /submarine-cable/nigeria-cameroon-submarine-cable-system-ncscs
+          - link "Ningbo-Zhoushan Cable" [ref=e674] [cursor=pointer]:
+            - /url: /submarine-cable/ningbo-zhoushan-cable
+          - link "NO-UK" [ref=e675] [cursor=pointer]:
+            - /url: /submarine-cable/no-uk
+          - link "Nome to Homer Express (NTHE)" [ref=e676] [cursor=pointer]:
+            - /url: /submarine-cable/nome-to-homer-express-nthe
+          - link "Nongsa-Changi" [ref=e677] [cursor=pointer]:
+            - /url: /submarine-cable/nongsa-changi
+          - link "NordBalt" [ref=e678] [cursor=pointer]:
+            - /url: /submarine-cable/nordbalt
+          - link "Norfest" [ref=e679] [cursor=pointer]:
+            - /url: /submarine-cable/norfest
+          - link "Norte Conectado (Infovia 00)" [ref=e680] [cursor=pointer]:
+            - /url: /submarine-cable/norte-conectado-infovia-00
+          - link "Norte Conectado (Infovia 01)" [ref=e681] [cursor=pointer]:
+            - /url: /submarine-cable/norte-conectado-infovia-01
+          - link "Norte Conectado (Infovia 02)" [ref=e682] [cursor=pointer]:
+            - /url: /submarine-cable/norte-conectado-infovia-02
+          - link "Norte Conectado (Infovia 03)" [ref=e683] [cursor=pointer]:
+            - /url: /submarine-cable/norte-conectado-infovia-03
+          - link "Norte Conectado (Infovia 04)" [ref=e684] [cursor=pointer]:
+            - /url: /submarine-cable/norte-conectado-infovia-04
+          - link "Norte Conectado (Infovia 05)" [ref=e685] [cursor=pointer]:
+            - /url: /submarine-cable/norte-conectado-infovia-05
+          - link "Norte Conectado (Infovia 06)" [ref=e686] [cursor=pointer]:
+            - /url: /submarine-cable/norte-conectado-infovia-06
+          - link "Norte Conectado (Infovia 08)" [ref=e687] [cursor=pointer]:
+            - /url: /submarine-cable/norte-conectado-infovia-08
+          - link "North-West Cable System" [ref=e688] [cursor=pointer]:
+            - /url: /submarine-cable/north-west-cable-system
+          - link "Northern Lights" [ref=e689] [cursor=pointer]:
+            - /url: /submarine-cable/northern-lights
+          - link "NorthStar" [ref=e690] [cursor=pointer]:
+            - /url: /submarine-cable/northstar
+          - link "Nuvem" [ref=e691] [cursor=pointer]:
+            - /url: /submarine-cable/nuvem
+          - link "Oceanic Tatitlek Telecommunications Enhancement Route (OTTER)" [ref=e692] [cursor=pointer]:
+            - /url: /submarine-cable/oceanic-tatitlek-telecommunications-enhancement-route-otter
+          - link "Ogasawara Cable Network" [ref=e693] [cursor=pointer]:
+            - /url: /submarine-cable/ogasawara-cable-network
+          - link "Okinawa Cellular Cable" [ref=e694] [cursor=pointer]:
+            - /url: /submarine-cable/okinawa-cellular-cable
+          - link "Okinawa-Miyakojima-Ishigaki" [ref=e695] [cursor=pointer]:
+            - /url: /submarine-cable/okinawa-miyakojima-ishigaki
+          - link "Okinawa Remote Islands" [ref=e696] [cursor=pointer]:
+            - /url: /submarine-cable/okinawa-remote-islands
+          - link "Olisipo" [ref=e697] [cursor=pointer]:
+            - /url: /submarine-cable/olisipo
+          - link "Oman Australia Cable (OAC)" [ref=e698] [cursor=pointer]:
+            - /url: /submarine-cable/oman-australia-cable-oac
+          - link "OMRAN/EPEG" [ref=e699] [cursor=pointer]:
+            - /url: /submarine-cable/omranepeg
+          - link "Oran-Valencia (ORVAL)" [ref=e700] [cursor=pointer]:
+            - /url: /submarine-cable/oran-valencia-orval
+          - link "ORCA" [ref=e701] [cursor=pointer]:
+            - /url: /submarine-cable/orca
+          - link "Oskarshamn-Visby" [ref=e702] [cursor=pointer]:
+            - /url: /submarine-cable/oskarshamn-visby
+          - link "OTEGLOBE Kokkini-Bari" [ref=e703] [cursor=pointer]:
+            - /url: /submarine-cable/oteglobe-kokkini-bari
+          - link "Pacific Caribbean Cable System (PCCS)" [ref=e704] [cursor=pointer]:
+            - /url: /submarine-cable/pacific-caribbean-cable-system-pccs
+          - link "Pacific Crossing-1 (PC-1)" [ref=e705] [cursor=pointer]:
+            - /url: /submarine-cable/pacific-crossing-1-pc-1
+          - link "Pacific Light Cable Network (PLCN)" [ref=e706] [cursor=pointer]:
+            - /url: /submarine-cable/pacific-light-cable-network-plcn
+          - link "Padang-Tua Pejat" [ref=e707] [cursor=pointer]:
+            - /url: /submarine-cable/padang-tua-pejat
+          - link "Palapa Ring East" [ref=e708] [cursor=pointer]:
+            - /url: /submarine-cable/palapa-ring-east
+          - link "Palapa Ring Middle" [ref=e709] [cursor=pointer]:
+            - /url: /submarine-cable/palapa-ring-middle
+          - link "Palapa Ring West" [ref=e710] [cursor=pointer]:
+            - /url: /submarine-cable/palapa-ring-west
+          - link "Palawan-Iloilo Cable System" [ref=e711] [cursor=pointer]:
+            - /url: /submarine-cable/palawan-iloilo-cable-system
+          - link "Pan-American Crossing (PAC)" [ref=e712] [cursor=pointer]:
+            - /url: /submarine-cable/pan-american-crossing-pac
+          - link "Pan European Crossing (UK-Belgium)" [ref=e713] [cursor=pointer]:
+            - /url: /submarine-cable/pan-european-crossing-uk-belgium
+          - link "Pan European Crossing (UK-Ireland)" [ref=e714] [cursor=pointer]:
+            - /url: /submarine-cable/pan-european-crossing-uk-ireland
+          - link "PanAm South" [ref=e715] [cursor=pointer]:
+            - /url: /submarine-cable/panam-south
+          - link "Paniolo Cable Network" [ref=e716] [cursor=pointer]:
+            - /url: /submarine-cable/paniolo-cable-network
+          - link "PASELA" [ref=e717] [cursor=pointer]:
+            - /url: /submarine-cable/pasela
+          - link "PASULI" [ref=e718] [cursor=pointer]:
+            - /url: /submarine-cable/pasuli
+          - link "Patara-2" [ref=e719] [cursor=pointer]:
+            - /url: /submarine-cable/patara-2
+          - link "PEACE Cable" [ref=e720] [cursor=pointer]:
+            - /url: /submarine-cable/peace-cable
+          - link "Penbal-4" [ref=e721] [cursor=pointer]:
+            - /url: /submarine-cable/penbal-4
+          - link "Penbal-5" [ref=e722] [cursor=pointer]:
+            - /url: /submarine-cable/penbal-5
+          - link "Pencan-8" [ref=e723] [cursor=pointer]:
+            - /url: /submarine-cable/pencan-8
+          - link "Pencan-9" [ref=e724] [cursor=pointer]:
+            - /url: /submarine-cable/pencan-9
+          - link "Persona" [ref=e725] [cursor=pointer]:
+            - /url: /submarine-cable/persona
+          - link "Petropavlovsk-Kamchatsky - Anadyr" [ref=e726] [cursor=pointer]:
+            - /url: /submarine-cable/petropavlovsk-kamchatsky---anadyr
+          - link "PGASCOM" [ref=e727] [cursor=pointer]:
+            - /url: /submarine-cable/pgascom
+          - link "Philippine Domestic Submarine Cable Network (PDSCN)" [ref=e728] [cursor=pointer]:
+            - /url: /submarine-cable/philippine-domestic-submarine-cable-network-pdscn
+          - link "Piano Isole Minori" [ref=e729] [cursor=pointer]:
+            - /url: /submarine-cable/piano-isole-minori
+          - link "Picot-1" [ref=e730] [cursor=pointer]:
+            - /url: /submarine-cable/picot-1
+          - link "PIPE Pacific Cable-1 (PPC-1)" [ref=e731] [cursor=pointer]:
+            - /url: /submarine-cable/pipe-pacific-cable-1-ppc-1
+          - link "Pishgaman Oman Iran (POI) Network" [ref=e732] [cursor=pointer]:
+            - /url: /submarine-cable/pishgaman-oman-iran-poi-network
+          - link "PLDT Domestic Fiber Optic Network (DFON)" [ref=e733] [cursor=pointer]:
+            - /url: /submarine-cable/pldt-domestic-fiber-optic-network-dfon
+          - link "PNG LNG" [ref=e734] [cursor=pointer]:
+            - /url: /submarine-cable/png-lng
+          - link "Polar Circle Cable" [ref=e735] [cursor=pointer]:
+            - /url: /submarine-cable/polar-circle-cable
+          - link "Polar Express" [ref=e736] [cursor=pointer]:
+            - /url: /submarine-cable/polar-express
+          - link "Portsmouth-Ryde 10" [ref=e737] [cursor=pointer]:
+            - /url: /submarine-cable/portsmouth-ryde-10
+          - link "Portsmouth-Ryde 11" [ref=e738] [cursor=pointer]:
+            - /url: /submarine-cable/portsmouth-ryde-11
+          - link "POSEIDON" [ref=e739] [cursor=pointer]:
+            - /url: /submarine-cable/poseidon
+          - link "Prat" [ref=e740] [cursor=pointer]:
+            - /url: /submarine-cable/prat
+          - link "Proa" [ref=e741] [cursor=pointer]:
+            - /url: /submarine-cable/proa
+          - link "Project Waterworth" [ref=e742] [cursor=pointer]:
+            - /url: /submarine-cable/project-waterworth
+          - link "Projeto Amazônia Conectada (PAC 01)" [ref=e743] [cursor=pointer]:
+            - /url: /submarine-cable/projeto-amaznia-conectada-pac-01
+          - link "Projeto Amazônia Conectada (PAC 02)" [ref=e744] [cursor=pointer]:
+            - /url: /submarine-cable/projeto-amaznia-conectada-pac-02
+          - link "Pukpuk-1 Cable System" [ref=e745] [cursor=pointer]:
+            - /url: /submarine-cable/pukpuk-1-cable-system
+          - link "Qatar-U.A.E. Submarine Cable System" [ref=e746] [cursor=pointer]:
+            - /url: /submarine-cable/qatar-u-a-e-submarine-cable-system
+          - link "Q&E North" [ref=e747] [cursor=pointer]:
+            - /url: /submarine-cable/qe-north
+          - link "Q&E South" [ref=e748] [cursor=pointer]:
+            - /url: /submarine-cable/qe-south
+          - link "Quintillion Subsea Cable Network" [ref=e749] [cursor=pointer]:
+            - /url: /submarine-cable/quintillion-subsea-cable-network
+          - link "R100 North" [ref=e750] [cursor=pointer]:
+            - /url: /submarine-cable/r100-north
+          - link "Raman" [ref=e751] [cursor=pointer]:
+            - /url: /submarine-cable/raman
+          - link "Red Hook-Little Saint James" [ref=e752] [cursor=pointer]:
+            - /url: /submarine-cable/red-hook-little-saint-james
+          - link "Red2Med" [ref=e753] [cursor=pointer]:
+            - /url: /submarine-cable/red2med
+          - link "RISING 8" [ref=e754] [cursor=pointer]:
+            - /url: /submarine-cable/rising-8
+          - link "Rønne-Rødvig" [ref=e755] [cursor=pointer]:
+            - /url: /submarine-cable/rnne-rdvig
+          - link "Rockabill" [ref=e756] [cursor=pointer]:
+            - /url: /submarine-cable/rockabill
+          - link "Rompin-Tioman Island" [ref=e757] [cursor=pointer]:
+            - /url: /submarine-cable/rompin-tioman-island
+          - link "ROMSAR 2" [ref=e758] [cursor=pointer]:
+            - /url: /submarine-cable/romsar-2
+          - link "Romulo" [ref=e759] [cursor=pointer]:
+            - /url: /submarine-cable/romulo
+          - link "Roquetas-Melilla (CAM)" [ref=e760] [cursor=pointer]:
+            - /url: /submarine-cable/roquetas-melilla-cam
+          - link "Ruppione-Isolella" [ref=e761] [cursor=pointer]:
+            - /url: /submarine-cable/ruppione-isolella
+          - link "Russia-Japan Cable Network (RJCN)" [ref=e762] [cursor=pointer]:
+            - /url: /submarine-cable/russia-japan-cable-network-rjcn
+          - link "S-U-B Cable System" [ref=e763] [cursor=pointer]:
+            - /url: /submarine-cable/s-u-b-cable-system
+          - link "Saba, Statia Cable System (SSCS)" [ref=e764] [cursor=pointer]:
+            - /url: /submarine-cable/saba-statia-cable-system-sscs
+          - link "SAFE" [ref=e765] [cursor=pointer]:
+            - /url: /submarine-cable/safe
+          - link "Sagres" [ref=e766] [cursor=pointer]:
+            - /url: /submarine-cable/sagres
+          - link "Sakhalin-Kuril Islands Cable" [ref=e767] [cursor=pointer]:
+            - /url: /submarine-cable/sakhalin-kuril-islands-cable
+          - link "Samoa-American Samoa (SAS)" [ref=e768] [cursor=pointer]:
+            - /url: /submarine-cable/samoa-american-samoa-sas
+          - link "San Andres Isla Tolu Submarine Cable (SAIT)" [ref=e769] [cursor=pointer]:
+            - /url: /submarine-cable/san-andres-isla-tolu-submarine-cable-sait
+          - link "Sape-Labuan Bajo-Ende-Kupang" [ref=e770] [cursor=pointer]:
+            - /url: /submarine-cable/sape-labuan-bajo-ende-kupang
+          - link "SARCO" [ref=e771] [cursor=pointer]:
+            - /url: /submarine-cable/sarco
+          - link "SAT-3/WASC" [ref=e772] [cursor=pointer]:
+            - /url: /submarine-cable/sat-3wasc
+          - link "Saudi Arabia-Sudan-1 (SAS-1)" [ref=e773] [cursor=pointer]:
+            - /url: /submarine-cable/saudi-arabia-sudan-1-sas-1
+          - link "Saudi Arabia-Sudan-2 (SAS-2)" [ref=e774] [cursor=pointer]:
+            - /url: /submarine-cable/saudi-arabia-sudan-2-sas-2
+          - link "Saudi Vision" [ref=e775] [cursor=pointer]:
+            - /url: /submarine-cable/saudi-vision
+          - link "Scandinavian Ring North" [ref=e776] [cursor=pointer]:
+            - /url: /submarine-cable/scandinavian-ring-north
+          - link "Scandinavian Ring South" [ref=e777] [cursor=pointer]:
+            - /url: /submarine-cable/scandinavian-ring-south
+          - link "Scotland-Northern Ireland 3" [ref=e778] [cursor=pointer]:
+            - /url: /submarine-cable/scotland-northern-ireland-3
+          - link "Scotland-Northern Ireland 4" [ref=e779] [cursor=pointer]:
+            - /url: /submarine-cable/scotland-northern-ireland-4
+          - link "Scylla" [ref=e780] [cursor=pointer]:
+            - /url: /submarine-cable/scylla
+          - link "SEA-H2X" [ref=e781] [cursor=pointer]:
+            - /url: /submarine-cable/sea-h2x
+          - link "SEA-US" [ref=e782] [cursor=pointer]:
+            - /url: /submarine-cable/sea-us
+          - link "sea2shore" [ref=e783] [cursor=pointer]:
+            - /url: /submarine-cable/sea2shore
+          - link "Seabras-1" [ref=e784] [cursor=pointer]:
+            - /url: /submarine-cable/seabras-1
+          - link "SEACOM/Tata TGN-Eurasia" [ref=e785] [cursor=pointer]:
+            - /url: /submarine-cable/seacomtata-tgn-eurasia
+          - link "SEALink" [ref=e786] [cursor=pointer]:
+            - /url: /submarine-cable/sealink
+          - link "SEALink South" [ref=e787] [cursor=pointer]:
+            - /url: /submarine-cable/sealink-south
+          - link "SeaMeWe-4" [ref=e788] [cursor=pointer]:
+            - /url: /submarine-cable/seamewe-4
+          - link "SeaMeWe-5" [ref=e789] [cursor=pointer]:
+            - /url: /submarine-cable/seamewe-5
+          - link "SeaMeWe-6" [ref=e790] [cursor=pointer]:
+            - /url: /submarine-cable/seamewe-6
+          - link "SEAX-1" [ref=e791] [cursor=pointer]:
+            - /url: /submarine-cable/seax-1
+          - link "Segunda FOS Canal de Chacao" [ref=e792] [cursor=pointer]:
+            - /url: /submarine-cable/segunda-fos-canal-de-chacao
+          - link "Senegal Horn of Africa Regional Express (SHARE) Cable" [ref=e793] [cursor=pointer]:
+            - /url: /submarine-cable/senegal-horn-of-africa-regional-express-share-cable
+          - link "Seychelles to East Africa System (SEAS)" [ref=e794] [cursor=pointer]:
+            - /url: /submarine-cable/seychelles-to-east-africa-system-seas
+          - link "SHEFA-2" [ref=e795] [cursor=pointer]:
+            - /url: /submarine-cable/shefa-2
+          - link "Sihanoukville-Hong Kong (SHV-HK)" [ref=e796] [cursor=pointer]:
+            - /url: /submarine-cable/sihanoukville-hong-kong-shv-hk
+          - link "Silphium" [ref=e797] [cursor=pointer]:
+            - /url: /submarine-cable/silphium
+          - link "Sint Maarten Puerto Rico Network One (SMPR-1)" [ref=e798] [cursor=pointer]:
+            - /url: /submarine-cable/sint-maarten-puerto-rico-network-one-smpr-1
+          - link "Sir Abu Nu’ayr Cable" [ref=e799] [cursor=pointer]:
+            - /url: /submarine-cable/sir-abu-nuayr-cable
+          - link "Sirius North" [ref=e800] [cursor=pointer]:
+            - /url: /submarine-cable/sirius-north
+          - link "Sirius South" [ref=e801] [cursor=pointer]:
+            - /url: /submarine-cable/sirius-south
+          - link "Sistem Kabel Rakyat 1Malaysia (SKR1M)" [ref=e802] [cursor=pointer]:
+            - /url: /submarine-cable/sistem-kabel-rakyat-1malaysia-skr1m
+          - link "SJJK" [ref=e803] [cursor=pointer]:
+            - /url: /submarine-cable/sjjk
+          - link "Skagenfiber West" [ref=e804] [cursor=pointer]:
+            - /url: /submarine-cable/skagenfiber-west
+          - link "Skagerrak 4" [ref=e805] [cursor=pointer]:
+            - /url: /submarine-cable/skagerrak-4
+          - link "SMPCS Packet-1" [ref=e806] [cursor=pointer]:
+            - /url: /submarine-cable/smpcs-packet-1
+          - link "SMPCS Packet-2" [ref=e807] [cursor=pointer]:
+            - /url: /submarine-cable/smpcs-packet-2
+          - link "Sol" [ref=e808] [cursor=pointer]:
+            - /url: /submarine-cable/sol
+          - link "Solas" [ref=e809] [cursor=pointer]:
+            - /url: /submarine-cable/solas
+          - link "Sorsogon-Samar Submarine Fiber Optical Interconnection Project (SSSFOIP)" [ref=e810] [cursor=pointer]:
+            - /url: /submarine-cable/sorsogon-samar-submarine-fiber-optical-interconnection-project-sssfoip
+          - link "South America-1 (SAm-1)" [ref=e811] [cursor=pointer]:
+            - /url: /submarine-cable/south-america-1-sam-1
+          - link "South American Crossing (SAC)" [ref=e812] [cursor=pointer]:
+            - /url: /submarine-cable/south-american-crossing-sac
+          - link "South Atlantic Cable System (SACS)" [ref=e813] [cursor=pointer]:
+            - /url: /submarine-cable/south-atlantic-cable-system-sacs
+          - link "South Atlantic Inter Link (SAIL)" [ref=e814] [cursor=pointer]:
+            - /url: /submarine-cable/south-atlantic-inter-link-sail
+          - link "South Pacific Cable System (SPCS)/Mistral" [ref=e815] [cursor=pointer]:
+            - /url: /submarine-cable/south-pacific-cable-system-spcsmistral
+          - link "Southeast Asia-Japan Cable 2 (SJC2)" [ref=e816] [cursor=pointer]:
+            - /url: /submarine-cable/southeast-asia-japan-cable-2-sjc2
+          - link "Southeast Asia-Japan Cable (SJC)" [ref=e817] [cursor=pointer]:
+            - /url: /submarine-cable/southeast-asia-japan-cable-sjc
+          - link "Southern Caribbean Fiber" [ref=e818] [cursor=pointer]:
+            - /url: /submarine-cable/southern-caribbean-fiber
+          - link "Southern Cross Cable Network (SCCN)" [ref=e819] [cursor=pointer]:
+            - /url: /submarine-cable/southern-cross-cable-network-sccn
+          - link "Southern Cross NEXT" [ref=e820] [cursor=pointer]:
+            - /url: /submarine-cable/southern-cross-next
+          - link "Sovetskaya Gavan-Ilyinskoye" [ref=e821] [cursor=pointer]:
+            - /url: /submarine-cable/sovetskaya-gavan-ilyinskoye
+          - link "Sovetskaya Gavan-Uglegorsk" [ref=e822] [cursor=pointer]:
+            - /url: /submarine-cable/sovetskaya-gavan-uglegorsk
+          - link "St. Pierre and Miquelon Cable" [ref=e823] [cursor=pointer]:
+            - /url: /submarine-cable/st-pierre-and-miquelon-cable
+          - link "St. Thomas-St. Croix System" [ref=e824] [cursor=pointer]:
+            - /url: /submarine-cable/st-thomas-st-croix-system
+          - link "STO-HEL-One" [ref=e825] [cursor=pointer]:
+            - /url: /submarine-cable/sto-hel-one
+          - link "Strategic Evolution Underwater Link (SEUL)" [ref=e826] [cursor=pointer]:
+            - /url: /submarine-cable/strategic-evolution-underwater-link-seul
+          - link "Subcan Link 1" [ref=e827] [cursor=pointer]:
+            - /url: /submarine-cable/subcan-link-1
+          - link "Subcan Link 2" [ref=e828] [cursor=pointer]:
+            - /url: /submarine-cable/subcan-link-2
+          - link "Submarine Cable in the Philippines (SCiP)" [ref=e829] [cursor=pointer]:
+            - /url: /submarine-cable/submarine-cable-in-the-philippines-scip
+          - link "Sumatera Bangka Cable System (SBCS)" [ref=e830] [cursor=pointer]:
+            - /url: /submarine-cable/sumatera-bangka-cable-system-sbcs
+          - link "Sunoque I" [ref=e831] [cursor=pointer]:
+            - /url: /submarine-cable/sunoque-i
+          - link "Sunoque II" [ref=e832] [cursor=pointer]:
+            - /url: /submarine-cable/sunoque-ii
+          - link "Sunoque III" [ref=e833] [cursor=pointer]:
+            - /url: /submarine-cable/sunoque-iii
+          - link "Suriname-Guyana Submarine Cable System (SG-SCS)" [ref=e834] [cursor=pointer]:
+            - /url: /submarine-cable/suriname-guyana-submarine-cable-system-sg-scs
+          - link "Svalbard Undersea Cable System" [ref=e835] [cursor=pointer]:
+            - /url: /submarine-cable/svalbard-undersea-cable-system
+          - link "Sweden-Estonia (EE-S 1)" [ref=e836] [cursor=pointer]:
+            - /url: /submarine-cable/sweden-estonia-ee-s-1
+          - link "Sweden-Latvia" [ref=e837] [cursor=pointer]:
+            - /url: /submarine-cable/sweden-latvia
+          - link "SX Tasman Express (SX-TX)" [ref=e838] [cursor=pointer]:
+            - /url: /submarine-cable/sx-tasman-express-sx-tx
+          - link "Sydney-Melbourne-Adelaide-Perth (SMAP)" [ref=e839] [cursor=pointer]:
+            - /url: /submarine-cable/sydney-melbourne-adelaide-perth-smap
+          - link "T3" [ref=e840] [cursor=pointer]:
+            - /url: /submarine-cable/t3
+          - link "Taba-Aqaba" [ref=e841] [cursor=pointer]:
+            - /url: /submarine-cable/taba-aqaba
+          - link "Tabua" [ref=e842] [cursor=pointer]:
+            - /url: /submarine-cable/tabua
+          - link "Taihei" [ref=e843] [cursor=pointer]:
+            - /url: /submarine-cable/taihei
+          - link "Taino-Carib" [ref=e844] [cursor=pointer]:
+            - /url: /submarine-cable/taino-carib
+          - link "Taiwan-Matsu No.4" [ref=e845] [cursor=pointer]:
+            - /url: /submarine-cable/taiwan-matsu-no-4
+          - link "Taiwan Penghu Kinmen Matsu No.2 (TPKM2)" [ref=e846] [cursor=pointer]:
+            - /url: /submarine-cable/taiwan-penghu-kinmen-matsu-no-2-tpkm2
+          - link "Taiwan Penghu Kinmen Matsu No.3 (TPKM3)" [ref=e847] [cursor=pointer]:
+            - /url: /submarine-cable/taiwan-penghu-kinmen-matsu-no-3-tpkm3
+          - link "Taiwan Strait Express-1 (TSE-1)" [ref=e848] [cursor=pointer]:
+            - /url: /submarine-cable/taiwan-strait-express-1-tse-1
+          - link "TalayLink" [ref=e849] [cursor=pointer]:
+            - /url: /submarine-cable/talaylink
+          - link "TAM-1" [ref=e850] [cursor=pointer]:
+            - /url: /submarine-cable/tam-1
+          - link "Tampnet North" [ref=e851] [cursor=pointer]:
+            - /url: /submarine-cable/tampnet-north
+          - link "Tampnet South" [ref=e852] [cursor=pointer]:
+            - /url: /submarine-cable/tampnet-south
+          - link "Tamtam" [ref=e853] [cursor=pointer]:
+            - /url: /submarine-cable/tamtam
+          - link "Tangerine" [ref=e854] [cursor=pointer]:
+            - /url: /submarine-cable/tangerine
+          - link "Tanjung Pandan-Sungai Kakap" [ref=e855] [cursor=pointer]:
+            - /url: /submarine-cable/tanjung-pandan-sungai-kakap
+          - link "Tannat" [ref=e856] [cursor=pointer]:
+            - /url: /submarine-cable/tannat
+          - link "Tarakan Selor Cable System (TSCS)" [ref=e857] [cursor=pointer]:
+            - /url: /submarine-cable/tarakan-selor-cable-system-tscs
+          - link "Tasman Global Access (TGA) Cable" [ref=e858] [cursor=pointer]:
+            - /url: /submarine-cable/tasman-global-access-tga-cable
+          - link "Tasman Ring Network" [ref=e859] [cursor=pointer]:
+            - /url: /submarine-cable/tasman-ring-network
+          - link "Tata TGN-Atlantic South" [ref=e860] [cursor=pointer]:
+            - /url: /submarine-cable/tata-tgn-atlantic-south
+          - link "Tata TGN-Gulf" [ref=e861] [cursor=pointer]:
+            - /url: /submarine-cable/tata-tgn-gulf
+          - link "Tata TGN-Intra Asia (TGN-IA)" [ref=e862] [cursor=pointer]:
+            - /url: /submarine-cable/tata-tgn-intra-asia-tgn-ia
+          - link "Tata TGN-Pacific" [ref=e863] [cursor=pointer]:
+            - /url: /submarine-cable/tata-tgn-pacific
+          - link "Tata TGN-Tata Indicom" [ref=e864] [cursor=pointer]:
+            - /url: /submarine-cable/tata-tgn-tata-indicom
+          - link "Tata TGN-Western Europe" [ref=e865] [cursor=pointer]:
+            - /url: /submarine-cable/tata-tgn-western-europe
+          - link "Tautira-Teahupo'o" [ref=e866] [cursor=pointer]:
+            - /url: /submarine-cable/tautira-teahupoo
+          - link "TE North/TGN-Eurasia/SEACOM/Alexandros/Medex" [ref=e867] [cursor=pointer]:
+            - /url: /submarine-cable/te-northtgn-eurasiaseacomalexandrosmedex
+          - link "TEGOPA" [ref=e868] [cursor=pointer]:
+            - /url: /submarine-cable/tegopa
+          - link "Telstra Endeavour" [ref=e869] [cursor=pointer]:
+            - /url: /submarine-cable/telstra-endeavour
+          - link "Tenerife-Gran Canaria" [ref=e870] [cursor=pointer]:
+            - /url: /submarine-cable/tenerife-gran-canaria
+          - link "Tenerife-La Palma" [ref=e871] [cursor=pointer]:
+            - /url: /submarine-cable/tenerife-la-palma
+          - link "TERRA SW" [ref=e872] [cursor=pointer]:
+            - /url: /submarine-cable/terra-sw
+          - link "Thailand Domestic Submarine Cable Network (TDSCN)" [ref=e873] [cursor=pointer]:
+            - /url: /submarine-cable/thailand-domestic-submarine-cable-network-tdscn
+          - link "Thailand-Indonesia-Singapore (TIS)" [ref=e874] [cursor=pointer]:
+            - /url: /submarine-cable/thailand-indonesia-singapore-tis
+          - link "The East African Marine System (TEAMS)" [ref=e875] [cursor=pointer]:
+            - /url: /submarine-cable/the-east-african-marine-system-teams
+          - link "Thetis" [ref=e876] [cursor=pointer]:
+            - /url: /submarine-cable/thetis
+          - link "Thetis Express" [ref=e877] [cursor=pointer]:
+            - /url: /submarine-cable/thetis-express
+          - link "TIKAL-AMX3" [ref=e878] [cursor=pointer]:
+            - /url: /submarine-cable/tikal-amx3
+          - link "Timor-Leste South Submarine Cable (TLSSC)" [ref=e879] [cursor=pointer]:
+            - /url: /submarine-cable/timor-leste-south-submarine-cable-tlssc
+          - link "TKO Connect" [ref=e880] [cursor=pointer]:
+            - /url: /submarine-cable/tko-connect
+          - link "TMX5" [ref=e881] [cursor=pointer]:
+            - /url: /submarine-cable/tmx5
+          - link "Tobrok-Emasaed Cable System" [ref=e882] [cursor=pointer]:
+            - /url: /submarine-cable/tobrok-emasaed-cable-system
+          - link "Tokelau Submarine Cable" [ref=e883] [cursor=pointer]:
+            - /url: /submarine-cable/tokelau-submarine-cable
+          - link "Tonga Cable" [ref=e884] [cursor=pointer]:
+            - /url: /submarine-cable/tonga-cable
+          - link "Tonga Domestic Cable Extension (TDCE)" [ref=e885] [cursor=pointer]:
+            - /url: /submarine-cable/tonga-domestic-cable-extension-tdce
+          - link "Topaz" [ref=e886] [cursor=pointer]:
+            - /url: /submarine-cable/topaz
+          - link "TPU" [ref=e887] [cursor=pointer]:
+            - /url: /submarine-cable/tpu
+          - link "Trans Adriatic Express (TAE)" [ref=e888] [cursor=pointer]:
+            - /url: /submarine-cable/trans-adriatic-express-tae
+          - link "Trans-Caspian Fiber Optic Cable Project" [ref=e889] [cursor=pointer]:
+            - /url: /submarine-cable/trans-caspian-fiber-optic-cable-project
+          - link "Trans Global Cable System (TGCS)" [ref=e890] [cursor=pointer]:
+            - /url: /submarine-cable/trans-global-cable-system-tgcs
+          - link "Trans-Pacific Express (TPE) Cable System" [ref=e891] [cursor=pointer]:
+            - /url: /submarine-cable/trans-pacific-express-tpe-cable-system
+          - link "TRANSCAN-2" [ref=e892] [cursor=pointer]:
+            - /url: /submarine-cable/transcan-2
+          - link "TRANSCAN-3" [ref=e893] [cursor=pointer]:
+            - /url: /submarine-cable/transcan-3
+          - link "Transworld (TW1)" [ref=e894] [cursor=pointer]:
+            - /url: /submarine-cable/transworld-tw1
+          - link "TT1" [ref=e895] [cursor=pointer]:
+            - /url: /submarine-cable/tt1
+          - link "Tui-Samoa" [ref=e896] [cursor=pointer]:
+            - /url: /submarine-cable/tui-samoa
+          - link "Turcyos-1" [ref=e897] [cursor=pointer]:
+            - /url: /submarine-cable/turcyos-1
+          - link "Turcyos-2" [ref=e898] [cursor=pointer]:
+            - /url: /submarine-cable/turcyos-2
+          - link "Tverrlinken" [ref=e899] [cursor=pointer]:
+            - /url: /submarine-cable/tverrlinken
+          - link "UAE-Iran" [ref=e900] [cursor=pointer]:
+            - /url: /submarine-cable/uae-iran
+          - link "UGARIT" [ref=e901] [cursor=pointer]:
+            - /url: /submarine-cable/ugarit
+          - link "UK-Channel Islands-7" [ref=e902] [cursor=pointer]:
+            - /url: /submarine-cable/uk-channel-islands-7
+          - link "UK-Channel Islands-8" [ref=e903] [cursor=pointer]:
+            - /url: /submarine-cable/uk-channel-islands-8
+          - link "Ulleung-Mainland 2" [ref=e904] [cursor=pointer]:
+            - /url: /submarine-cable/ulleung-mainland-2
+          - link "Ultramar GE" [ref=e905] [cursor=pointer]:
+            - /url: /submarine-cable/ultramar-ge
+          - link "Ulysses 2" [ref=e906] [cursor=pointer]:
+            - /url: /submarine-cable/ulysses-2
+          - link "UMO" [ref=e907] [cursor=pointer]:
+            - /url: /submarine-cable/umo
+          - link "Umoja" [ref=e908] [cursor=pointer]:
+            - /url: /submarine-cable/umoja
+          - link "Unisur" [ref=e909] [cursor=pointer]:
+            - /url: /submarine-cable/unisur
+          - link "Unitel North Submarine Cable (UNSC)" [ref=e910] [cursor=pointer]:
+            - /url: /submarine-cable/unitel-north-submarine-cable-unsc
+          - link "Unitirreno" [ref=e911] [cursor=pointer]:
+            - /url: /submarine-cable/unitirreno
+          - link "Unity" [ref=e912] [cursor=pointer]:
+            - /url: /submarine-cable/unity
+          - link "VAKA" [ref=e913] [cursor=pointer]:
+            - /url: /submarine-cable/vaka
+          - link "Vancouver-Bowen Island-Vancouver Island" [ref=e914] [cursor=pointer]:
+            - /url: /submarine-cable/vancouver-bowen-island-vancouver-island
+          - link "Venezuelan Festoon" [ref=e915] [cursor=pointer]:
+            - /url: /submarine-cable/venezuelan-festoon
+          - link "Verena" [ref=e916] [cursor=pointer]:
+            - /url: /submarine-cable/verena
+          - link "Vietnam-Singapore Cable System (VTS)" [ref=e917] [cursor=pointer]:
+            - /url: /submarine-cable/vietnam-singapore-cable-system-vts
+          - link "Vodafone Greece Domestic" [ref=e918] [cursor=pointer]:
+            - /url: /submarine-cable/vodafone-greece-domestic
+          - link "Västervik-Visby" [ref=e919] [cursor=pointer]:
+            - /url: /submarine-cable/vstervik-visby
+          - link "West Africa Cable System (WACS)" [ref=e920] [cursor=pointer]:
+            - /url: /submarine-cable/west-africa-cable-system-wacs
+          - link "Whidbey Island-Camano Island" [ref=e921] [cursor=pointer]:
+            - /url: /submarine-cable/whidbey-island-camano-island
+          - link "Whidbey Island-Everett" [ref=e922] [cursor=pointer]:
+            - /url: /submarine-cable/whidbey-island-everett
+          - link "Whidbey Island-Hat Island" [ref=e923] [cursor=pointer]:
+            - /url: /submarine-cable/whidbey-island-hat-island
+          - link "Whidbey Island-Seattle" [ref=e924] [cursor=pointer]:
+            - /url: /submarine-cable/whidbey-island-seattle
+          - link "X-Link Submarine Cable" [ref=e925] [cursor=pointer]:
+            - /url: /submarine-cable/x-link-submarine-cable
+          - link "Yellow" [ref=e926] [cursor=pointer]:
+            - /url: /submarine-cable/yellow
+          - link "YUI" [ref=e927] [cursor=pointer]:
+            - /url: /submarine-cable/yui
+          - link "Yuza-Tobishima" [ref=e928] [cursor=pointer]:
+            - /url: /submarine-cable/yuza-tobishima
+          - link "Zayo Festoon" [ref=e929] [cursor=pointer]:
+            - /url: /submarine-cable/zayo-festoon
+          - link "Zeus" [ref=e930] [cursor=pointer]:
+            - /url: /submarine-cable/zeus
+        - alert [ref=e931]
+    - generic [ref=e54]: Copyright © 2025 TeleGeography

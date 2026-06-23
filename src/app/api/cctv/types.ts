@@ -1,4 +1,4 @@
-export type CctvStreamType = 'jpg' | 'hls' | 'iframe';
+export type CctvStreamType = 'jpg' | 'hls' | 'iframe' | 'mjpeg';
 
 export interface CctvCamera {
   id: string;
@@ -25,6 +25,7 @@ export function normalizeFeedUrl(url: string): string {
 
 export function inferStreamType(url: string): CctvStreamType {
   if (/\.m3u8(\?|$)/i.test(url)) return 'hls';
+  if (/(mjpg|abs2mjpg|mjpeg|multipart)/i.test(url)) return 'mjpeg';
   if (/youtube\.com\/embed|youtube-nocookie\.com\/embed|rtsp\.me\/embed|ipcamlive\.com\/player|click2stream\.com|windy\.com\/webcams\/\d+\/embed/i.test(url)) {
     return 'iframe';
   }

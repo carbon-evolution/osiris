@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   Plane, Satellite, Activity, Sun, AlertTriangle, Camera, Flame, Target,
   CloudLightning, Radiation, Tv, Anchor, Ship, Newspaper,
-  Network, Share2, Radio, Mountain
+  Network, Share2, Radio, Mountain, ShieldAlert, Globe, Eye, BookMarked
 } from 'lucide-react';
 
 interface LayerPanelProps {
@@ -35,7 +35,6 @@ const getLayerGroups = (theme: 'core' | 'ghost') => {
     color: '#1565C0',
     layers: [
       { key: 'sdk_sea', label: 'Maritime Lines', icon: Anchor, color: '#4FC3F7', dataKey: 'sdk_entities' },
-      { key: 'sdk_ransomware', label: 'Ransomware Feed', icon: AlertTriangle, color: '#D32F2F', dataKey: 'sdk_entities' },
     ],
   },
   {
@@ -55,6 +54,7 @@ const getLayerGroups = (theme: 'core' | 'ghost') => {
     color: '#26C6DA',
     layers: [
       { key: 'maritime', label: 'Maritime / Naval', icon: Ship, color: '#26C6DA', dataKey: 'maritime_ships,maritime_ports,maritime_chokepoints' },
+      { key: 'cables', label: 'Submarine Cables', icon: Anchor, color: '#1976D2', dataKey: 'submarine_cables' },
       { key: 'satellites', label: 'Satellites', icon: Satellite, color: '#D4AF37', dataKey: 'satellites' },
     ],
   },
@@ -83,8 +83,10 @@ const getLayerGroups = (theme: 'core' | 'ghost') => {
     color: '#D32F2F',
     layers: [
       { key: 'infrastructure', label: 'Nuclear Facilities', icon: Radiation, color: '#26A69A', dataKey: 'infrastructure' },
+      { key: 'power_plants', label: 'Power Plants', icon: Activity, color: '#26A69A', dataKey: 'power_plants' },
       { key: 'global_incidents', label: 'Global Incidents', icon: AlertTriangle, color: '#D32F2F', dataKey: 'gdelt' },
       { key: 'gps_jamming', label: 'GPS Jamming', icon: Radio, color: '#D32F2F', dataKey: 'gps_jamming' },
+      { key: 'ransomware', label: 'Ransomware Victims', icon: AlertTriangle, color: '#D32F2F', dataKey: 'ransomware' },
     ],
   },
   {
@@ -94,6 +96,20 @@ const getLayerGroups = (theme: 'core' | 'ghost') => {
     layers: [
 
       { key: 'malware', label: 'Live Malware', icon: AlertTriangle, color: '#D32F2F', dataKey: 'malware_threats' },
+      { key: 'blocklist', label: 'Blocklisted IPs', icon: AlertTriangle, color: '#FF6D00', dataKey: 'threat_intel' },
+      { key: 'phishing', label: 'Phishing Sites', icon: Target, color: '#AA00FF', dataKey: 'threat_intel' },
+      { key: 'ssl_blacklist', label: 'SSL Blacklist', icon: AlertTriangle, color: '#FF1744', dataKey: 'threat_intel' },
+    ],
+  },
+  {
+    label: 'CYBER INTEL',
+    fullLabel: 'CYBER THREAT INTELLIGENCE',
+    color: '#00E5FF',
+    layers: [
+      { key: 'cve_feed', label: 'Active CVE Threats', icon: ShieldAlert, color: '#00E5FF', dataKey: 'cyber_intel' },
+      { key: 'bgp_routes', label: 'Routing Intel (DROP)', icon: Globe, color: '#FF9100', dataKey: 'cyber_intel' },
+      { key: 'tor_nodes', label: 'Tor Exit Nodes', icon: Eye, color: '#7C4DFF', dataKey: 'cyber_intel' },
+      { key: 'mitre_attack', label: 'MITRE ATT&CK', icon: BookMarked, color: '#00E676', dataKey: 'cyber_intel' },
     ],
   },
   {
@@ -157,13 +173,7 @@ function LayerPanel({ data, activeLayers, setActiveLayers, isMobile, theme = 'co
                 return (
                   <button
                     key={layer.key}
-                    onClick={() => {
-                      if (layer.key === 'sdk_ransomware') {
-                        alert('Ransomware Feed - Coming Soon');
-                      } else {
-                        toggle(layer.key);
-                      }
-                    }}
+                    onClick={() => toggle(layer.key)}
                     className={`flex items-center gap-2 px-2 py-2 rounded border transition-colors ${
                       isLayerActive 
                         ? 'bg-white/10 border-white/20' 
@@ -292,13 +302,7 @@ function LayerPanel({ data, activeLayers, setActiveLayers, isMobile, theme = 'co
                         return (
                           <button
                             key={layer.key}
-                            onClick={() => {
-                              if (layer.key === 'sdk_ransomware') {
-                                alert('Ransomware Feed - Coming Soon');
-                              } else {
-                                toggle(layer.key);
-                              }
-                            }}
+                            onClick={() => toggle(layer.key)}
                             className="w-full flex items-center gap-3 px-2 py-1.5 rounded bg-transparent hover:bg-white/5 transition-colors group"
                           >
                             <div 

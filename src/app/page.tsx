@@ -3,8 +3,37 @@
 import { useEffect, useState, useRef, useCallback, useMemo } from 'react';
 import dynamic from 'next/dynamic';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Layers, BarChart3, Newspaper, Search, X, Globe, MapPinned, Radar, Satellite, Moon, ExternalLink, AlertTriangle, Activity, Database, Wifi, Play, Network, Crosshair } from 'lucide-react';
+import { Layers, BarChart3, Newspaper, Search, X, Globe, MapPinned, Radar, Satellite, Moon, ExternalLink, AlertTriangle, Activity, Database, Wifi, Play, Network, Crosshair, ShieldAlert } from 'lucide-react';
 import IntelFeed from '@/components/IntelFeed';
+
+/** Unwrap longitudes to prevent 340° dateline jumps in Mapbox rendering.
+ *  Converts [-163, 176] -> [-163, -184] so line crosses dateline correctly. */
+function unwrapCableLongitudes(features: any[]): any[] {
+  return features.map(f => {
+    if (!f.geometry) return f;
+    const coords = f.geometry.coordinates;
+    if (f.geometry.type === 'MultiLineString') {
+      return { ...f, geometry: { ...f.geometry, coordinates: coords.map((line: number[][]) => unwrapLine(line)) } };
+    }
+    if (f.geometry.type === 'LineString') {
+      return { ...f, geometry: { ...f.geometry, coordinates: unwrapLine(coords) } };
+    }
+    return f;
+  });
+}
+function unwrapLine(coords: number[][]): number[][] {
+  if (coords.length < 2) return coords;
+  let offset = 0;
+  const result: number[][] = [[coords[0][0], coords[0][1]]];
+  for (let i = 1; i < coords.length; i++) {
+    let lng = coords[i][0] + offset;
+    const prev = result[i - 1][0];
+    if (lng - prev > 180) { offset -= 360; lng -= 360; }
+    else if (prev - lng > 180) { offset += 360; lng += 360; }
+    result.push([lng, coords[i][1]]);
+  }
+  return result;
+}
 import MarketsPanel from '@/components/MarketsPanel';
 import ScmPanel from '@/components/ScmPanel';
 import SearchBar from '@/components/SearchBar';
@@ -21,6 +50,7 @@ const LayerPanel = dynamic(() => import('@/components/LayerPanel'));
 const CameraViewer = dynamic(() => import('@/components/CameraViewer'));
 const OsintPanel = dynamic(() => import('@/components/OsintPanel'));
 const EntityGraphPanel = dynamic(() => import('@/components/EntityGraphPanel'));
+const CyberIntelPanel = dynamic(() => import('@/components/CyberIntelPanel'));
 
 function useIsMobile() {
   const [isMobile, setIsMobile] = useState(false);
@@ -105,6 +135,7 @@ export default function Dashboard() {
   const [showAlerts, setShowAlerts] = useState(false);
   const [showScmPanel, setShowScmPanel] = useState(true);
   const [showIntel, setShowIntel] = useState(false);
+  const [showCyberIntel, setShowCyberIntel] = useState(false);
   const [showEntityGraph, setShowEntityGraph] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [mobilePanel, setMobilePanel] = useState<'layers'|'markets'|'intel'|'search'|'recon'|null>(null);
@@ -153,6 +184,15 @@ export default function Dashboard() {
     sdk_naval: true,
     terrain_3d: false,
     malware: false,
+    blocklist: false,
+    phishing: false,
+    ssl_blacklist: false,
+    cve_feed: false,
+    bgp_routes: false,
+    tor_nodes: false,
+    mitre_attack: true,
+    power_plants: false,
+    ransomware: false,
   });
   const [liveFeedUrl, setLiveFeedUrl] = useState<string | null>(null);
   const [liveFeedName, setLiveFeedName] = useState('');
@@ -295,12 +335,21 @@ export default function Dashboard() {
       } else if (entity?.type === 'vessel' || entity?.mmsi || entity?.imo) {
         setEntityGraphTarget({ type: 'vessel', id: entity.imo || entity.mmsi || entity.name, label: entity.name || entity.imo, properties: { flag: entity.flag, speed: entity.speed, destination: entity.destination } });
         setShowEntityGraph(true);
+      } else if (entity?.type === 'apt' && (entity?.group_id || entity?.group)) {
+        const aptId = entity.group_id || entity.group;
+        setEntityGraphTarget({ type: 'apt', id: aptId, label: entity.group || aptId, properties: { country: entity.country, techniques: entity.techniques } });
+        setShowEntityGraph(true);
+      } else if (entity?.type === 'cve' && entity?.id) {
+        setEntityGraphTarget({ type: 'cve', id: entity.id, label: entity.id, properties: { cvss: entity.cvss, severity: entity.severity } });
+        setShowEntityGraph(true);
       } else if (entity?.type === 'ip' && entity?.ip) {
         setEntityGraphTarget({ type: 'ip', id: entity.ip, label: entity.ip, properties: { threat_type: entity.threat_type, status: entity.status } });
         setShowEntityGraph(true);
       } else if (entity?.type === 'country' && entity?.country) {
         setEntityGraphTarget({ type: 'country', id: entity.country, label: entity.country, properties: {} });
         setShowEntityGraph(true);
+      } else if (entity?.type === 'cctv' && entity?.id) {
+        setActiveCamera(entity);
       }
     };
     return () => { delete (window as any).openOsirisIntel; };
@@ -421,11 +470,36 @@ export default function Dashboard() {
         try {
           const ts = Date.now();
       const res = await fetch(`/data/submarine-cables.json?v=${ts}`);
-          if (res.ok) {
-             const cablesData = await res.json();
-             dataRef.current = { ...dataRef.current, submarine_cables: cablesData.features };
-             setDataVersion(v => v + 1);
+             if (res.ok) {
+                const cablesData = await res.json();
+                dataRef.current = { ...dataRef.current, submarine_cables: unwrapCableLongitudes(cablesData.features) };
+            }
+          const lpRes = await fetch(`/data/submarine-cables-landing-points.json?v=${ts}`);
+          if (lpRes.ok) {
+            const lpData = await lpRes.json();
+            dataRef.current = { ...dataRef.current, submarine_cables_landing_points: lpData.features };
           }
+          // Pre-load cable metadata and merge into feature properties
+          const metaRes = await fetch(`/data/submarine-cables-meta.json?v=${ts}`);
+          if (metaRes.ok) {
+            const metaData = await metaRes.json();
+            const metaMap = new Map<string, any>();
+            metaData.forEach((m: any) => { if (m.id) metaMap.set(m.id, m); });
+            const enriched = (dataRef.current.submarine_cables || []).map((f: any) => {
+              const meta = metaMap.get(f.properties.id);
+              if (meta) {
+                return { ...f, properties: { ...f.properties,
+                  length: meta.length,
+                  rfs_year: meta.rfs_year,
+                  owners: meta.owners,
+                  landing_points: meta.landing_points,
+                }};
+              }
+              return f;
+            });
+            dataRef.current = { ...dataRef.current, submarine_cables: enriched };
+          }
+             setDataVersion(v => v + 1);
         } catch (e) { console.warn('Cables fetch failed'); }
       })();
       layerFetchedRef.current.add('cables');
@@ -438,8 +512,34 @@ export default function Dashboard() {
       layerFetchedRef.current.add('malware');
     }
 
+    // Threat Intel (Blocklist.de, SSL Blacklist, PhishTank)
+      if ((activeLayers.blocklist || activeLayers.phishing || activeLayers.ssl_blacklist) && !layerFetchedRef.current.has('threat_intel')) {
+        fetchEndpoint('/api/threat-intel', d => ({ threat_intel: d.threats }));
+        layerFetchedRef.current.add('threat_intel');
+      }
+      if ((activeLayers.cve_feed || activeLayers.bgp_routes || activeLayers.tor_nodes || activeLayers.mitre_attack) && !layerFetchedRef.current.has('cyber_intel')) {
+        fetchEndpoint('/api/cyber-intel', d => ({ cyber_intel: d }));
+        layerFetchedRef.current.add('cyber_intel');
+      }
 
-  }, [activeLayers]);
+      // Ransomware
+      if (activeLayers.ransomware && !layerFetchedRef.current.has('ransomware')) {
+        fetchEndpoint('/api/ransomware', d => ({ ransomware: d.features }));
+        layerFetchedRef.current.add('ransomware');
+      }
+
+      // GPS Jamming
+      if (activeLayers.gps_jamming && !layerFetchedRef.current.has('gps_jamming')) {
+        fetchEndpoint('/api/gps-jamming', d => ({ gps_jamming: d.features }));
+        layerFetchedRef.current.add('gps_jamming');
+      }
+
+      // Power Plants
+      if (activeLayers.power_plants && !layerFetchedRef.current.has('power_plants')) {
+        fetchEndpoint('/api/infrastructure/power-plants', d => ({ power_plants: d.features }));
+        layerFetchedRef.current.add('power_plants');
+      }
+    }, [activeLayers]);
 
   // ── LAYER-AWARE POLLING — only poll data for active layers ──
   useEffect(() => {
@@ -456,6 +556,21 @@ export default function Dashboard() {
     }
     if (activeLayers.maritime) {
       intervals.push(setInterval(() => fetchEndpoint('/api/maritime', d => ({ maritime_ports: d.ports, maritime_chokepoints: d.chokepoints, maritime_ships: d.ships })), 10000)); // 10s
+    }
+    if (activeLayers.blocklist || activeLayers.phishing || activeLayers.ssl_blacklist) {
+      intervals.push(setInterval(() => fetchEndpoint('/api/threat-intel', d => ({ threat_intel: d.threats })), 300000)); // 5m
+    }
+    if (activeLayers.cve_feed || activeLayers.bgp_routes || activeLayers.tor_nodes || activeLayers.mitre_attack) {
+      intervals.push(setInterval(() => fetchEndpoint('/api/cyber-intel', d => ({ cyber_intel: d })), 300000)); // 5m
+    }
+    if (activeLayers.ransomware) {
+      intervals.push(setInterval(() => fetchEndpoint('/api/ransomware', d => ({ ransomware: d.features })), 300000)); // 5m
+    }
+    if (activeLayers.gps_jamming) {
+      intervals.push(setInterval(() => fetchEndpoint('/api/gps-jamming', d => ({ gps_jamming: d.features })), 600000)); // 10m — daily data
+    }
+    if (activeLayers.power_plants) {
+      intervals.push(setInterval(() => fetchEndpoint('/api/infrastructure/power-plants', d => ({ power_plants: d.features })), 3600000)); // 60m — plants don't move
     }
     return () => intervals.forEach(clearInterval);
   }, [activeLayers, fetchEndpoint]);
@@ -879,7 +994,7 @@ export default function Dashboard() {
       {/* ── RIGHT TOOL STRIP (desktop only — mobile uses bottom nav) ── */}
       {!isMobile && <div className="absolute right-2 top-1/2 -translate-y-1/2 flex flex-col gap-2 z-[250] pointer-events-auto bg-black/40 backdrop-blur-sm p-1 rounded-full border border-white/5">
         <div className="relative group">
-          <button onClick={() => { setShowIntel(!showIntel); setShowMarkets(false); setShowAlerts(false); }} className={`w-8 h-8 rounded-full flex items-center justify-center transition-colors ${showIntel ? 'bg-[var(--cyan-primary)]/20' : 'hover:bg-white/10'}`}>
+          <button onClick={() => { setShowIntel(!showIntel); setShowCyberIntel(false); setShowMarkets(false); setShowAlerts(false); }} className={`w-8 h-8 rounded-full flex items-center justify-center transition-colors ${showIntel ? 'bg-[var(--cyan-primary)]/20' : 'hover:bg-white/10'}`}>
             <Radar className={`w-4 h-4 ${showIntel ? 'text-[var(--cyan-primary)]' : 'text-white/60'}`} />
           </button>
           {/* OSINT / Recon Panel Slideout */}
@@ -898,8 +1013,23 @@ export default function Dashboard() {
           </AnimatePresence>
         </div>
 
+        {/* ── CYBER INTEL BUTTON ── */}
         <div className="relative group">
-          <button onClick={() => { setShowMarkets(!showMarkets); setShowIntel(false); setShowAlerts(false); }} className={`w-8 h-8 rounded-full flex items-center justify-center transition-colors ${showMarkets ? 'bg-[var(--gold-primary)]/20' : 'hover:bg-white/10'}`}>
+          <button onClick={() => { setShowCyberIntel(!showCyberIntel); setShowIntel(false); setShowMarkets(false); setShowAlerts(false); setShowEntityGraph(false); }} type="button" className={`w-8 h-8 rounded-full flex items-center justify-center transition-colors ${showCyberIntel ? 'bg-[#E040FB]/20' : 'hover:bg-white/10'}`}>
+            <ShieldAlert className={`w-4 h-4 ${showCyberIntel ? 'text-[#E040FB]' : 'text-white/60'}`} />
+          </button>
+          {/* Cyber Intel Panel Slideout */}
+          <AnimatePresence>
+            {showCyberIntel && (
+              <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 20 }} className="absolute right-12 top-1/2 -translate-y-1/2 w-80">
+                <CyberIntelPanel data={data} />
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+
+        <div className="relative group">
+          <button onClick={() => { setShowMarkets(!showMarkets); setShowIntel(false); setShowCyberIntel(false); setShowAlerts(false); setShowEntityGraph(false); }} className={`w-8 h-8 rounded-full flex items-center justify-center transition-colors ${showMarkets ? 'bg-[var(--gold-primary)]/20' : 'hover:bg-white/10'}`}>
             <BarChart3 className={`w-4 h-4 ${showMarkets ? 'text-[var(--gold-primary)]' : 'text-white/60'}`} />
           </button>
           {/* Markets Panel Slideout */}
@@ -913,7 +1043,7 @@ export default function Dashboard() {
         </div>
 
         <div className="relative group">
-          <button onClick={() => { setShowAlerts(!showAlerts); setShowIntel(false); setShowMarkets(false); setShowEntityGraph(false); }} className={`w-8 h-8 rounded-full flex items-center justify-center transition-colors ${showAlerts ? 'bg-[#FF3D3D]/20' : 'hover:bg-white/10'}`}>
+          <button onClick={() => { setShowAlerts(!showAlerts); setShowIntel(false); setShowCyberIntel(false); setShowMarkets(false); setShowEntityGraph(false); }} className={`w-8 h-8 rounded-full flex items-center justify-center transition-colors ${showAlerts ? 'bg-[#FF3D3D]/20' : 'hover:bg-white/10'}`}>
             <AlertTriangle className={`w-4 h-4 ${showAlerts ? 'text-[#FF3D3D]' : 'text-white/60'}`} />
           </button>
           {/* Alerts Panel Slideout */}
@@ -927,7 +1057,7 @@ export default function Dashboard() {
         </div>
 
         <div className="relative group">
-          <button onClick={() => { setShowEntityGraph(!showEntityGraph); setShowIntel(false); setShowMarkets(false); setShowAlerts(false); }} className={`w-8 h-8 rounded-full flex items-center justify-center transition-colors ${showEntityGraph ? 'bg-[#D4AF37]/20' : 'hover:bg-white/10'}`}>
+          <button onClick={() => { setShowEntityGraph(!showEntityGraph); setShowIntel(false); setShowCyberIntel(false); setShowMarkets(false); setShowAlerts(false); }} className={`w-8 h-8 rounded-full flex items-center justify-center transition-colors ${showEntityGraph ? 'bg-[#D4AF37]/20' : 'hover:bg-white/10'}`}>
             <Network className={`w-4 h-4 ${showEntityGraph ? 'text-[var(--gold-primary)]' : 'text-white/60'}`} />
           </button>
         </div>

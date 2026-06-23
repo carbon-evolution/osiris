@@ -17,6 +17,19 @@ import { fetchSpainCameras } from './spain';
 import { fetchPolandCameras } from './poland';
 import { fetchJapanCameras } from './japan';
 import { fetchSwitzerlandCameras } from './switzerland';
+import { fetchOpenWebcams } from './open-webcams';
+import { fetchUSHighwayCameras } from './us-highways';
+import { fetchUSDotCameras } from './us-dot-additional';
+import { fetchIntlHighwayCameras } from './intl-highways';
+import { fetchTaiwanHighwayCameras } from './taiwan-highways';
+import { fetchHongKongCameras } from './hong-kong';
+import { fetchNorthCarolinaCameras } from './north-carolina';
+import { fetchCaltransCameras } from './caltrans';
+import { fetchNewZealandCameras } from './new-zealand';
+import { fetchEstoniaCameras } from './estonia';
+import { fetchNetherlandsCameras } from './netherlands';
+import { fetchIndonesiaCameras } from './indonesia';
+
 
 /**
  * OSIRIS — Worldwide CCTV Camera API v2
@@ -58,26 +71,6 @@ async function fetchWSDOTCameras(): Promise<any[]> {
       feed_url: cam.ImageURL || '', source: 'WSDOT',
     })).filter((c: any) => c.lat && c.lng && c.feed_url);
   } catch (e) { return []; }
-}
-
-// ── US-WEST: Caltrans California Districts ──
-async function fetchCaltransCameras(): Promise<any[]> {
-  const dists = ['d03', 'd04', 'd05', 'd06', 'd07', 'd08', 'd10', 'd11', 'd12'];
-  const results = await Promise.allSettled(dists.map(async (dist) => {
-    const res = await fetch(`https://cwwp2.dot.ca.gov/data/${dist}/cctv/cctvStatus${dist.toUpperCase()}.json`, { signal: AbortSignal.timeout(8000), cache: 'no-store' });
-    if (!res.ok) return [];
-    const data = await res.json();
-    const distCams = [];
-    for (const cam of (data?.data || [])) {
-      const lat = parseFloat(cam.cctv?.location?.latitude || cam.location?.latitude);
-      const lng = parseFloat(cam.cctv?.location?.longitude || cam.location?.longitude);
-      const url = cam.cctv?.imageData?.static?.currentImageURL;
-      if (!lat || !lng || !url) continue;
-      distCams.push({ id: `cal-${Math.random().toString(36).substr(2,9)}`, lat, lng, name: cam.cctv?.location?.locationName || cam.location?.locationName || 'Caltrans', city: 'California', country: 'US', feed_url: url, source: 'Caltrans' });
-    }
-    return distCams;
-  }));
-  return results.flatMap(r => r.status === 'fulfilled' ? r.value : []);
 }
 
 // ── CANADA: Ottawa, Toronto, Montreal, Quebec ──
@@ -295,25 +288,9 @@ async function fetchUSEastCameras(): Promise<any[]> {
   return cams.filter((c: any) => c.lat && c.lng);
 }
 
-// ── EUROPE: Netherlands, Germany, France ──
+// ── EUROPE: Austria (ASFINAG), plus Germany/France via intl-highways ──
 async function fetchEuropeCameras(): Promise<any[]> {
   const cams: any[] = [];
-
-  // Netherlands Rijkswaterstaat
-  try {
-    const res = await stealthFetch('https://opendata.ndw.nu/cameras.json', { signal: AbortSignal.timeout(8000) });
-    if (res.ok) {
-      const data = await res.json();
-      for (const cam of (data || []).slice(0, 1000)) {
-        if (!cam.lat || !cam.lng) continue;
-        cams.push({
-          id: `nl-${cams.length}`, lat: cam.lat, lng: cam.lng,
-          name: cam.name || 'NL Camera', city: 'Netherlands', country: 'NL',
-          feed_url: cam.imageUrl || '', source: 'RWS',
-        });
-      }
-    }
-  } catch (e) { /* silent */ }
 
   cams.push(...await fetchAsfinagCameras());
 
@@ -419,7 +396,18 @@ const REGION_FETCHERS: Record<string, () => Promise<any[]>> = {
   'poland': fetchPolandCameras,
   'japan': fetchJapanCameras,
   'switzerland': fetchSwitzerlandCameras,
-};
+  'open-webcams': fetchOpenWebcams,
+  'us-highways': fetchUSHighwayCameras,
+  'us-dot-additional': fetchUSDotCameras,
+  'intl-highways': fetchIntlHighwayCameras,
+  'taiwan-highways': fetchTaiwanHighwayCameras,
+  'hong-kong': fetchHongKongCameras,
+  'north-carolina': fetchNorthCarolinaCameras,
+  'new-zealand': fetchNewZealandCameras,
+  'estonia': fetchEstoniaCameras,
+  'netherlands': fetchNetherlandsCameras,
+  'indonesia': fetchIndonesiaCameras,
+}
 
 // Determine which regions to fetch based on viewport bounds
 function getRegionsForBounds(lat: number, lng: number, radius: number): string[] {
@@ -434,6 +422,21 @@ function getRegionsForBounds(lat: number, lng: number, radius: number): string[]
   if (lat > 24 && lat < 49 && lng > -105 && lng < -80) regions.push('us-central');
   // Canada
   if (lat > 42 && lat < 70 && lng > -141 && lng < -52) regions.push('canada');
+
+  // US Highways — supplement for any US viewport (AL, AK, AZ, CA, CO, DE, GA, IN, KY, OH)
+  if (lat > 24 && lat < 50 && lng > -130 && lng < -65) regions.push('us-highways');
+  // US DOT Additional — OR, VA, MA, KY, MN (no-auth APIs, supplement us-highways)
+  if (lat > 24 && lat < 50 && lng > -130 && lng < -65) regions.push('us-dot-additional');
+  // International highways — Finland, Portugal (no-auth APIs)
+  if (lat > 35 && lat < 72 && lng > -11 && lng < 40) regions.push('intl-highways');
+  // Indonesia — Bina Marga non-toll road cameras (Java)
+  if (lat > -9 && lat < -5.5 && lng > 105 && lng < 115) regions.push('indonesia');
+  // Taiwan Highways — freeway (國道) + provincial (省道), no-auth THB API (~3,928 cameras)
+  if (lat > 20 && lat < 27 && lng > 117 && lng < 123) regions.push('taiwan-highways');
+  // Hong Kong — Transport Department traffic cameras (~300 cameras)
+  if (lat > 22.1 && lat < 22.6 && lng > 113.7 && lng < 114.5) regions.push('hong-kong');
+  // North Carolina — NCDOT ArcGIS cameras (~1,109 cameras)
+  if (lat > 33.5 && lat < 37 && lng > -84.5 && lng < -75) regions.push('north-carolina');
   // Europe
   const inBulgaria = lat > 41 && lat < 44.5 && lng > 22 && lng < 29.5;
   const inGreece = lat > 34.5 && lat < 41.8 && lng > 19 && lng < 30;
@@ -448,8 +451,10 @@ function getRegionsForBounds(lat: number, lng: number, radius: number): string[]
   const inFrance = lat > 42.3 && lat < 51.1 && lng > -5 && lng < 8.3;
   const inSpain = lat > 27 && lat < 43.8 && lng > -18.2 && lng < 4.4;
   const inPoland = lat > 49.0 && lat < 54.8 && lng > 14.1 && lng < 24.1;
+  const inEstonia = lat > 57.5 && lat < 59.7 && lng > 21.5 && lng < 28.5;
+  const inNetherlands = lat > 50.7 && lat < 53.6 && lng > 3.3 && lng < 7.3;
   const inBalkans = inBulgaria || inGreece || inSerbia || inMacedonia || inRomania || inTurkey;
-  const inWesternEurope = inItaly || inCzechia || inSlovakia || inGermany || inFrance || inSpain || inPoland;
+  const inWesternEurope = inItaly || inCzechia || inSlovakia || inGermany || inFrance || inSpain || inPoland || inNetherlands;
 
   if (lat > 35 && lat < 72 && lng > -11 && lng < 40 && !inBalkans && !inWesternEurope) {
     regions.push('europe');
@@ -467,6 +472,8 @@ function getRegionsForBounds(lat: number, lng: number, radius: number): string[]
   if (inFrance) regions.push('france');
   if (inSpain) regions.push('spain');
   if (inPoland) regions.push('poland');
+  if (inEstonia) regions.push('estonia');
+  if (inNetherlands) regions.push('netherlands');
 
   // Middle East
   const inMiddleEast = lat > 29 && lat < 34.5 && lng > 34 && lng < 36.5;
@@ -479,8 +486,13 @@ function getRegionsForBounds(lat: number, lng: number, radius: number): string[]
   if ((lat > -10 && lat < 60 && lng > 60 && lng < 150)) regions.push('asia');
   // Australia explicitly
   if (lat > -45 && lat < -10 && lng > 110 && lng < 155) regions.push('asia');
+  // New Zealand
+  if (lat > -48 && lat < -34 && lng > 166 && lng < 179) regions.push('new-zealand');
 
-  return regions.length > 0 ? regions : ['uk', 'us-east']; // Default fallback
+  // Open webcams — always load alongside region-specific sources (covers 80+ countries not in OSIRIS)
+  regions.push('open-webcams');
+
+  return regions.length > 0 ? regions : ['uk', 'us-east', 'open-webcams']; // Default fallback
 }
 
 export async function GET(request: Request) {
