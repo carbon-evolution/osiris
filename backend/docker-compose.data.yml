@@ -1,0 +1,56 @@
+# Profile-gated local data plane. Bring up with:
+#   lean:     docker compose -f backend/docker-compose.data.yml --profile lean up -d
+#   standard: docker compose -f backend/docker-compose.data.yml --profile standard up -d
+name: osiris-data
+services:
+  postgres:
+    image: postgis/postgis:16-3.4
+    profiles: ["lean", "standard"]
+    environment:
+      POSTGRES_USER: ${PG_USER:-osiris}
+      POSTGRES_PASSWORD: ${PG_PASSWORD:-osiris}
+      POSTGRES_DB: ${PG_DB:-osiris}
+    ports: ["5432:5432"]
+    volumes: ["pgdata:/var/lib/postgresql/data"]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${PG_USER:-osiris}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    profiles: ["lean", "standard"]
+    ports: ["6379:6379"]
+    command: ["redis-server", "--save", "60", "1", "--maxmemory", "256mb", "--maxmemory-policy", "allkeys-lru"]
+    volumes: ["redisdata:/data"]
+
+  opensearch:
+    image: opensearchproject/opensearch:2.16.0
+    profiles: ["standard"]
+    environment:
+      - discovery.type=single-node
+      - bootstrap.memory_lock=true
+      - "OPENSEARCH_JAVA_OPTS=-Xms1g -Xmx1g"
+      - DISABLE_SECURITY_PLUGIN=true
+      - DISABLE_INSTALL_DEMO_CONFIG=true
+    ulimits:
+      memlock: { soft: -1, hard: -1 }
+    ports: ["9200:9200"]
+    volumes: ["osdata:/usr/share/opensearch/data"]
+
+  neo4j:
+    image: neo4j:5-community
+    profiles: ["standard"]
+    environment:
+      NEO4J_AUTH: ${NEO4J_USER:-neo4j}/${NEO4J_PASSWORD:-osirisneo4j}
+      NEO4J_server_memory_heap_max__size: 512m
+      NEO4J_server_memory_pagecache_size: 512m
+    ports: ["7474:7474", "7687:7687"]
+    volumes: ["neo4jdata:/data"]
+
+volumes:
+  pgdata:
+  redisdata:
+  osdata:
+  neo4jdata:
