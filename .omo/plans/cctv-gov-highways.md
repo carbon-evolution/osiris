@@ -49,11 +49,14 @@ were done. Cameras surface under the existing **CCTV** layer (camera icon).
     OpenTrafficCamMap dataset (~7,029 US cams) + us-dot-additional (OR/VA/MA/KY/MN)
     + Caltrans/WSDOT/NC. So 511 US-state additions would mostly DUPLICATE — skip.
 - INVESTIGATED, NOT VIABLE keyless (2026-06-24):
-  - **Denmark** (Vejdirektoratet) — public map trafikkort.vejdirektoratet.dk loads
-    geojson from `storage.googleapis.com/trafikkort-data/geojson/25832/<layer>.point.json`
-    (keyless, confirmed e.g. clearance-height-details.point.json = 200), BUT the
-    webcam layer filename is built from a runtime layerDefinitions config not in the
-    JS bundle; guesses 403'd. Documented API data.vd-nap.dk needs a NAP key. Parked.
+  - **Denmark** (Vejdirektoratet) — CONFIRMED DEAD-END via live browser intercept
+    (Playwright). Public map loads ~40 keyless geojson layers from
+    `storage.googleapis.com/trafikkort-data/geojson/25832/<layer>.point.json`
+    (events, roadwork, winter, wind, rest-areas, temperatures…) but **no webcam
+    layer** — there is no webcam toggle in either the car or truck tab and no
+    webcam request fires at any zoom. The webcam code in the JS bundle is dormant;
+    real webcam data is behind the NAP-key API (data.vd-nap.dk). GCS bucket listing
+    is denied (403). Do not retry without a NAP key.
   - **Latvia** (lvceli.lv) — no discoverable keyless camera API.
   - **Croatia (HAK)**, **Hungary (utinform)** — Angular SPAs; would need per-site
     bundle reversing. Not done.
