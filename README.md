@@ -30,7 +30,13 @@ Built on **Next.js 16 (App Router)**, **React 19**, and **MapLibre GL JS** (WebG
 
 ## 📸 Screenshots
 
-### Google Maps–style light theme & 3D intelligence
+### Google Maps–style light theme & live CCTV
+
+![Taiwan CCTV network with a live freeway feed, on the Google Maps–style light theme](docs/screenshots/overview-cctv-light.png)
+
+*Dense CCTV coverage (Taiwan THB) with a live feed open in the camera viewer.*
+
+### 3D intelligence & threat analysis
 
 | Satellite orbit + Celestrak catalog | Threat-association graph (→ MITRE ATT&CK) |
 |---|---|
@@ -39,12 +45,6 @@ Built on **Next.js 16 (App Router)**, **React 19**, and **MapLibre GL JS** (WebG
 | Live malware mesh + entity graph | Light-theme map (infrastructure layer) |
 |---|---|
 | ![Live malware network mesh with entity graph deep-dive](docs/screenshots/malware-mesh.png) | ![Google Maps–style light theme showing nuclear/power infrastructure](docs/screenshots/light-theme-infrastructure.png) |
-
-### Earlier (legacy dark theme)
-
-| Live Overview & CCTV Feed | CCTV Camera Markers | Threat & Intel Layers |
-|---|---|---|
-| ![Overview with live CCTV feed](docs/screenshots/01-overview-cctv-feed.jpg) | ![CCTV camera markers across the map](docs/screenshots/02-cctv-camera-markers.jpg) | ![Intel and threat data layers](docs/screenshots/03-intel-layers.jpg) |
 
 *Every resource type has its own map icon — camera for CCTV, flame for wildfire, triangle for incidents, anchor for ports — with colour-coded fallback dots for uncategorized sources.*
 
