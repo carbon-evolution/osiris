@@ -68,9 +68,17 @@ were done. Cameras surface under the existing **CCTV** layer (camera icon).
     (legacy 2011 JSP app, no clean data endpoint at /Cameras), **Israel/Thailand/
     Argentina** (guessed endpoints failed) — none clean-keyless within reason.
   - CONCLUSION: clean keyless camera-JSON seam is largely mined out. Remaining
-    countries need keys, DATEX registration, or heavy per-site reversing. Best
-    remaining options: (a) curate more YouTube iframe cams (low value), or (b)
-    deepen already-covered countries (e.g. more US-state 511, AU states).
+    countries need keys, DATEX registration, or heavy per-site reversing.
+- US-STATE EXPANSION ATTEMPT (2026-06-24) — NOT VIABLE keyless:
+  - The CARS-511 platform `/api/v2/get/cameras` is now KEY-GATED for US states:
+    NY + PA return {"Message":"Invalid Key"}, GA + NV too; WI 403. Only older
+    configs stay keyless — Alberta, Ontario, Florida — and all 3 are ALREADY in.
+  - Direct state DOT endpoints blocked/SPA: Maryland CHART 403, Utah UDOT 403
+    (Cloudflare), Texas DriveTexas = SPA HTML, Michigan/CT/NJ = SPA/notjson.
+  - Already covered keyless US: OTCM (AL/AK/AZ/CA/CO/DE/GA/IN/KY/OH ~7k) +
+    OR/VA/MA/KY/MN (us-dot-additional) + CA(caltrans)/WA(wsdot)/NC + IL/Midwest
+    (travelmidwest) + FL(fl511) + Butler/Cincinnati OH. Adding more = per-state
+    reversing for low yield, with active bot-blocking. Effort parked.
 - Context: `open-webcams.ts` already pulls ~6,000 global webcams keyless
   (incl. JP/KR/EU/APAC cities). This effort adds DENSE national HIGHWAY networks.
 
