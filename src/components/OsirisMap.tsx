@@ -332,7 +332,7 @@ function OsirisMap({ data, activeLayers, onEntityClick, onMouseCoords, onRightCl
         map.addImage('track-arrow', { width: s, height: s, data: new Uint8Array(ctx.getImageData(0, 0, s, s).data) });
       }
 
-      const sources = ['flights','military','jets','private-fl','satellites','orbit','earthquakes','gdelt','gps-jamming','day-night','cctv','fires','weather','infrastructure','maritime','maritime-choke','maritime-ships','live-news','sigint-news','conflict-zones', 'war-alerts-targets', 'war-alerts-lines', 'balloons', 'radiation', 'ip-sweep-devices', 'ip-sweep-pulse', 'ip-sweep-connections', 'scan-targets', 'malware-nodes', 'network-mesh', 'flight-route', 'flight-track', 'ransomware', 'power_plants', 'cables'];
+      const sources = ['flights','military','jets','private-fl','satellites','orbit','earthquakes','gdelt','gps-jamming','day-night','cctv','fires','weather','infrastructure','maritime','maritime-choke','maritime-ships','live-news','sigint-news','conflict-zones', 'war-alerts-targets', 'war-alerts-lines', 'balloons', 'radiation', 'ip-sweep-devices', 'ip-sweep-pulse', 'ip-sweep-connections', 'scan-targets', 'malware-nodes', 'network-mesh', 'flight-route', 'flight-track', 'ransomware', 'eurepoc', 'power_plants', 'cables'];
       sources.forEach(s => map.addSource(s, { type: 'geojson', data: EMPTY_FC }));
       map.addSource('threat-intel-nodes', { type: 'geojson', data: EMPTY_FC });
 map.addSource('drop-nodes', { type: 'geojson', data: EMPTY_FC });
@@ -450,6 +450,22 @@ map.addSource('mitre-nodes', { type: 'geojson', data: EMPTY_FC });
         'text-field': ['get','group_name'], 'text-size': 8, 'text-font': ['JetBrains Mono Bold', 'Open Sans Bold'],
         'text-offset': [0, 1.5], 'text-max-width': 10, 'text-allow-overlap': false,
       }, paint: { 'text-color': '#D32F2F', 'text-halo-color': '#FFFFFF', 'text-halo-width': 1.5, 'text-opacity': 0.85 }});
+
+      // ══ EuRepoC — cyber-incident dataset (local) — type-coloured ══
+      map.addLayer({ id: 'eurepoc-glow', type: 'circle', source: 'eurepoc', paint: {
+        'circle-radius': ['interpolate',['linear'],['zoom'], 1,6, 5,12, 10,20],
+        'circle-color': ['get','color'], 'circle-opacity': 0.06, 'circle-blur': 0.5,
+      }});
+      map.addLayer({ id: 'eurepoc-dots', type: 'circle', source: 'eurepoc', paint: {
+        'circle-radius': ['interpolate',['linear'],['zoom'], 1,2, 5,4, 10,6],
+        'circle-color': ['get','color'],
+        'circle-opacity': 0.9,
+        'circle-stroke-width': 1, 'circle-stroke-color': '#000000', 'circle-stroke-opacity': 0.8,
+      }});
+      map.addLayer({ id: 'eurepoc-label', type: 'symbol', source: 'eurepoc', minzoom: 5, layout: {
+        'text-field': ['get','name'], 'text-size': 8, 'text-font': ['JetBrains Mono Bold', 'Open Sans Bold'],
+        'text-offset': [0, 1.5], 'text-max-width': 12, 'text-allow-overlap': false,
+      }, paint: { 'text-color': '#C2185B', 'text-halo-color': '#FFFFFF', 'text-halo-width': 1.5, 'text-opacity': 0.85 }});
 
       // ══ NETWORK INTEL — Threat Intel (Blocklist.de, SSL Blacklist, PhishTank) ══
       map.addLayer({ id: 'threat-intel-glow', type: 'circle', source: 'threat-intel-nodes', paint: {
@@ -1458,7 +1474,7 @@ map.addSource('mitre-nodes', { type: 'geojson', data: EMPTY_FC });
 
 
     // ── Generic hover for clickables ──
-    ['conflict-icons','cctv-dots','eq-circles','sat-dots','sat-label','fires-heat','gdelt-dots','weather-dots','infra-dots','maritime-dots','choke-dots','news-dots','sigint-news-dots','balloon-dots','rad-dots','ship-dots','sweep-device-dots','scan-targets-dots','malware-dots','ransomware-dots','power-plants-dots','cables-line','cable-landing-points-dots'].forEach(layer => {
+    ['conflict-icons','cctv-dots','eq-circles','sat-dots','sat-label','fires-heat','gdelt-dots','weather-dots','infra-dots','maritime-dots','choke-dots','news-dots','sigint-news-dots','balloon-dots','rad-dots','ship-dots','sweep-device-dots','scan-targets-dots','malware-dots','ransomware-dots','eurepoc-dots','power-plants-dots','cables-line','cable-landing-points-dots'].forEach(layer => {
       map.on('mouseenter', layer, () => { map.getCanvas().style.cursor = 'pointer'; });
       map.on('mouseleave', layer, () => { map.getCanvas().style.cursor = ''; });
     });
@@ -1702,6 +1718,29 @@ map.addSource('mitre-nodes', { type: 'geojson', data: EMPTY_FC });
         ${p.employees ? `<div style="font-size:9px;color:#6F8092;margin-bottom:4px;">Employees: <span style="color:#1E293B;">${Number(p.employees).toLocaleString()}</span></div>` : ''}
         ${p.website ? `<a href="${p.website}" target="_blank" style="${linkStyle}color:#FF1744;border:1px solid rgba(255,23,68,0.4);background:rgba(255,23,68,0.1);">LEAK SITE ↗</a>` : ''}
         <button onclick="window.openOsirisIntel({ type: 'ip', ip: '${p.group_name || ''}', threat_type: 'ransomware', status: 'active' })" style="width:100%;margin-top:8px;padding:8px 12px;background:linear-gradient(90deg, rgba(255,23,68,0.1) 0%, rgba(255,23,68,0.2) 100%);border:1px solid rgba(255,23,68,0.6);color:#FF1744;font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:bold;letter-spacing:0.15em;border-radius:4px;cursor:pointer;transition:all 0.2s;">DEEP DIVE ANALYTICS</button>
+      </div>`);
+    });
+
+    // ── EuRepoC Cyber Incidents (local dataset) ──
+    map.on('click', 'eurepoc-dots', e => {
+      if (!e.features?.length) return;
+      const p = e.features[0].properties as any;
+      const coords = (e.features[0].geometry as any).coordinates;
+      popup(coords, `<div style="${pStyle}border:1px solid rgba(194,24,91,0.4);box-shadow:inset 0 0 12px rgba(194,24,91,0.1);">
+        <div style="display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid rgba(194,24,91,0.3);padding-bottom:6px;margin-bottom:8px;">
+          <div style="color:#C2185B;font-size:12px;font-weight:700;letter-spacing:0.1em;text-shadow:0 0 4px rgba(194,24,91,0.5);">[ CYBER INCIDENT ]</div>
+          <div style="color:#6F8092;font-size:9px;">${p.year || '—'}</div>
+        </div>
+        <div style="color:#1E293B;font-size:11px;font-weight:bold;margin-bottom:10px;">${p.name || 'Cyber Incident'}</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:9px;margin-bottom:12px;background:rgba(60,64,67,0.06);padding:6px;border-radius:4px;">
+          <div><span style="color:#6F8092;">TYPE</span><br/><span style="color:#1E293B;">${p.incident_type || '—'}</span></div>
+          <div><span style="color:#6F8092;">START</span><br/><span style="color:#1E293B;">${p.start_date || '—'}</span></div>
+          <div><span style="color:#6F8092;">TARGET</span><br/><span style="color:#1A73E8;font-weight:bold;">${p.receiver_country || '—'}</span></div>
+          <div><span style="color:#6F8092;">SECTOR</span><br/><span style="color:#1E293B;">${p.receiver_category || '—'}</span></div>
+          <div><span style="color:#6F8092;">INITIATOR</span><br/><span style="color:#1E293B;">${p.initiator_country || 'Unattributed'}</span></div>
+          <div><span style="color:#6F8092;">ACTOR TYPE</span><br/><span style="color:#1E293B;">${p.initiator_category || '—'}</span></div>
+        </div>
+        <div style="font-size:9px;color:#6F8092;">Source: EuRepoC global dataset (local)</div>
       </div>`);
     });
 
@@ -2084,6 +2123,14 @@ map.addSource('mitre-nodes', { type: 'geojson', data: EMPTY_FC });
 
   useEffect(() => {
     if (!mapReady) return;
+    setGeo('eurepoc', activeLayers.eurepoc && data.eurepoc ? data.eurepoc.map((r: any) => ({
+      type: 'Feature', geometry: r.geometry,
+      properties: { ...r.properties }
+    })) : []);
+  }, [mapReady, data.eurepoc, activeLayers.eurepoc, setGeo]);
+
+  useEffect(() => {
+    if (!mapReady) return;
     setGeo('power_plants', activeLayers.power_plants && data.power_plants ? data.power_plants.map((p: any) => ({
       type: 'Feature', geometry: p.geometry,
       properties: { ...p.properties }
@@ -2153,6 +2200,7 @@ map.addSource('mitre-nodes', { type: 'geojson', data: EMPTY_FC });
     setVis(['rad-glow','rad-dots','rad-label'], activeLayers.radiation);
     setVis(['cables-line','cables-glow','cable-landing-points-dots'], activeLayers.cables);
     setVis(['ransomware-glow','ransomware-dots','ransomware-label'], activeLayers.ransomware);
+    setVis(['eurepoc-glow','eurepoc-dots','eurepoc-label'], activeLayers.eurepoc);
     setVis(['power-plants-glow','power-plants-dots','power-plants-label'], activeLayers.power_plants);
     // Sweep layers always visible when data is present (controlled by useEffect)
     setVis(['sweep-connections','sweep-pulse-ring','sweep-device-glow','sweep-device-dots','sweep-device-labels'], true);

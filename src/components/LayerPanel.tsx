@@ -79,6 +79,7 @@ const getLayerGroups = (theme: 'core' | 'ghost') => {
       { key: 'global_incidents', label: 'Global Incidents', icon: AlertTriangle, color: '#D32F2F', dataKey: 'gdelt' },
       { key: 'gps_jamming', label: 'GPS Jamming', icon: Radio, color: '#D32F2F', dataKey: 'gps_jamming' },
       { key: 'ransomware', label: 'Ransomware Victims', icon: AlertTriangle, color: '#D32F2F', dataKey: 'ransomware' },
+      { key: 'eurepoc', label: 'Cyber Incidents (EuRepoC)', icon: ShieldAlert, color: '#C2185B', dataKey: 'eurepoc' },
     ],
   },
   {

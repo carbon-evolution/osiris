@@ -65,6 +65,7 @@ export const MARKER_LAYERS: MarkerLayer[] = [
   { source: 'power_plants', icon: 'zap', color: '#FDD835' },
   { source: 'gdelt', icon: 'triangle-alert', color: '#EF5350' },
   { source: 'ransomware', icon: 'lock', color: '#EC407A' },
+  { source: 'eurepoc', icon: 'shield-alert', color: '#C2185B' },
   { source: 'malware-nodes', icon: 'bug', color: '#C0CA33' },
   { source: 'cve-nodes', icon: 'shield-alert', color: '#00E5FF' },
   { source: 'drop-nodes', icon: 'globe', color: '#5C6BC0' },

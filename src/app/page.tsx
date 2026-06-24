@@ -51,6 +51,7 @@ const CameraViewer = dynamic(() => import('@/components/CameraViewer'));
 const OsintPanel = dynamic(() => import('@/components/OsintPanel'));
 const EntityGraphPanel = dynamic(() => import('@/components/EntityGraphPanel'));
 const CyberIntelPanel = dynamic(() => import('@/components/CyberIntelPanel'));
+const LocalIntelPanel = dynamic(() => import('@/components/LocalIntelPanel'));
 
 function useIsMobile() {
   const [isMobile, setIsMobile] = useState(false);
@@ -203,6 +204,7 @@ export default function Dashboard() {
   const [showScmPanel, setShowScmPanel] = useState(true);
   const [showIntel, setShowIntel] = useState(false);
   const [showCyberIntel, setShowCyberIntel] = useState(false);
+  const [showLocalIntel, setShowLocalIntel] = useState(false);
   const [showEntityGraph, setShowEntityGraph] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [mobilePanel, setMobilePanel] = useState<'layers'|'markets'|'intel'|'search'|'recon'|null>(null);
@@ -261,6 +263,7 @@ export default function Dashboard() {
     mitre_attack: true,
     power_plants: false,
     ransomware: false,
+    eurepoc: false,
   });
   const [liveFeedUrl, setLiveFeedUrl] = useState<string | null>(null);
   const [liveFeedName, setLiveFeedName] = useState('');
@@ -599,6 +602,12 @@ export default function Dashboard() {
       if (activeLayers.ransomware && !layerFetchedRef.current.has('ransomware')) {
         fetchEndpoint('/api/ransomware', d => ({ ransomware: d.features }));
         layerFetchedRef.current.add('ransomware');
+      }
+
+      // EuRepoC cyber incidents (local dataset — static, fetch once)
+      if (activeLayers.eurepoc && !layerFetchedRef.current.has('eurepoc')) {
+        fetchEndpoint('/api/intel/eurepoc?since=2018', d => ({ eurepoc: d.features }));
+        layerFetchedRef.current.add('eurepoc');
       }
 
       // GPS Jamming
@@ -1067,7 +1076,7 @@ export default function Dashboard() {
       {/* ── RIGHT TOOL STRIP (desktop only — mobile uses bottom nav) ── */}
       {!isMobile && <div className="absolute right-2 top-1/2 -translate-y-1/2 flex flex-col gap-2 z-[250] pointer-events-auto bg-[var(--bg-panel)] backdrop-blur-sm p-1 rounded-full border border-[var(--border-primary)] shadow-[0_2px_10px_rgba(60,64,67,0.15)]">
         <div className="relative group">
-          <button onClick={() => { setShowIntel(!showIntel); setShowCyberIntel(false); setShowMarkets(false); setShowAlerts(false); }} className={`w-8 h-8 rounded-full flex items-center justify-center transition-colors ${showIntel ? 'bg-[var(--cyan-primary)]/20' : 'hover:bg-black/5'}`}>
+          <button onClick={() => { setShowIntel(!showIntel); setShowCyberIntel(false); setShowMarkets(false); setShowAlerts(false); setShowLocalIntel(false); }} className={`w-8 h-8 rounded-full flex items-center justify-center transition-colors ${showIntel ? 'bg-[var(--cyan-primary)]/20' : 'hover:bg-black/5'}`}>
             <Radar className={`w-4 h-4 ${showIntel ? 'text-[var(--cyan-primary)]' : 'text-[var(--text-muted)]'}`} />
           </button>
           {/* OSINT / Recon Panel Slideout */}
@@ -1088,7 +1097,7 @@ export default function Dashboard() {
 
         {/* ── CYBER INTEL BUTTON ── */}
         <div className="relative group">
-          <button onClick={() => { setShowCyberIntel(!showCyberIntel); setShowIntel(false); setShowMarkets(false); setShowAlerts(false); setShowEntityGraph(false); }} type="button" className={`w-8 h-8 rounded-full flex items-center justify-center transition-colors ${showCyberIntel ? 'bg-[#C026D3]/20' : 'hover:bg-black/5'}`}>
+          <button onClick={() => { setShowCyberIntel(!showCyberIntel); setShowIntel(false); setShowMarkets(false); setShowAlerts(false); setShowEntityGraph(false); setShowLocalIntel(false); }} type="button" className={`w-8 h-8 rounded-full flex items-center justify-center transition-colors ${showCyberIntel ? 'bg-[#C026D3]/20' : 'hover:bg-black/5'}`}>
             <ShieldAlert className={`w-4 h-4 ${showCyberIntel ? 'text-[#C026D3]' : 'text-[var(--text-muted)]'}`} />
           </button>
           {/* Cyber Intel Panel Slideout */}
@@ -1101,8 +1110,23 @@ export default function Dashboard() {
           </AnimatePresence>
         </div>
 
+        {/* ── LOCAL INTEL BUTTON (OTCAD / ICS adv / recon) ── */}
         <div className="relative group">
-          <button onClick={() => { setShowMarkets(!showMarkets); setShowIntel(false); setShowCyberIntel(false); setShowAlerts(false); setShowEntityGraph(false); }} className={`w-8 h-8 rounded-full flex items-center justify-center transition-colors ${showMarkets ? 'bg-[var(--gold-primary)]/20' : 'hover:bg-black/5'}`}>
+          <button onClick={() => { setShowLocalIntel(!showLocalIntel); setShowIntel(false); setShowCyberIntel(false); setShowMarkets(false); setShowAlerts(false); setShowEntityGraph(false); }} type="button" className={`w-8 h-8 rounded-full flex items-center justify-center transition-colors ${showLocalIntel ? 'bg-[#C2185B]/20' : 'hover:bg-black/5'}`}>
+            <Database className={`w-4 h-4 ${showLocalIntel ? 'text-[#C2185B]' : 'text-[var(--text-muted)]'}`} />
+          </button>
+          {/* Local Intel Panel Slideout */}
+          <AnimatePresence>
+            {showLocalIntel && (
+              <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 20 }} className="absolute right-12 top-1/2 -translate-y-1/2 w-80">
+                <LocalIntelPanel />
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+
+        <div className="relative group">
+          <button onClick={() => { setShowMarkets(!showMarkets); setShowIntel(false); setShowCyberIntel(false); setShowAlerts(false); setShowEntityGraph(false); setShowLocalIntel(false); }} className={`w-8 h-8 rounded-full flex items-center justify-center transition-colors ${showMarkets ? 'bg-[var(--gold-primary)]/20' : 'hover:bg-black/5'}`}>
             <BarChart3 className={`w-4 h-4 ${showMarkets ? 'text-[var(--gold-primary)]' : 'text-[var(--text-muted)]'}`} />
           </button>
           {/* Markets Panel Slideout */}
@@ -1116,7 +1140,7 @@ export default function Dashboard() {
         </div>
 
         <div className="relative group">
-          <button onClick={() => { setShowAlerts(!showAlerts); setShowIntel(false); setShowCyberIntel(false); setShowMarkets(false); setShowEntityGraph(false); }} className={`w-8 h-8 rounded-full flex items-center justify-center transition-colors ${showAlerts ? 'bg-[#FF3D3D]/20' : 'hover:bg-black/5'}`}>
+          <button onClick={() => { setShowAlerts(!showAlerts); setShowIntel(false); setShowCyberIntel(false); setShowMarkets(false); setShowEntityGraph(false); setShowLocalIntel(false); }} className={`w-8 h-8 rounded-full flex items-center justify-center transition-colors ${showAlerts ? 'bg-[#FF3D3D]/20' : 'hover:bg-black/5'}`}>
             <AlertTriangle className={`w-4 h-4 ${showAlerts ? 'text-[#FF3D3D]' : 'text-[var(--text-muted)]'}`} />
           </button>
           {/* Alerts Panel Slideout */}
@@ -1130,7 +1154,7 @@ export default function Dashboard() {
         </div>
 
         <div className="relative group">
-          <button onClick={() => { setShowEntityGraph(!showEntityGraph); setShowIntel(false); setShowCyberIntel(false); setShowMarkets(false); setShowAlerts(false); }} className={`w-8 h-8 rounded-full flex items-center justify-center transition-colors ${showEntityGraph ? 'bg-[#1A73E8]/20' : 'hover:bg-black/5'}`}>
+          <button onClick={() => { setShowEntityGraph(!showEntityGraph); setShowIntel(false); setShowCyberIntel(false); setShowMarkets(false); setShowAlerts(false); setShowLocalIntel(false); }} className={`w-8 h-8 rounded-full flex items-center justify-center transition-colors ${showEntityGraph ? 'bg-[#1A73E8]/20' : 'hover:bg-black/5'}`}>
             <Network className={`w-4 h-4 ${showEntityGraph ? 'text-[var(--gold-primary)]' : 'text-[var(--text-muted)]'}`} />
           </button>
         </div>
