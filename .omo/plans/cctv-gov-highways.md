@@ -8,6 +8,11 @@ were done. Cameras surface under the existing **CCTV** layer (camera icon).
 ## Status so far
 - DONE & committed `31d175e` — fixed the 5s refresh bug in `CameraViewer`
   (load-driven refresh; slow MJPEG feeds no longer cut off). Applies to ALL cameras.
+- DONE (2026-06-24) — **Batch 1: Singapore** ✅ `singapore.ts` implemented &
+  verified live: 90 cams via data.gov.sg LTA, stream_type `jpg`, wired into
+  REGION_FETCHERS (`singapore`) + bbox branch (lat 1.15–1.48, lng 103.6–104.1).
+  Region endpoint + viewport auto-load + image fetch all return 200. No proxy
+  allowlist needed (jpg loads directly; images.data.gov.sg is https).
 - Context: `open-webcams.ts` already pulls ~6,000 global webcams keyless
   (incl. JP/KR/EU/APAC cities). This effort adds DENSE national HIGHWAY networks.
 
@@ -63,6 +68,9 @@ Serbia, Macedonia, Turkey, Romania, Switzerland, Taiwan, Hong Kong, Indonesia,
 Australia, New Zealand, Japan(landmarks), + US states.
 
 ## Next action when resuming
-Start Batch 1: implement `singapore.ts` (verified endpoint above), wire region
-(bbox lat 1.15–1.48, lng 103.6–104.1), verify live. Then confirm key policy and
-proceed to Batch 2.
+Batch 1 (Singapore) is DONE. **Decision still needed: key policy** (see above) —
+Batch 2 (South Korea ITS, Sweden Trafikverket) needs free per-country keys.
+If keys approved: implement `south-korea.ts` (ITS `openapi.its.go.kr/api/NCCTVInfo`,
+env `ITS_KR_KEY`) + `sweden.ts` (Trafikverket, env key). Otherwise skip to Batch 3
+(investigate keyless/DATEX feeds: UK National Highways, Belgium, Norway, Ireland,
+Denmark, Slovenia).

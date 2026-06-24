@@ -22,6 +22,7 @@ import { fetchUSHighwayCameras } from './us-highways';
 import { fetchUSDotCameras } from './us-dot-additional';
 import { fetchIntlHighwayCameras } from './intl-highways';
 import { fetchTaiwanHighwayCameras } from './taiwan-highways';
+import { fetchSingaporeCameras } from './singapore';
 import { fetchHongKongCameras } from './hong-kong';
 import { fetchNorthCarolinaCameras } from './north-carolina';
 import { fetchCaltransCameras } from './caltrans';
@@ -407,6 +408,7 @@ const REGION_FETCHERS: Record<string, () => Promise<any[]>> = {
   'estonia': fetchEstoniaCameras,
   'netherlands': fetchNetherlandsCameras,
   'indonesia': fetchIndonesiaCameras,
+  'singapore': fetchSingaporeCameras,
 }
 
 // Determine which regions to fetch based on viewport bounds
@@ -433,6 +435,8 @@ function getRegionsForBounds(lat: number, lng: number, radius: number): string[]
   if (lat > -9 && lat < -5.5 && lng > 105 && lng < 115) regions.push('indonesia');
   // Taiwan Highways — freeway (國道) + provincial (省道), no-auth THB API (~3,928 cameras)
   if (lat > 20 && lat < 27 && lng > 117 && lng < 123) regions.push('taiwan-highways');
+  // Singapore — data.gov.sg LTA traffic cameras (~90 cameras)
+  if (lat > 1.15 && lat < 1.48 && lng > 103.6 && lng < 104.1) regions.push('singapore');
   // Hong Kong — Transport Department traffic cameras (~300 cameras)
   if (lat > 22.1 && lat < 22.6 && lng > 113.7 && lng < 114.5) regions.push('hong-kong');
   // North Carolina — NCDOT ArcGIS cameras (~1,109 cameras)
