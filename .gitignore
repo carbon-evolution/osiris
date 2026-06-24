@@ -64,3 +64,6 @@ scanner_backend_backup.js
 # Runtime caches
 .abuseipdb_cache.json
 *_cache.json
+
+# graphify generated knowledge-graph output
+graphify-out/

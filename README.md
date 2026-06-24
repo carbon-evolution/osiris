@@ -258,6 +258,75 @@ npm run build && npm start
 
 ---
 
+## 🗄️ Local Intelligence Backend (optional)
+
+By default every layer fetches from upstream APIs on each request. The optional **local backend** moves threat-intel feeds and curated datasets onto your own infrastructure, so the dashboard keeps working when upstream APIs throttle or go down — and adds rate-limiting + audit logging for the abuse-prone routes.
+
+It is **fully opt-in**: if you don't start it, OSIRIS runs exactly as before.
+
+### Data plane
+
+A profile-gated Docker Compose stack under `backend/`:
+
+| Profile | Services | Use |
+|---------|----------|-----|
+| `lean` | PostgreSQL + PostGIS, Redis | baseline (~2 GB RAM) |
+| `standard` | `lean` + OpenSearch + Neo4j | dev / full features (~6–8 GB RAM) |
+| `tip` | MISP / OpenCTI (on demand) | heavy threat-intel platforms |
+
+```bash
+cp backend/.env.example backend/.env      # defaults work as-is
+npm run data:up                           # start the standard profile
+npm run data:down                         # stop it
+```
+
+### Feed ingestion (keyless)
+
+Background collectors sync open feeds into local Postgres + OpenSearch on a schedule:
+
+```bash
+npm run workers   # warm the local stores once, then run on cron
+```
+
+| Collector | Source | Key |
+|-----------|--------|-----|
+| **KEV** | CISA Known Exploited Vulnerabilities | ❌ keyless |
+| **EPSS** | FIRST exploit-prediction scores | ❌ keyless |
+| **CVE** | NVD recent feed | ❌ keyless |
+| **ThreatFox / URLhaus / MalwareBazaar** | abuse.ch | optional free Auth-Key (skips gracefully when unset) |
+
+Repointed routes follow a **local-first-with-live-fallback** contract: serve from the local store when fresh, otherwise fall back to the original live fetch — so a missing/stale store never breaks a layer. `/api/cyber-threats` (CISA KEV) ships with this enabled (`LOCAL_FIRST=true`).
+
+### Local dataset connectors — `/api/intel/*`
+
+Surfaces local OSINT/CTI datasets (configurable via `OPENCODE_ROOT`) directly in OSIRIS:
+
+| Route | Source | Surface |
+|-------|--------|---------|
+| `/api/intel/eurepoc` | EuRepoC global cyber-incident dataset | map layer (country-centroid points) |
+| `/api/intel/otcad` | OT/ICS historical attack catalogue | Local Intel panel |
+| `/api/intel/ics-advisories` | CISA ICS-CERT advisories | Local Intel panel |
+| `/api/intel/recon` | local recon tool outputs | Local Intel panel |
+| `/api/intel/findings` | DefectDojo (`DEFECTDOJO_TOKEN`) | cyber panel |
+
+### Security
+
+`guardRequest()` adds Redis-backed rate-limiting (anon 20/min, user 100/min) + Postgres audit logging on the abuse-prone routes (`/api/ai/*`, `/api/osint/sweep`, `/api/osint/shodan`). It runs in the Node route runtime (not Edge middleware) and degrades safely — rate-limit fail-open, audit fail-soft.
+
+### Backend env vars (all optional)
+
+| Variable | Unlocks |
+|----------|---------|
+| `LOCAL_FIRST` | `true` (default) = local-first serving; `false` = always live |
+| `PG_*`, `REDIS_URL`, `OPENSEARCH_URL`, `NEO4J_*` | datastore connection (defaults match the compose file) |
+| `OPENCODE_ROOT` | base path for `/api/intel/*` local datasets |
+| `THREATFOX_AUTH_KEY`, `URLHAUS_AUTH_KEY`, `MALWAREBAZAAR_AUTH_KEY` | enable abuse.ch collectors |
+| `DEFECTDOJO_TOKEN` | enable DefectDojo findings |
+
+Run `npm test` for the backend's Vitest suite, and `GET /api/health/local` to check datastore connectivity.
+
+---
+
 ## 🔬 Architecture
 
 ### Frontend
