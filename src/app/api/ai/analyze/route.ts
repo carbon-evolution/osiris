@@ -7,6 +7,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
+import { guardRequest } from '@/lib/guard';
 import {
   createGeminiClient,
   rotateApiKey,
@@ -99,6 +100,8 @@ interface ErrorResponse {
 export async function POST(
   request: NextRequest
 ): Promise<NextResponse<AnalyzeResponse | ErrorResponse>> {
+  const blocked = await guardRequest(request, 'ai/analyze');
+  if (blocked) return blocked as NextResponse<ErrorResponse>;
   // Extract client IP
   const ip =
     request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ||

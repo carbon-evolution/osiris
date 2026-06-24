@@ -1,6 +1,10 @@
 import { NextResponse } from 'next/server';
+import { guardRequest } from '@/lib/guard';
 
 export async function GET(req: Request) {
+  const blocked = await guardRequest(req, 'osint/shodan');
+  if (blocked) return blocked;
+
   const { searchParams } = new URL(req.url);
   const ip = searchParams.get('ip');
 
