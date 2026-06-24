@@ -21,6 +21,20 @@ were done. Cameras surface under the existing **CCTV** layer (camera icon).
   return [] without a key (verified: HTTP 200, 0 cams, no errors). **Live verify
   pending real keys** — user to register (ITS its.go.kr/opendata, Trafikverket
   api.trafikinfo). KR HLS: if feeds load black, add host to HLS_PROXY_HOSTS.
+- DONE (2026-06-24) — **Batch 3: Ireland** ✅ keyless, verified live: 242 cams via
+  TII Traffic GraphQL (`POST traffic.tii.ie/api/graphql`, op MapFeatures,
+  layerSlugs `["normalCameras"]`, zoom 18 → no clustering). `ireland.ts` parses
+  Camera features → [lng,lat] + IMAGE view url (JPG on irecam.carsprogram.org,
+  https, loads directly). Wired REGION_FETCHERS (`ireland`) + bbox (lat 51.3–55.5,
+  lng -10.7 to -5.9). CC BY 4.0.
+- INVESTIGATED, NOT VIABLE this pass (Batch 3 rest):
+  - Norway (Statens vegvesen DATEX v3.1 `GetCCTVSiteTable`) → 401, needs free key
+    AND it's DATEX XML (no XML parser in repo). Defer / add key+parser later.
+  - UK National Highways → DATEX/NTIS registration; trafficengland blocked. Skip.
+  - Belgium (Verkeerscentrum Vlaanderen, Brussels Mobiris) → DATEX-only / counts
+    API, no clean keyless camera-IMAGE endpoint found.
+  - Denmark Vejdirektoratet → DATEX registration. Slovenia promet.si → NAP login.
+  - data.tii.ie portal = locked S3 (use the GraphQL map API, as ireland.ts does).
 - Context: `open-webcams.ts` already pulls ~6,000 global webcams keyless
   (incl. JP/KR/EU/APAC cities). This effort adds DENSE national HIGHWAY networks.
 
@@ -80,7 +94,7 @@ Batches 1 (Singapore) + 2 (South Korea, Sweden) DONE. Key policy = free keys all
 1. User registers ITS_KR_KEY + TRAFIKVERKET_KEY → drop in `.env.local`, live-verify
    both regions return cameras (and KR HLS streams actually play; if black, add the
    HLS host to HLS_PROXY_HOSTS).
-2. Batch 3 (keyless/DATEX): UK National Highways (DATEX II / WebTRIS), Belgium
-   (Verkeerscentrum Vlaanderen + Brussels Mobiris), Norway (Statens vegvesen DATEX),
-   Ireland TII, Denmark Vejdirektoratet, Slovenia promet.si.
+2. Batch 3 mostly done — Ireland ✅ live. Remaining EU candidates all need
+   registration/DATEX-XML (see findings above). To add Norway: register a free
+   vegvesen key + add an XML parser (fast-xml-parser) since the repo has none.
 3. Batch 4 (curated/landmark fallback): Japan NEXCO, Malaysia, Thailand, India, PH.

@@ -25,6 +25,7 @@ import { fetchTaiwanHighwayCameras } from './taiwan-highways';
 import { fetchSingaporeCameras } from './singapore';
 import { fetchSouthKoreaCameras } from './south-korea';
 import { fetchSwedenCameras } from './sweden';
+import { fetchIrelandCameras } from './ireland';
 import { fetchHongKongCameras } from './hong-kong';
 import { fetchNorthCarolinaCameras } from './north-carolina';
 import { fetchCaltransCameras } from './caltrans';
@@ -413,6 +414,7 @@ const REGION_FETCHERS: Record<string, () => Promise<any[]>> = {
   'singapore': fetchSingaporeCameras,
   'south-korea': fetchSouthKoreaCameras,
   'sweden': fetchSwedenCameras,
+  'ireland': fetchIrelandCameras,
 }
 
 // Determine which regions to fetch based on viewport bounds
@@ -486,6 +488,8 @@ function getRegionsForBounds(lat: number, lng: number, radius: number): string[]
   if (inNetherlands) regions.push('netherlands');
   // Sweden — Trafikverket traffic cameras (free key TRAFIKVERKET_KEY)
   if (lat > 55.2 && lat < 69.1 && lng > 10.9 && lng < 24.2) regions.push('sweden');
+  // Ireland — TII motorway/national-road cameras (keyless GraphQL, ~240 cams)
+  if (lat > 51.3 && lat < 55.5 && lng > -10.7 && lng < -5.9) regions.push('ireland');
 
   // Middle East
   const inMiddleEast = lat > 29 && lat < 34.5 && lng > 34 && lng < 36.5;
