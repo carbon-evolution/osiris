@@ -44,9 +44,19 @@ were done. Cameras surface under the existing **CCTV** layer (camera icon).
     (verified: Vilnius cam → 54.64N,25.18E). Images 403 without Referer, so marked
     stream_type 'mjpeg' to route via proxy; added `eismoinfo.lt` to proxy
     ALLOWED_DOMAINS + new REFERER_BY_HOST map. bbox lat 53.8–56.5 / lng 20.9–26.9.
-  - NOTE: Canada 511 (Ontario+Quebec) already covered by fetchCanadaCameras; the
-    511 platform `/api/v2/get/cameras` + `/map/Cctv/{viewId}` images is keyless and
-    reusable for more US states / Alberta if wanted.
+  - NOTE: Canada 511 (Ontario+Quebec+**Alberta**) ALREADY covered by
+    fetchCanadaCameras. US states broadly covered: us-highways.ts pulls the
+    OpenTrafficCamMap dataset (~7,029 US cams) + us-dot-additional (OR/VA/MA/KY/MN)
+    + Caltrans/WSDOT/NC. So 511 US-state additions would mostly DUPLICATE — skip.
+- INVESTIGATED, NOT VIABLE keyless (2026-06-24):
+  - **Denmark** (Vejdirektoratet) — public map trafikkort.vejdirektoratet.dk loads
+    geojson from `storage.googleapis.com/trafikkort-data/geojson/25832/<layer>.point.json`
+    (keyless, confirmed e.g. clearance-height-details.point.json = 200), BUT the
+    webcam layer filename is built from a runtime layerDefinitions config not in the
+    JS bundle; guesses 403'd. Documented API data.vd-nap.dk needs a NAP key. Parked.
+  - **Latvia** (lvceli.lv) — no discoverable keyless camera API.
+  - **Croatia (HAK)**, **Hungary (utinform)** — Angular SPAs; would need per-site
+    bundle reversing. Not done.
 - Context: `open-webcams.ts` already pulls ~6,000 global webcams keyless
   (incl. JP/KR/EU/APAC cities). This effort adds DENSE national HIGHWAY networks.
 
