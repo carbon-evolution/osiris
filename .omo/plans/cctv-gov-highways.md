@@ -60,6 +60,17 @@ were done. Cameras surface under the existing **CCTV** layer (camera icon).
   - **Latvia** (lvceli.lv) — no discoverable keyless camera API.
   - **Croatia (HAK)**, **Hungary (utinform)** — Angular SPAs; would need per-site
     bundle reversing. Not done.
+  - **Japan** (2026-06-24) — research-confirmed NO unified keyless API; cameras are
+    fragmented across NEXCO East/Central/West + JARTIC + Metropolitan Expwy +
+    prefectures, all session-gated or app-only (iHighway). Only keyless route is
+    hand-curated YouTube iframe cams (japan.ts already has 4 landmarks). Not expanded.
+  - **Slovenia promet.si** (browser timeout/CF), **Belgium Wallonia trafiroutes**
+    (legacy 2011 JSP app, no clean data endpoint at /Cameras), **Israel/Thailand/
+    Argentina** (guessed endpoints failed) — none clean-keyless within reason.
+  - CONCLUSION: clean keyless camera-JSON seam is largely mined out. Remaining
+    countries need keys, DATEX registration, or heavy per-site reversing. Best
+    remaining options: (a) curate more YouTube iframe cams (low value), or (b)
+    deepen already-covered countries (e.g. more US-state 511, AU states).
 - Context: `open-webcams.ts` already pulls ~6,000 global webcams keyless
   (incl. JP/KR/EU/APAC cities). This effort adds DENSE national HIGHWAY networks.
 
