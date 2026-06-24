@@ -23,20 +23,12 @@ const getLayerGroups = (theme: 'core' | 'ghost') => {
   const ghostPriv = '#CE93D8';
   const ghostGov = '#D500F9';
 
-  const flightCom = isGhost ? phantomPurple : '#00E5FF';
+  const flightCom = isGhost ? phantomPurple : '#1A73E8';
   const flightPriv = isGhost ? ghostPriv : '#FFD700';
   const flightGov = isGhost ? ghostGov : '#FF9500';
   const flightMil = '#FF0000';
 
   return [
-  {
-    label: 'SDK',
-    fullLabel: 'OSIRIS SDK',
-    color: '#1565C0',
-    layers: [
-      { key: 'sdk_sea', label: 'Maritime Lines', icon: Anchor, color: '#4FC3F7', dataKey: 'sdk_entities' },
-    ],
-  },
   {
     label: 'AVIATION',
     fullLabel: 'AVIATION',
@@ -55,7 +47,7 @@ const getLayerGroups = (theme: 'core' | 'ghost') => {
     layers: [
       { key: 'maritime', label: 'Maritime / Naval', icon: Ship, color: '#26C6DA', dataKey: 'maritime_ships,maritime_ports,maritime_chokepoints' },
       { key: 'cables', label: 'Submarine Cables', icon: Anchor, color: '#1976D2', dataKey: 'submarine_cables' },
-      { key: 'satellites', label: 'Satellites', icon: Satellite, color: '#D4AF37', dataKey: 'satellites' },
+      { key: 'satellites', label: 'Satellites', icon: Satellite, color: '#1A73E8', dataKey: 'satellites' },
     ],
   },
   {
@@ -104,11 +96,11 @@ const getLayerGroups = (theme: 'core' | 'ghost') => {
   {
     label: 'CYBER INTEL',
     fullLabel: 'CYBER THREAT INTELLIGENCE',
-    color: '#00E5FF',
+    color: '#1A73E8',
     layers: [
-      { key: 'cve_feed', label: 'Active CVE Threats', icon: ShieldAlert, color: '#00E5FF', dataKey: 'cyber_intel' },
+      { key: 'cve_feed', label: 'Active CVE Threats', icon: ShieldAlert, color: '#1A73E8', dataKey: 'cyber_intel' },
       { key: 'bgp_routes', label: 'Routing Intel (DROP)', icon: Globe, color: '#FF9100', dataKey: 'cyber_intel' },
-      { key: 'tor_nodes', label: 'Tor Exit Nodes', icon: Eye, color: '#7C4DFF', dataKey: 'cyber_intel' },
+      { key: 'tor_nodes', label: 'Tor Exit Nodes', icon: Eye, color: '#6D28D9', dataKey: 'cyber_intel' },
       { key: 'mitre_attack', label: 'MITRE ATT&CK', icon: BookMarked, color: '#00E676', dataKey: 'cyber_intel' },
     ],
   },
@@ -160,8 +152,8 @@ function LayerPanel({ data, activeLayers, setActiveLayers, isMobile, theme = 'co
         {LAYER_GROUPS.map((group) => (
           <div key={group.label} className="flex flex-col gap-2">
             <div 
-              className="text-[10px] font-bold font-mono tracking-widest border-b border-white/10 pb-1"
-              style={{ color: group.color }}
+              className="text-[10px] font-bold font-mono tracking-widest border-b border-[var(--border-primary)] pb-1.5"
+              style={{ color: 'var(--text-heading)' }}
             >
               {group.fullLabel}
             </div>
@@ -174,19 +166,19 @@ function LayerPanel({ data, activeLayers, setActiveLayers, isMobile, theme = 'co
                   <button
                     key={layer.key}
                     onClick={() => toggle(layer.key)}
-                    className={`flex items-center gap-2 px-2 py-2 rounded border transition-colors ${
-                      isLayerActive 
-                        ? 'bg-white/10 border-white/20' 
-                        : 'bg-transparent border-white/5 hover:border-white/10'
+                    className={`flex items-center gap-2 px-2.5 py-2 rounded-lg border transition-colors ${
+                      isLayerActive
+                        ? 'bg-[var(--hover-accent)] border-[var(--border-active)]'
+                        : 'bg-transparent border-[var(--border-secondary)] hover:border-[var(--border-primary)]'
                     }`}
                   >
                     <div 
                       className={`w-2 h-2 rounded-full border flex-shrink-0 transition-all ${
-                        isLayerActive ? 'bg-current border-current scale-100' : 'bg-transparent border-white/30 scale-75'
+                        isLayerActive ? 'bg-current border-current scale-100' : 'bg-transparent border-[var(--text-muted)] scale-75'
                       }`}
-                      style={{ color: isLayerActive ? layer.color : 'inherit', boxShadow: isLayerActive ? `0 0 8px ${layer.color}` : 'none' }}
+                      style={{ color: isLayerActive ? layer.color : 'var(--text-muted)', boxShadow: isLayerActive ? `0 0 8px ${layer.color}` : 'none' }}
                     />
-                    <span className={`text-[9px] font-mono uppercase tracking-wider flex-1 text-left ${isLayerActive ? 'text-white' : 'text-white/60'}`}>
+                    <span className={`text-[9px] font-mono uppercase tracking-wider flex-1 text-left ${isLayerActive ? 'text-[var(--text-primary)] font-semibold' : 'text-[var(--text-secondary)]'}`}>
                       {layer.label}
                     </span>
                     {count !== null && (
@@ -211,16 +203,16 @@ function LayerPanel({ data, activeLayers, setActiveLayers, isMobile, theme = 'co
               onClick={() => setTheme(theme === 'core' ? 'ghost' : 'core')}
               className="relative w-12 h-6 rounded-full transition-all duration-500 ease-in-out border flex items-center px-0.5 cursor-pointer hover:shadow-lg"
               style={{
-                backgroundColor: theme === 'ghost' ? 'rgba(179, 136, 255, 0.15)' : 'rgba(0,0,0,0.4)',
-                borderColor: theme === 'ghost' ? 'rgba(179, 136, 255, 0.5)' : 'rgba(255,255,255,0.1)',
-                boxShadow: theme === 'ghost' ? '0 0 15px rgba(179, 136, 255, 0.3), inset 0 0 8px rgba(179, 136, 255, 0.2)' : 'inset 0 0 5px rgba(0,0,0,0.5)'
+                backgroundColor: theme === 'ghost' ? 'rgba(179, 136, 255, 0.15)' : 'rgba(60,64,67,0.08)',
+                borderColor: theme === 'ghost' ? 'rgba(179, 136, 255, 0.5)' : 'var(--border-primary)',
+                boxShadow: theme === 'ghost' ? '0 0 15px rgba(179, 136, 255, 0.3), inset 0 0 8px rgba(179, 136, 255, 0.2)' : 'none'
               }}
             >
               <motion.div 
                 layout
                 className="w-4 h-4 rounded-full"
                 style={{
-                  backgroundColor: theme === 'ghost' ? '#B388FF' : 'rgba(255,255,255,0.4)',
+                  backgroundColor: theme === 'ghost' ? '#B388FF' : 'var(--text-muted)',
                   boxShadow: theme === 'ghost' ? '0 0 10px #B388FF' : 'none'
                 }}
                 animate={{ x: theme === 'ghost' ? 24 : 0 }}
@@ -240,10 +232,10 @@ function LayerPanel({ data, activeLayers, setActiveLayers, isMobile, theme = 'co
       animate={{ x: 0, opacity: 1 }}
       transition={{ type: 'spring', damping: 25, stiffness: 200 }}
       className="absolute top-0 left-0 h-full w-[80px] border-r border-[var(--border-primary)] flex flex-col pt-32 pb-8 z-50 pointer-events-auto bg-[var(--bg-panel)] backdrop-blur-[24px] saturate-150"
-      style={{ boxShadow: '4px 0 24px rgba(0,0,0,0.5)' }}
+      style={{ boxShadow: '1px 0 6px rgba(60,64,67,0.15)' }}
     >
       
-      <div className="flex-1 flex flex-col gap-8 px-2">
+      <div className="flex-1 flex flex-col gap-6 px-2">
         {LAYER_GROUPS.map((group) => {
           const groupActiveCount = group.layers.filter(l => activeLayers[l.key]).length;
           const isActive = groupActiveCount > 0;
@@ -261,10 +253,9 @@ function LayerPanel({ data, activeLayers, setActiveLayers, isMobile, theme = 'co
                 className={`text-[10px] font-mono font-bold cursor-pointer select-none transition-all duration-300 flex items-center justify-center`}
                 style={{
                   writingMode: 'horizontal-tb',
-                  color: isActive ? group.color : 'rgba(255, 255, 255, 0.4)',
-                  textShadow: isActive ? `0 0 10px ${group.color}80` : 'none',
+                  color: isActive ? 'var(--text-heading)' : 'var(--text-muted)',
                   letterSpacing: '0.1em',
-                  opacity: isActive || isHovered ? 1 : 0.5,
+                  opacity: isActive || isHovered ? 1 : 0.8,
                 }}
               >
                 {/* Active Indicator dot */}
@@ -285,12 +276,13 @@ function LayerPanel({ data, activeLayers, setActiveLayers, isMobile, theme = 'co
                     animate={{ opacity: 1, x: 0, filter: 'blur(0px)' }}
                     exit={{ opacity: 0, x: -5, filter: 'blur(2px)' }}
                     transition={{ duration: 0.2, ease: "easeOut" }}
-                    className="absolute left-[70px] top-1/2 -translate-y-1/2 min-w-[240px] bg-black/80 backdrop-blur-md border border-white/10 rounded-lg p-3 shadow-2xl z-50 pointer-events-auto"
+                    className="absolute left-[70px] top-1/2 -translate-y-1/2 min-w-[244px] bg-[var(--bg-panel-solid)] backdrop-blur-md border border-[var(--border-primary)] rounded-xl p-3 z-50 pointer-events-auto"
                     style={{
-                      boxShadow: `0 0 30px ${group.color}15, inset 0 0 20px ${group.color}05`
+                      boxShadow: '0 1px 3px rgba(60,64,67,0.2), 0 4px 16px rgba(60,64,67,0.15)'
                     }}
                   >
-                    <div className="text-[11px] font-bold font-mono mb-3 tracking-widest border-b border-white/10 pb-2" style={{ color: group.color }}>
+                    <div className="text-[11px] font-bold font-mono mb-2.5 tracking-widest border-b border-[var(--border-primary)] pb-2 flex items-center gap-2" style={{ color: 'var(--text-heading)' }}>
+                      <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ backgroundColor: group.color }} />
                       {group.fullLabel}
                     </div>
                     <div className="flex flex-col gap-1.5">
@@ -303,13 +295,13 @@ function LayerPanel({ data, activeLayers, setActiveLayers, isMobile, theme = 'co
                           <button
                             key={layer.key}
                             onClick={() => toggle(layer.key)}
-                            className="w-full flex items-center gap-3 px-2 py-1.5 rounded bg-transparent hover:bg-white/5 transition-colors group"
+                            className="w-full flex items-center gap-3 px-2.5 py-2 rounded-lg bg-transparent hover:bg-[var(--bg-tertiary)] transition-colors group"
                           >
-                            <div 
-                              className={`w-2 h-2 rounded-full border flex-shrink-0 transition-all duration-300 ${isLayerActive ? 'bg-current border-current scale-100' : 'bg-transparent border-white/30 scale-75'}`}
-                              style={{ color: isLayerActive ? layer.color : 'inherit', boxShadow: isLayerActive ? `0 0 8px ${layer.color}` : 'none' }}
+                            <div
+                              className={`w-2 h-2 rounded-full border flex-shrink-0 transition-all duration-300 ${isLayerActive ? 'bg-current border-current scale-100' : 'bg-transparent border-[var(--text-muted)] scale-75'}`}
+                              style={{ color: isLayerActive ? layer.color : 'var(--text-muted)', boxShadow: isLayerActive ? `0 0 8px ${layer.color}` : 'none' }}
                             />
-                            <span className={`text-[11px] font-mono uppercase tracking-wider flex-1 text-left transition-colors duration-200 ${isLayerActive ? 'text-white' : 'text-white/50 group-hover:text-white/80'}`}>
+                            <span className={`text-[11px] font-mono uppercase tracking-wider flex-1 text-left transition-colors duration-200 ${isLayerActive ? 'text-[var(--text-primary)] font-semibold' : 'text-[var(--text-secondary)] group-hover:text-[var(--text-primary)]'}`}>
                               {layer.label}
                             </span>
                             {count !== null && (
@@ -346,7 +338,7 @@ function LayerPanel({ data, activeLayers, setActiveLayers, isMobile, theme = 'co
               layout
               className="w-5 h-5 rounded-full"
               style={{
-                backgroundColor: theme === 'ghost' ? '#B388FF' : 'rgba(255,255,255,0.4)',
+                backgroundColor: theme === 'ghost' ? '#B388FF' : 'var(--text-muted)',
                 boxShadow: theme === 'ghost' ? '0 0 10px #B388FF' : 'none'
               }}
               animate={{ x: theme === 'ghost' ? 28 : 0 }}

@@ -124,7 +124,39 @@ export async function GET(req: Request) {
     );
   }
 
-  if (!result.satellite && (!result.transmitters || result.transmitters.length === 0)) {
+  // ── 4. Orbital catalog metadata from Celestrak SATCAT (free, no key) ──
+  // KeepTrack-style fields: intl designator, type, owner/country, launch
+  // date & site, orbital period, inclination, apogee, perigee, RCS.
+  try {
+    const res = await stealthFetch(
+      `https://celestrak.org/satcat/records.php?CATNR=${noradIdClean}&FORMAT=json`,
+      { signal: AbortSignal.timeout(10000) },
+    );
+    if (res.ok) {
+      const body = await res.json();
+      if (Array.isArray(body) && body.length > 0) {
+        const s = body[0];
+        result.orbital = {
+          intl_designator: s.OBJECT_ID || null,   // COSPAR
+          object_type: s.OBJECT_TYPE || null,     // PAYLOAD / ROCKET BODY / DEBRIS
+          ops_status: s.OPS_STATUS_CODE || null,
+          owner: s.OWNER || null,                 // country / org
+          launch_date: s.LAUNCH_DATE || null,
+          launch_site: s.LAUNCH_SITE || null,
+          decay_date: s.DECAY_DATE || null,
+          period_min: s.PERIOD ?? null,           // minutes
+          inclination_deg: s.INCLINATION ?? null,
+          apogee_km: s.APOGEE ?? null,
+          perigee_km: s.PERIGEE ?? null,
+          rcs_m2: s.RCS ?? null,                  // radar cross-section
+        };
+      }
+    }
+  } catch (e) {
+    console.warn('[SAT-ENRICH] celestrak satcat error:', e instanceof Error ? e.message : e);
+  }
+
+  if (!result.satellite && !result.orbital && (!result.transmitters || result.transmitters.length === 0)) {
     return NextResponse.json(
       { error: 'No enrichment data found for this NORAD ID', noradId: noradIdClean },
       { status: 404 },

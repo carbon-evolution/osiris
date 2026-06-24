@@ -133,7 +133,7 @@ export default function CameraViewer({ camera, onClose, onLocate }: CameraViewer
               : 'bottom-[70px] left-2 right-2 md:bottom-6 md:right-6 md:left-auto md:w-[480px]'
           }`}
         >
-          <div className="overflow-hidden h-full flex flex-col bg-black/85 backdrop-blur-xl border border-[var(--border-primary)]" style={{ boxShadow: '0 20px 50px rgba(0,0,0,0.9), inset 0 0 30px rgba(0,0,0,0.8)' }}>
+          <div className="overflow-hidden h-full flex flex-col bg-[var(--bg-panel-solid)] backdrop-blur-xl border border-[var(--border-primary)] rounded-xl" style={{ boxShadow: '0 1px 3px rgba(60,64,67,0.2), 0 8px 28px rgba(60,64,67,0.2)' }}>
             
             {/* Tactical Grid Overlay on background */}
             <div className="absolute inset-0 pointer-events-none opacity-20" style={{
@@ -142,9 +142,9 @@ export default function CameraViewer({ camera, onClose, onLocate }: CameraViewer
             }} />
 
             {/* Tactical Header */}
-            <div className="flex flex-col border-b border-[var(--border-primary)] bg-black/60 relative z-10">
+            <div className="flex flex-col border-b border-[var(--border-primary)] bg-[var(--bg-secondary)] relative z-10">
               {/* Top Meta Bar */}
-              <div className="flex items-center justify-between px-3 py-1 border-b border-white/5 text-[7px] font-mono tracking-[0.2em] text-[var(--text-muted)] bg-[var(--hover-accent)]">
+              <div className="flex items-center justify-between px-3 py-1 border-b border-[var(--border-secondary)] text-[7px] font-mono tracking-[0.2em] text-[var(--text-muted)] bg-[var(--hover-accent)]">
                 <div className="flex items-center gap-3">
                   <span className="text-[var(--gold-primary)] font-bold">{camId}</span>
                   <span>{camera.lat?.toFixed(4)}, {camera.lng?.toFixed(4)}</span>
@@ -164,7 +164,7 @@ export default function CameraViewer({ camera, onClose, onLocate }: CameraViewer
                     <div className="absolute bottom-0 right-0 w-1 h-1 border-b border-r border-[var(--gold-primary)]" />
                   </div>
                   <div className="min-w-0 flex-1">
-                    <h3 className="text-[12px] md:text-[13px] font-mono font-bold tracking-widest truncate text-white uppercase" style={{ textShadow: '0 0 10px rgba(255,255,255,0.3)' }}>{camera.name}</h3>
+                    <h3 className="text-[12px] md:text-[13px] font-mono font-bold tracking-widest truncate text-[var(--text-heading)] uppercase">{camera.name}</h3>
                     <p className="text-[7px] md:text-[8px] font-mono text-[var(--gold-primary)] uppercase tracking-wider opacity-80">{camera.city}, {camera.country} • SOURCE: {camera.source}</p>
                   </div>
                 </div>
@@ -172,20 +172,20 @@ export default function CameraViewer({ camera, onClose, onLocate }: CameraViewer
                 {/* Controls */}
                 <div className="flex items-center gap-1 flex-shrink-0 ml-3">
                   {streamType === 'jpg' && (
-                    <button onClick={() => setRefreshKey(k => k + 1)} className="p-1.5 rounded-sm bg-white/5 border border-white/10 hover:bg-[var(--gold-primary)]/20 hover:border-[var(--gold-primary)] transition-all" title="Refresh feed">
+                    <button onClick={() => setRefreshKey(k => k + 1)} className="p-1.5 rounded-sm bg-[var(--bg-tertiary)] border border-[var(--border-primary)] hover:bg-[var(--gold-primary)]/15 hover:border-[var(--gold-primary)] transition-all" title="Refresh feed">
                       <RefreshCw className="w-3 h-3 text-[var(--text-secondary)] hover:text-[var(--gold-primary)]" />
                     </button>
                   )}
                   {camera.lat && camera.lng && (
-                    <button onClick={() => onLocate?.(camera.lat, camera.lng)} className="p-1.5 rounded-sm bg-white/5 border border-white/10 hover:bg-[var(--gold-primary)]/20 hover:border-[var(--gold-primary)] transition-all" title="Fly to location">
+                    <button onClick={() => onLocate?.(camera.lat, camera.lng)} className="p-1.5 rounded-sm bg-[var(--bg-tertiary)] border border-[var(--border-primary)] hover:bg-[var(--gold-primary)]/15 hover:border-[var(--gold-primary)] transition-all" title="Fly to location">
                       <MapPin className="w-3 h-3 text-[var(--text-secondary)] hover:text-[var(--gold-primary)]" />
                     </button>
                   )}
-                  <button onClick={() => setFullscreen(!fullscreen)} className="hidden md:block p-1.5 rounded-sm bg-white/5 border border-white/10 hover:bg-[var(--text-primary)]/20 hover:border-[var(--text-primary)] transition-all" title="Toggle fullscreen">
+                  <button onClick={() => setFullscreen(!fullscreen)} className="hidden md:block p-1.5 rounded-sm bg-[var(--bg-tertiary)] border border-[var(--border-primary)] hover:bg-[var(--text-primary)]/10 hover:border-[var(--text-primary)] transition-all" title="Toggle fullscreen">
                     <Maximize2 className="w-3 h-3 text-[var(--text-secondary)] hover:text-[var(--text-primary)]" />
                   </button>
-                  <button onClick={onClose} className="p-1.5 rounded-sm bg-red-900/30 border border-red-500/30 hover:bg-red-500/30 hover:border-red-500 transition-all ml-2">
-                    <X className="w-4 h-4 md:w-3 md:h-3 text-red-400 hover:text-red-200" />
+                  <button onClick={onClose} className="p-1.5 rounded-sm bg-[#FCE8E6] border border-[#F5C2C0] hover:bg-[#FAD2CF] hover:border-[#EE675C] transition-all ml-2">
+                    <X className="w-4 h-4 md:w-3 md:h-3 text-[#D93025] hover:text-[#B31412]" />
                   </button>
                 </div>
               </div>
@@ -304,14 +304,14 @@ export default function CameraViewer({ camera, onClose, onLocate }: CameraViewer
           </div>
 
           {/* Advanced Tactical Footer */}
-          <div className="bg-black border-t border-[var(--border-primary)] relative z-10">
-            <div className="flex items-center justify-between px-3 py-1.5 border-b border-white/5">
+          <div className="bg-[var(--bg-secondary)] border-t border-[var(--border-primary)] relative z-10">
+            <div className="flex items-center justify-between px-3 py-1.5 border-b border-[var(--border-secondary)]">
               <div className="flex gap-4">
                 <div className="flex flex-col">
                   <span className="text-[6px] text-[var(--text-muted)] font-mono tracking-widest">FEED TYPE</span>
-                  <span className="text-[8px] text-white font-mono tracking-widest uppercase">{streamType}</span>
+                  <span className="text-[8px] text-[var(--text-heading)] font-mono tracking-widest uppercase">{streamType}</span>
                 </div>
-                <div className="flex flex-col border-l border-white/10 pl-4">
+                <div className="flex flex-col border-l border-[var(--border-primary)] pl-4">
                   <span className="text-[6px] text-[var(--text-muted)] font-mono tracking-widest">STATUS</span>
                   <span className="text-[8px] text-[var(--alert-green)] font-mono tracking-widest">ACTIVE / RECORDING</span>
                 </div>
@@ -319,12 +319,12 @@ export default function CameraViewer({ camera, onClose, onLocate }: CameraViewer
               <div className="flex gap-3">
                 {(camera.feed_url || camera.external_url || (streamType === 'iframe' && camera.stream_url)) && (
                   <a href={camera.external_url || camera.feed_url || (streamType === 'iframe' ? camera.stream_url : undefined)} target="_blank" rel="noopener noreferrer"
-                    className="flex items-center gap-1.5 px-2 py-1 bg-white/5 hover:bg-white/10 border border-white/10 transition-colors text-[8px] font-mono text-[var(--gold-primary)] tracking-widest">
+                    className="flex items-center gap-1.5 px-2 py-1 bg-[var(--bg-tertiary)] hover:bg-[var(--hover-accent)] border border-[var(--border-primary)] transition-colors text-[8px] font-mono text-[var(--gold-primary)] tracking-widest">
                     <ExternalLink className="w-2.5 h-2.5" /> RAW FEED
                   </a>
                 )}
                 <a href={`https://www.google.com/maps/@${camera.lat},${camera.lng},17z`} target="_blank" rel="noopener noreferrer"
-                  className="flex items-center gap-1.5 px-2 py-1 bg-white/5 hover:bg-white/10 border border-white/10 transition-colors text-[8px] font-mono text-[var(--cyan-primary)] tracking-widest">
+                  className="flex items-center gap-1.5 px-2 py-1 bg-[var(--bg-tertiary)] hover:bg-[var(--hover-accent)] border border-[var(--border-primary)] transition-colors text-[8px] font-mono text-[var(--cyan-primary)] tracking-widest">
                   <MapPin className="w-2.5 h-2.5" /> MAP TARGET
                 </a>
               </div>

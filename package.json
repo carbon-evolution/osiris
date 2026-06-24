@@ -11,6 +11,9 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "@deck.gl/core": "^9.3.4",
+    "@deck.gl/layers": "^9.3.4",
+    "@deck.gl/mapbox": "^9.3.4",
     "@google/generative-ai": "^0.24.1",
     "@turf/turf": "^7.3.5",
     "@vercel/analytics": "^2.0.1",

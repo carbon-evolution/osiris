@@ -30,6 +30,18 @@ Built on **Next.js 16 (App Router)**, **React 19**, and **MapLibre GL JS** (WebG
 
 ## 📸 Screenshots
 
+### Google Maps–style light theme & 3D intelligence
+
+| Satellite orbit + Celestrak catalog | Threat-association graph (→ MITRE ATT&CK) |
+|---|---|
+| ![Satellite orbit on the globe with Celestrak SATCAT metadata](docs/screenshots/satellite-orbit-celestrak.png) | ![Threat-association entity graph linking malware/blocklist/phishing/SSL to MITRE ATT&CK groups](docs/screenshots/threat-association-graph.png) |
+
+| Live malware mesh + entity graph | Light-theme map (infrastructure layer) |
+|---|---|
+| ![Live malware network mesh with entity graph deep-dive](docs/screenshots/malware-mesh.png) | ![Google Maps–style light theme showing nuclear/power infrastructure](docs/screenshots/light-theme-infrastructure.png) |
+
+### Earlier (legacy dark theme)
+
 | Live Overview & CCTV Feed | CCTV Camera Markers | Threat & Intel Layers |
 |---|---|---|
 | ![Overview with live CCTV feed](docs/screenshots/01-overview-cctv-feed.jpg) | ![CCTV camera markers across the map](docs/screenshots/02-cctv-camera-markers.jpg) | ![Intel and threat data layers](docs/screenshots/03-intel-layers.jpg) |
@@ -45,17 +57,20 @@ Built on **Next.js 16 (App Router)**, **React 19**, and **MapLibre GL JS** (WebG
 Layers are organized into intuitive groups in the left-hand rail. Toggle any layer to overlay its live data source on the map.
 
 #### ✈️ Aviation
-- **Commercial / Private / Jets / Military flights** — Live ADS-B data via OpenSky Network (keyless; a free app key raises rate limits)
+- **Commercial / Private / Jets / Military flights** — Live ADS-B data via OpenSky Network + airplanes.live (keyless; a free app key raises rate limits). Server-side caching holds the last healthy snapshot so the layer doesn't collapse when OpenSky throttles anonymously.
+- **Flight metadata & routes** — Click any aircraft to enrich it via **adsbdb.com** (free, no key): airline, aircraft type, and **origin → destination** airports.
+- **3D flight route arcs** — The origin→destination route is drawn as an elevated parabolic arc via **deck.gl** (`ArcLayer`) that bows up off the map in tilted/3D view.
 
 #### 🚢 Maritime
 - **Ports, Ships & Chokepoints** — Static naval intelligence + live AIS positions via `aisstream.io` (free key)
 - **🌊 Submarine Cables** — TeleGeography-derived GeoJSON reference overlay
-- **🛰️ Satellites** — Real-time TLE orbital tracks via CelesTrak (keyless; optional N2YO key for enriched detail)
+- **🛰️ Satellites** — Real-time positions via TLE → SGP4 propagation (SatNOGS, keyless). Click a satellite to draw **only its orbit** (ground track, antimeridian-split so it hugs the globe), with **KeepTrack-style orbital metadata from Celestrak SATCAT** (free, no key): COSPAR/intl designator, type, owner, inclination, period, apogee, perigee, RCS, launch date & site — plus SatNOGS operator/status/transmitters.
 
 #### 📹 Surveillance
 - **CCTV Cameras (~6,000+)** — Government traffic authorities + global open-webcam dataset
   - **Taiwan** (~3,700 cams, THB freeway + provincial roads) — works globally ✅
   - **Indonesia** (Jasa Marga / Bina Marga) — geo-restricted; HLS feeds routed through same-origin proxy ⚠️
+  - **Singapore** (data.gov.sg LTA), **Ireland** (TII Traffic), **Iceland** (Vegagerðin), **Lithuania** (eismoinfo.lt) — keyless national networks added in this release ✅ (South Korea ITS & Sweden Trafikverket are wired but need a free per-country key)
   - **EU / US / HK / AU / NZ / Japan + 15+ countries** — Austria (ASFINAG), Australia, Bulgaria, California (Caltrans), Czechia, Estonia, France, Germany, Greece, Italy, Macedonia, Netherlands, New Zealand, North Carolina, Poland, Romania, Serbia, Slovakia, Spain, Switzerland, Turkey, US highways — coverage varies by authority
 - **📡 Live News Feeds** — 20+ curated 24/7 streams (NBC, CBS, ABC, Sky News, France24, DW, Al Jazeera, TRT World, Bloomberg, C-SPAN, CBC, Euronews, Al Mayadeen, UKRINFORM, CCTV, NHK, and more) with embedded YouTube players
 
@@ -107,6 +122,8 @@ Layers are organized into intuitive groups in the left-hand rail. Toggle any lay
 - **Space Weather** — NOAA Kp index, solar flares, CME alerts
 
 #### 🗺️ Display
+- **Google Maps–style light theme** — Clean white surfaces, Google-blue accents, CartoDB Voyager basemap, high-contrast readable labels (default). A dark "Ghost Protocol" theme remains available via the toggle.
+- **deck.gl 3D overlay** — Elevated flight-route arcs (and the foundation for further 3D map intelligence), rendered with `@deck.gl/mapbox`.
 - **Day/Night Terminator** — Real-time computed global sunlight overlay
 - **⛰️ 3D Terrain** — MapLibre terrain rendering
 
@@ -152,6 +169,9 @@ A premium chat interface powered by **Gemini 2.0 Flash** that correlates live se
 ### 🔗 Entity Intelligence Graph
 
 A **force-directed relationship graph** that visualizes connections between entities across domains — aircraft, vessels, companies, people, countries, events, sanctions, IPs, APTs, and CVEs. Click any node to expand its relationships and drill into details.
+
+- **Threat-association graph** — Clicking a Live Malware / threat node builds an interconnected web: the IP → its family → sibling IPs of the same family → **every other threat source** (malware families + AbuseIPDB / Blocklist.de / SSL Blacklist / Phishing) → a central **MITRE ATT&CK** hub → tracked APT groups.
+- **Local IP resolver** — IP nodes resolve geolocation/ASN locally (free ip-api.com), so the graph works without any external intel backend; unresolvable types degrade gracefully (no error banner).
 
 ### 📋 Intelligence Feed
 

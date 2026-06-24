@@ -69,6 +69,59 @@ export async function GET(req: Request) {
     return NextResponse.json({ nodes: [], links: [] });
   }
 
+  // IP — resolve locally via free geolocation so the deep-dive works without
+  // the optional external intel layer (which has no /resolve route for IPs).
+  if (type === 'ip') {
+    const seed = `ip:${id}`;
+    try {
+      const res = await fetch(
+        `http://ip-api.com/json/${encodeURIComponent(id)}?fields=status,country,countryCode,regionName,city,isp,org,as,asname,proxy,hosting`,
+        { signal: AbortSignal.timeout(8000) },
+      );
+      const geo = await res.json().catch(() => ({}));
+      if (!geo || geo.status !== 'success') {
+        return NextResponse.json({ nodes: [], links: [] });
+      }
+
+      const nodes: any[] = [];
+      const links: any[] = [];
+
+      if (geo.countryCode) {
+        nodes.push({
+          id: `country:${geo.countryCode}`,
+          label: geo.country || geo.countryCode,
+          type: 'country',
+          properties: { region: geo.regionName, city: geo.city },
+        });
+        links.push({ source: seed, target: `country:${geo.countryCode}`, label: 'located in' });
+      }
+
+      const operator = geo.org || geo.isp || geo.asname || geo.as;
+      if (operator) {
+        const opId = `company:${operator.slice(0, 64)}`;
+        nodes.push({
+          id: opId,
+          label: operator,
+          type: 'company',
+          properties: { asn: geo.as, isp: geo.isp, as_name: geo.asname },
+        });
+        links.push({ source: seed, target: opId, label: 'routed via' });
+      }
+
+      for (const flag of [geo.hosting ? 'Hosting / Datacenter' : '', geo.proxy ? 'Proxy / VPN' : '']) {
+        if (!flag) continue;
+        nodes.push({ id: `event:${id}:${flag}`, label: flag, type: 'event', properties: {} });
+        links.push({ source: seed, target: `event:${id}:${flag}`, label: 'classified as' });
+      }
+
+      return NextResponse.json({ nodes, links }, {
+        headers: { 'Cache-Control': 'public, s-maxage=3600, stale-while-revalidate=7200' },
+      });
+    } catch {
+      return NextResponse.json({ nodes: [], links: [] });
+    }
+  }
+
   try {
     const params = new URLSearchParams({ type, id });
     for (const key of ['registration', 'model', 'icao24']) {
@@ -81,11 +134,10 @@ export async function GET(req: Request) {
     });
 
     if (!res.ok) {
-      const body = await res.json().catch(() => ({}));
-      return NextResponse.json(
-        { error: body.error || `Intel layer returned ${res.status}`, nodes: [], links: [] },
-        { status: res.status },
-      );
+      // The intel layer is optional — if it can't resolve this entity type
+      // (e.g. no /resolve route, 404 "route not found"), degrade gracefully
+      // to an empty expansion instead of surfacing an error in the UI.
+      return NextResponse.json({ nodes: [], links: [], unavailable: true }, { status: 200 });
     }
 
     const data = await res.json();
@@ -94,9 +146,7 @@ export async function GET(req: Request) {
     });
   } catch (e) {
     console.error('[OSIRIS] Intel proxy error:', e instanceof Error ? e.message : e);
-    return NextResponse.json(
-      { error: 'Intelligence layer unavailable', nodes: [], links: [] },
-      { status: 502 },
-    );
+    // Intel layer unreachable — degrade gracefully (no error banner).
+    return NextResponse.json({ nodes: [], links: [], unavailable: true }, { status: 200 });
   }
 }

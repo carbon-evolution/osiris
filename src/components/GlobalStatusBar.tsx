@@ -79,7 +79,7 @@ export default function GlobalStatusBar() {
       ))}
       <span className="text-[var(--border-primary)] mx-1">|</span>
       <span className="inline-flex items-center gap-1 mx-2">
-        <span className="text-[#E040FB]">CYBER</span>
+        <span className="text-[#C026D3]">CYBER</span>
         <span className="text-[var(--text-primary)]">{cveCount} CVEs</span>
       </span>
     </>

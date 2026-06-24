@@ -121,7 +121,7 @@ export default function CyberIntelPanel({ data }: CyberIntelPanelProps) {
         className="flex items-center justify-between w-full mb-2 cursor-pointer"
       >
         <div className="flex items-center gap-2">
-          <ShieldAlert className="w-3.5 h-3.5 text-[#E040FB]" />
+          <ShieldAlert className="w-3.5 h-3.5 text-[#C026D3]" />
           <span className="hud-text text-[12px] text-[var(--text-primary)]">CYBER INTEL</span>
           <span
             className="gotham-tag px-1.5 py-0.5 text-[7px] font-mono font-bold tracking-widest"
@@ -198,7 +198,7 @@ export default function CyberIntelPanel({ data }: CyberIntelPanelProps) {
             <div className="max-h-[380px] overflow-y-auto styled-scrollbar divide-y divide-[var(--border-secondary)]">
               {loading ? (
                 <div className="px-4 py-8 text-center">
-                  <div className="w-4 h-4 border-2 border-[#E040FB] border-t-transparent rounded-full animate-spin mx-auto mb-2" />
+                  <div className="w-4 h-4 border-2 border-[#C026D3] border-t-transparent rounded-full animate-spin mx-auto mb-2" />
                   <span className="text-[9px] font-mono text-[var(--text-muted)] tracking-widest">LOADING THREAT INTEL...</span>
                 </div>
               ) : (
@@ -305,14 +305,14 @@ export default function CyberIntelPanel({ data }: CyberIntelPanelProps) {
                       {torNodes.length > 0 && (
                         <div className="px-3 py-2">
                           <div className="flex items-center gap-1.5 mb-1.5">
-                            <Eye className="w-3 h-3 text-[#7C4DFF]" />
-                            <span className="text-[9px] font-mono font-bold text-[#7C4DFF] tracking-widest">TOR EXIT NODES ({torNodes.length})</span>
+                            <Eye className="w-3 h-3 text-[#6D28D9]" />
+                            <span className="text-[9px] font-mono font-bold text-[#6D28D9] tracking-widest">TOR EXIT NODES ({torNodes.length})</span>
                           </div>
                           <div className="flex flex-wrap gap-1 max-h-[120px] overflow-y-auto styled-scrollbar">
                             {torNodes.slice(0, 30).map((node: any) => (
                               <span
                                 key={node.id}
-                                className="px-1.5 py-0.5 rounded text-[7px] font-mono bg-[#7C4DFF]/10 text-[#7C4DFF]/80 border border-[#7C4DFF]/20"
+                                className="px-1.5 py-0.5 rounded text-[7px] font-mono bg-[#6D28D9]/10 text-[#6D28D9]/80 border border-[#6D28D9]/20"
                               >
                                 {node.ip} {node.country}
                               </span>

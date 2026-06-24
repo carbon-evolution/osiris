@@ -3,6 +3,8 @@
 import { useEffect, useRef, useState, useCallback, memo } from 'react';
 import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
+import { MapboxOverlay } from '@deck.gl/mapbox';
+import { ArcLayer } from '@deck.gl/layers';
 import {
   MARKER_LAYERS, MARKER_ICON_SVG, MARKER_ICON_SIZE,
   markerImageId, markerImages, markerIconImage,
@@ -47,13 +49,64 @@ function computeSolarTerminator(): [number, number][] {
 
 const EMPTY_FC = { type: 'FeatureCollection' as const, features: [] };
 
+// Split a satellite ground track into segments that never jump across the
+// antimeridian (±180° longitude), so the orbit line hugs the globe instead of
+// drawing a straight streak across it. Returns GeoJSON LineString features.
+function splitTrackFeatures(track: [number, number][], color: string): any[] {
+  if (!track || track.length < 2) return [];
+  const segments: [number, number][][] = [];
+  let cur: [number, number][] = [track[0]];
+  for (let i = 1; i < track.length; i++) {
+    const [plng] = track[i - 1];
+    const [lng, lat] = track[i];
+    if (Math.abs(lng - plng) > 180) {
+      // crossed the antimeridian — break the line here
+      segments.push(cur);
+      cur = [[lng, lat]];
+    } else {
+      cur.push([lng, lat]);
+    }
+  }
+  if (cur.length > 1) segments.push(cur);
+  return segments
+    .filter(s => s.length > 1)
+    .map(s => ({ type: 'Feature', geometry: { type: 'LineString', coordinates: s }, properties: { color } }));
+}
+
 function OsirisMap({ data, activeLayers, onEntityClick, onMouseCoords, onRightClick, onViewStateChange, flyToLocation, projection = 'globe', mapStyle = 'dark', sweepData, scanTargets = [], demoMode = false, theme = 'core' }: OsirisMapProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
   const popupRef = useRef<maplibregl.Popup | null>(null);
   const [mapReady, setMapReady] = useState(false);
   const prevStyleRef = useRef(mapStyle);
-  const orbitFeaturesRef = useRef<any[]>([]);
+
+  // ── deck.gl 3D overlay (elevated flight arcs) ──
+  const deckOverlayRef = useRef<any>(null);
+  const flightArcRef = useRef<any[]>([]);   // [{ source:[lng,lat], target:[lng,lat] }]
+  const satByIdRef = useRef<Map<string, any>>(new Map()); // noradId/name → sat (for on-click orbit)
+
+  // Rebuild the deck.gl layers from the current refs and push to the overlay.
+  const updateDeck = useCallback(() => {
+    const overlay = deckOverlayRef.current;
+    if (!overlay) return;
+    const layers: any[] = [];
+    if (flightArcRef.current.length) {
+      layers.push(new ArcLayer({
+        id: 'flight-arc-3d',
+        data: flightArcRef.current,
+        getSourcePosition: (d: any) => d.source,
+        getTargetPosition: (d: any) => d.target,
+        getSourceColor: [26, 115, 232],
+        getTargetColor: [255, 82, 82],
+        getHeight: 0.35,
+        getWidth: 2.5,
+        widthUnits: 'pixels',
+        parameters: { depthTest: false },
+      }));
+    }
+    overlay.setProps({ layers });
+  }, []);
+
   // Create aircraft icon on canvas (for WebGL symbol layer)
   const createIcon = useCallback((map: maplibregl.Map, id: string, color: string, size: number) => {
     if (map.hasImage(id)) return;
@@ -211,7 +264,7 @@ function OsirisMap({ data, activeLayers, onEntityClick, onMouseCoords, onRightCl
     if (!containerRef.current || mapRef.current) return;
     
     // Select basemap style
-    const styleUrl = 'https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json';
+    const styleUrl = 'https://basemaps.cartocdn.com/gl/voyager-gl-style/style.json';
 
     const map = new maplibregl.Map({
       container: containerRef.current,
@@ -231,13 +284,20 @@ function OsirisMap({ data, activeLayers, onEntityClick, onMouseCoords, onRightCl
 
     map.on('load', () => {
       mapRef.current = map;
-      
+
+      // deck.gl overlay for true-3D elevated arcs (flight routes + satellite orbits)
+      try {
+        const overlay = new MapboxOverlay({ interleaved: false, layers: [] });
+        map.addControl(overlay as any);
+        deckOverlayRef.current = overlay;
+      } catch (e) { console.error('[OSIRIS] deck.gl overlay init failed:', e); }
+
       // Theme colors
       const isGhost = theme === 'ghost';
       const phantomPurple = '#B388FF';
       const phantomDark = '#1A0040';
       const cameraColor = isGhost ? '#B388FF' : '#00E676';
-      const flightCom = isGhost ? phantomPurple : '#00E5FF';
+      const flightCom = isGhost ? phantomPurple : '#1A73E8';
       const flightPriv = isGhost ? phantomPurple : '#FFD700';
       const flightGov = isGhost ? phantomPurple : '#FF9500';
       const flightMil = isGhost ? phantomPurple : '#FF3D3D';
@@ -248,7 +308,7 @@ function OsirisMap({ data, activeLayers, onEntityClick, onMouseCoords, onRightCl
       createIcon(map, 'plane-pink', flightGov, 24);    
       createIcon(map, 'plane-red', flightMil, 24);     
       createIcon(map, 'plane-grey', isGhost ? phantomPurple : '#546E7A', 24);    
-      createDot(map, 'dot-gold', isGhost ? phantomPurple : '#D4AF37', 8);
+      createDot(map, 'dot-gold', isGhost ? phantomPurple : '#1A73E8', 8);
       createDot(map, 'dot-red', isGhost ? phantomPurple : '#D32F2F', 10);
       createDot(map, 'dot-orange', isGhost ? phantomPurple : '#E65100', 10);
       createDot(map, 'dot-green', isGhost ? phantomPurple : '#26A69A', 10);
@@ -257,7 +317,22 @@ function OsirisMap({ data, activeLayers, onEntityClick, onMouseCoords, onRightCl
       createSatelliteIcon(map, 'satellite-icon', '#B388FF', 24);
       createMilitaryIcon(map, 'mil-icon', '#EF5350', 24);
 
-      const sources = ['flights','military','jets','private-fl','satellites','orbit','earthquakes','gdelt','gps-jamming','day-night','cctv','fires','weather','infrastructure','maritime','maritime-choke','maritime-ships','live-news','sigint-news','conflict-zones', 'war-alerts-targets', 'war-alerts-lines', 'balloons', 'radiation', 'ip-sweep-devices', 'ip-sweep-pulse', 'ip-sweep-connections', 'scan-targets', 'sdk-entities', 'sdk-links', 'malware-nodes', 'network-mesh', 'flight-route', 'ransomware', 'power_plants', 'cables'];
+      // Track arrow icon (small triangle for flight path direction)
+      {
+        const s = 12, c = document.createElement('canvas');
+        c.width = s; c.height = s;
+        const ctx = c.getContext('2d')!;
+        ctx.fillStyle = '#00E676';
+        ctx.beginPath();
+        ctx.moveTo(1, 1);
+        ctx.lineTo(s - 1, s / 2);
+        ctx.lineTo(1, s - 1);
+        ctx.closePath();
+        ctx.fill();
+        map.addImage('track-arrow', { width: s, height: s, data: new Uint8Array(ctx.getImageData(0, 0, s, s).data) });
+      }
+
+      const sources = ['flights','military','jets','private-fl','satellites','orbit','earthquakes','gdelt','gps-jamming','day-night','cctv','fires','weather','infrastructure','maritime','maritime-choke','maritime-ships','live-news','sigint-news','conflict-zones', 'war-alerts-targets', 'war-alerts-lines', 'balloons', 'radiation', 'ip-sweep-devices', 'ip-sweep-pulse', 'ip-sweep-connections', 'scan-targets', 'malware-nodes', 'network-mesh', 'flight-route', 'flight-track', 'ransomware', 'power_plants', 'cables'];
       sources.forEach(s => map.addSource(s, { type: 'geojson', data: EMPTY_FC }));
       map.addSource('threat-intel-nodes', { type: 'geojson', data: EMPTY_FC });
 map.addSource('drop-nodes', { type: 'geojson', data: EMPTY_FC });
@@ -300,7 +375,7 @@ map.addSource('mitre-nodes', { type: 'geojson', data: EMPTY_FC });
         'text-allow-overlap': false,
       }, paint: {
         'text-color': ['match', ['get','severity'], 'war','#D32F2F', 'high','#E65100', '#F9A825'],
-        'text-halo-color': '#000', 'text-halo-width': 1.5, 'text-opacity': 0.9,
+        'text-halo-color': '#FFFFFF', 'text-halo-width': 1.5, 'text-opacity': 0.9,
       }});
 
 
@@ -315,7 +390,7 @@ map.addSource('mitre-nodes', { type: 'geojson', data: EMPTY_FC });
       }});
       map.addLayer({ id: 'eq-label', type: 'symbol', source: 'earthquakes', filter: ['>=',['get','magnitude'],4.5], layout: {
         'text-field': ['concat','M',['to-string',['coalesce',['get','magnitude'],0]]], 'text-size': 9, 'text-font': ['Open Sans Regular'], 'text-offset': [0,1.5],
-      }, paint: { 'text-color': '#F9A825', 'text-halo-color': '#000', 'text-halo-width': 1 }});
+      }, paint: { 'text-color': '#B26A00', 'text-halo-color': '#FFFFFF', 'text-halo-width': 1 }});
 
       // Fires — burnt sienna
       map.addLayer({ id: 'fires-heat', type: 'circle', source: 'fires', paint: {
@@ -338,7 +413,7 @@ map.addSource('mitre-nodes', { type: 'geojson', data: EMPTY_FC });
       map.addLayer({ id: 'cctv-label', type: 'symbol', source: 'cctv', minzoom: 10, layout: {
         'text-field': ['get','name'], 'text-size': 9, 'text-font': ['Open Sans Regular'],
         'text-offset': [0, 1.8], 'text-max-width': 12, 'text-allow-overlap': false,
-      }, paint: { 'text-color': cameraColor, 'text-halo-color': '#000000', 'text-halo-width': 1.5, 'text-opacity': 0.8 }});
+      }, paint: { 'text-color': cameraColor, 'text-halo-color': '#FFFFFF', 'text-halo-width': 1.5, 'text-opacity': 0.8 }});
 
       // GDELT
 
@@ -358,7 +433,7 @@ map.addSource('mitre-nodes', { type: 'geojson', data: EMPTY_FC });
       map.addLayer({ id: 'malware-label', type: 'symbol', source: 'malware-nodes', minzoom: 5, layout: {
         'text-field': ['get','malware'], 'text-size': 8, 'text-font': ['JetBrains Mono Bold', 'Open Sans Bold'],
         'text-offset': [0, 1.5], 'text-max-width': 10, 'text-allow-overlap': false,
-      }, paint: { 'text-color': '#D32F2F', 'text-halo-color': '#111', 'text-halo-width': 1.5, 'text-opacity': 0.85 }});
+      }, paint: { 'text-color': '#D32F2F', 'text-halo-color': '#FFFFFF', 'text-halo-width': 1.5, 'text-opacity': 0.85 }});
 
       // ══ RANSOMWARE — Ransomware.live victims — crimson threat ══
       map.addLayer({ id: 'ransomware-glow', type: 'circle', source: 'ransomware', paint: {
@@ -374,7 +449,7 @@ map.addSource('mitre-nodes', { type: 'geojson', data: EMPTY_FC });
       map.addLayer({ id: 'ransomware-label', type: 'symbol', source: 'ransomware', minzoom: 5, layout: {
         'text-field': ['get','group_name'], 'text-size': 8, 'text-font': ['JetBrains Mono Bold', 'Open Sans Bold'],
         'text-offset': [0, 1.5], 'text-max-width': 10, 'text-allow-overlap': false,
-      }, paint: { 'text-color': '#D32F2F', 'text-halo-color': '#111', 'text-halo-width': 1.5, 'text-opacity': 0.85 }});
+      }, paint: { 'text-color': '#D32F2F', 'text-halo-color': '#FFFFFF', 'text-halo-width': 1.5, 'text-opacity': 0.85 }});
 
       // ══ NETWORK INTEL — Threat Intel (Blocklist.de, SSL Blacklist, PhishTank) ══
       map.addLayer({ id: 'threat-intel-glow', type: 'circle', source: 'threat-intel-nodes', paint: {
@@ -383,7 +458,7 @@ map.addSource('mitre-nodes', { type: 'geojson', data: EMPTY_FC });
           'blocklist_de','#FF6D00',
           'ssl_blacklist','#FF1744',
           'phishing','#AA00FF',
-          'abuseipdb','#00E5FF',
+          'abuseipdb','#1A73E8',
           '#AA00FF'],
         'circle-opacity': 0.06, 'circle-blur': 0.5,
       }});
@@ -393,7 +468,7 @@ map.addSource('mitre-nodes', { type: 'geojson', data: EMPTY_FC });
           'blocklist_de','#FF6D00',
           'ssl_blacklist','#FF1744',
           'phishing','#AA00FF',
-          'abuseipdb','#00E5FF',
+          'abuseipdb','#1A73E8',
           '#AA00FF'],
         'circle-opacity': 0.9,
         'circle-stroke-width': 1, 'circle-stroke-color': '#000000', 'circle-stroke-opacity': 0.8,
@@ -401,7 +476,7 @@ map.addSource('mitre-nodes', { type: 'geojson', data: EMPTY_FC });
       map.addLayer({ id: 'threat-intel-label', type: 'symbol', source: 'threat-intel-nodes', minzoom: 5, layout: {
         'text-field': ['get','malware'], 'text-size': 8, 'text-font': ['JetBrains Mono Bold', 'Open Sans Bold'],
         'text-offset': [0, 1.5], 'text-max-width': 10, 'text-allow-overlap': false,
-      }, paint: { 'text-color': '#FF6D00', 'text-halo-color': '#111', 'text-halo-width': 1.5, 'text-opacity': 0.85 }});
+      }, paint: { 'text-color': '#FF6D00', 'text-halo-color': '#FFFFFF', 'text-halo-width': 1.5, 'text-opacity': 0.85 }});
 
       // ══ CYBER INTEL — Spamhaus DROP (Routing Intelligence) ══
       map.addLayer({ id: 'drop-glow', type: 'circle', source: 'drop-nodes', paint: {
@@ -416,32 +491,32 @@ map.addSource('mitre-nodes', { type: 'geojson', data: EMPTY_FC });
       map.addLayer({ id: 'drop-label', type: 'symbol', source: 'drop-nodes', minzoom: 6, layout: {
         'text-field': ['get','cidr'], 'text-size': 7, 'text-font': ['JetBrains Mono Bold', 'Open Sans Bold'],
         'text-offset': [0, 1.5], 'text-max-width': 14,
-      }, paint: { 'text-color': '#FF9100', 'text-halo-color': '#111', 'text-halo-width': 1.5, 'text-opacity': 0.8 }});
+      }, paint: { 'text-color': '#E65100', 'text-halo-color': '#FFFFFF', 'text-halo-width': 1.5, 'text-opacity': 0.8 }});
 
       // ══ CYBER INTEL — Tor Exit Nodes ══
       map.addLayer({ id: 'tor-glow', type: 'circle', source: 'tor-nodes', paint: {
         'circle-radius': ['interpolate',['linear'],['zoom'], 1,5, 5,10, 10,18],
-        'circle-color': '#7C4DFF', 'circle-opacity': 0.06, 'circle-blur': 0.5,
+        'circle-color': '#6D28D9', 'circle-opacity': 0.06, 'circle-blur': 0.5,
       }});
       map.addLayer({ id: 'tor-dots', type: 'circle', source: 'tor-nodes', paint: {
         'circle-radius': ['interpolate',['linear'],['zoom'], 1,2, 5,3.5, 10,5],
-        'circle-color': '#7C4DFF', 'circle-opacity': 0.85,
+        'circle-color': '#6D28D9', 'circle-opacity': 0.85,
         'circle-stroke-width': 1, 'circle-stroke-color': '#000', 'circle-stroke-opacity': 0.8,
       }});
       map.addLayer({ id: 'tor-label', type: 'symbol', source: 'tor-nodes', minzoom: 7, layout: {
         'text-field': ['get','ip'], 'text-size': 7, 'text-font': ['JetBrains Mono Bold', 'Open Sans Bold'],
         'text-offset': [0, 1.5], 'text-max-width': 14,
-      }, paint: { 'text-color': '#7C4DFF', 'text-halo-color': '#111', 'text-halo-width': 1.5, 'text-opacity': 0.8 }});
+      }, paint: { 'text-color': '#6D28D9', 'text-halo-color': '#FFFFFF', 'text-halo-width': 1.5, 'text-opacity': 0.8 }});
 
       // ══ CYBER INTEL — CVE Feed (Vulnerability Intelligence) ══
       map.addLayer({ id: 'cve-glow', type: 'circle', source: 'cve-nodes', paint: {
         'circle-radius': ['interpolate',['linear'],['zoom'], 1,8, 5,16, 10,30],
-        'circle-color': ['case', ['>=', ['get','cvss'], 9], '#FF1744', ['>=', ['get','cvss'], 7], '#FF6D00', ['>=', ['get','cvss'], 4], '#FF9100', '#00E5FF'],
+        'circle-color': ['case', ['>=', ['get','cvss'], 9], '#FF1744', ['>=', ['get','cvss'], 7], '#FF6D00', ['>=', ['get','cvss'], 4], '#FF9100', '#1A73E8'],
         'circle-opacity': 0.04, 'circle-blur': 0.7,
       }});
       map.addLayer({ id: 'cve-dots', type: 'circle', source: 'cve-nodes', paint: {
         'circle-radius': ['interpolate',['linear'],['zoom'], 1,4, 5,6, 10,10],
-        'circle-color': ['case', ['>=', ['get','cvss'], 9], '#FF1744', ['>=', ['get','cvss'], 7], '#FF6D00', ['>=', ['get','cvss'], 4], '#FF9100', '#00E5FF'],
+        'circle-color': ['case', ['>=', ['get','cvss'], 9], '#FF1744', ['>=', ['get','cvss'], 7], '#FF6D00', ['>=', ['get','cvss'], 4], '#FF9100', '#1A73E8'],
         'circle-opacity': 0.8,
         'circle-stroke-width': 1.5, 'circle-stroke-color': '#000', 'circle-stroke-opacity': 0.8,
       }});
@@ -449,7 +524,7 @@ map.addSource('mitre-nodes', { type: 'geojson', data: EMPTY_FC });
         'text-field': ['concat',['get','title'],' ','CVSS:',['to-string',['coalesce',['get','cvss'],0]]],
         'text-size': 7, 'text-font': ['JetBrains Mono Bold', 'Open Sans Bold'],
         'text-offset': [0, 1.5], 'text-max-width': 14,
-      }, paint: { 'text-color': ['case', ['>=', ['get','cvss'], 7], '#FF6D00', '#00E5FF'], 'text-halo-color': '#111', 'text-halo-width': 1.5, 'text-opacity': 0.85 }});
+      }, paint: { 'text-color': ['case', ['>=', ['get','cvss'], 7], '#FF6D00', '#1A73E8'], 'text-halo-color': '#FFFFFF', 'text-halo-width': 1.5, 'text-opacity': 0.85 }});
 
       // ══ CYBER INTEL — MITRE ATT&CK (APT Group Intelligence) ══
       map.addLayer({ id: 'mitre-glow', type: 'circle', source: 'mitre-nodes', paint: {
@@ -465,7 +540,7 @@ map.addSource('mitre-nodes', { type: 'geojson', data: EMPTY_FC });
         'text-field': ['concat',['get','name'],'\n[',['get','country'],']'],
         'text-size': 8, 'text-font': ['JetBrains Mono Bold', 'Open Sans Bold'],
         'text-offset': [0, 1.8], 'text-max-width': 14,
-      }, paint: { 'text-color': '#00E676', 'text-halo-color': '#111', 'text-halo-width': 1.5, 'text-opacity': 0.85 }});
+      }, paint: { 'text-color': '#1E8E3E', 'text-halo-color': '#FFFFFF', 'text-halo-width': 1.5, 'text-opacity': 0.85 }});
 
       // ── NETWORK INTEL MESH (SDK STYLE) ──
       map.addLayer({ id: 'network-mesh-atmo', type: 'line', source: 'network-mesh', paint: {
@@ -500,7 +575,7 @@ map.addSource('mitre-nodes', { type: 'geojson', data: EMPTY_FC });
       }});
       map.addLayer({ id: 'jam-label', type: 'symbol', source: 'gps-jamming', layout: {
         'text-field': ['concat',['to-string',['*',['get','ratio'],100]],'%'], 'text-size': 9, 'text-font': ['Open Sans Bold'], 'text-allow-overlap': true,
-      }, paint: { 'text-color': '#fff', 'text-halo-color': '#000', 'text-halo-width': 1.5 }});
+      }, paint: { 'text-color': '#202124', 'text-halo-color': '#FFFFFF', 'text-halo-width': 1.5 }});
 
       // Weather Events (NASA EONET) — deep violet
       map.addLayer({ id: 'weather-glow', type: 'circle', source: 'weather', paint: {
@@ -516,7 +591,7 @@ map.addSource('mitre-nodes', { type: 'geojson', data: EMPTY_FC });
       map.addLayer({ id: 'weather-label', type: 'symbol', source: 'weather', layout: {
         'text-field': ['get','title'], 'text-size': 9, 'text-font': ['Open Sans Regular'],
         'text-offset': [0, 2], 'text-max-width': 14, 'text-allow-overlap': false,
-      }, paint: { 'text-color': '#7E57C2', 'text-halo-color': '#000', 'text-halo-width': 1, 'text-opacity': 0.8 }});
+      }, paint: { 'text-color': '#7E57C2', 'text-halo-color': '#FFFFFF', 'text-halo-width': 1, 'text-opacity': 0.8 }});
 
       // Nuclear Infrastructure — teal / amber risk
       map.addLayer({ id: 'infra-glow', type: 'circle', source: 'infrastructure', paint: {
@@ -538,7 +613,7 @@ map.addSource('mitre-nodes', { type: 'geojson', data: EMPTY_FC });
       map.addLayer({ id: 'infra-label', type: 'symbol', source: 'infrastructure', minzoom: 5, layout: {
         'text-field': ['get','name'], 'text-size': 9, 'text-font': ['Open Sans Regular'],
         'text-offset': [0, 2], 'text-max-width': 14, 'text-allow-overlap': false,
-      }, paint: { 'text-color': ['case', ['in', 'SEISMIC RISK', ['get', 'status']], '#E65100', '#26A69A'], 'text-halo-color': '#000', 'text-halo-width': 1, 'text-opacity': 0.7 }});
+      }, paint: { 'text-color': ['case', ['in', 'SEISMIC RISK', ['get', 'status']], '#E65100', '#26A69A'], 'text-halo-color': '#FFFFFF', 'text-halo-width': 1, 'text-opacity': 0.7 }});
 
       // ══ POWER PLANTS — Global Power Plant Database — teal spectrum ══
       map.addLayer({ id: 'power-plants-glow', type: 'circle', source: 'power_plants', paint: {
@@ -555,7 +630,7 @@ map.addSource('mitre-nodes', { type: 'geojson', data: EMPTY_FC });
       map.addLayer({ id: 'power-plants-label', type: 'symbol', source: 'power_plants', minzoom: 6, layout: {
         'text-field': ['get','name'], 'text-size': 8, 'text-font': ['Open Sans Regular'],
         'text-offset': [0, 1.5], 'text-max-width': 12, 'text-allow-overlap': false,
-      }, paint: { 'text-color': '#26A69A', 'text-halo-color': '#000', 'text-halo-width': 1, 'text-opacity': 0.75 }});
+      }, paint: { 'text-color': '#0F766E', 'text-halo-color': '#FFFFFF', 'text-halo-width': 1, 'text-opacity': 0.75 }});
 
       // Satellites — symbol layer with satellite icon + orbit ground track
       map.addLayer({ id: 'sat-glow', type: 'circle', source: 'satellites', paint: {
@@ -571,12 +646,21 @@ map.addSource('mitre-nodes', { type: 'geojson', data: EMPTY_FC });
         'text-field': ['get','name'], 'text-size': 8, 'text-font': ['Open Sans Regular'],
         'text-offset': [0, 1.2], 'text-max-width': 10, 'text-allow-overlap': false,
       }, paint: {
-        'text-color': ['get','color'], 'text-halo-color': '#000', 'text-halo-width': 1,
+        'text-color': ['get','color'], 'text-halo-color': '#FFFFFF', 'text-halo-width': 1,
       }});
 
-      // Orbit ground track lines — only visible at zoom >= 5, filtered by viewport
-      map.addLayer({ id: 'orbit-line', type: 'line', source: 'orbit', minzoom: 5, paint: {
-        'line-color': ['get','color'], 'line-width': ['interpolate',['linear'],['zoom'], 5,0.5, 10,1.2], 'line-opacity': 0.25, 'line-blur': 0.5,
+      // Satellite orbit — native maplibre line so it hugs the globe surface
+      // correctly (no clipping through the sphere, correct at poles/antimeridian).
+      // Populated with ONLY the clicked satellite's ground track (see sat click).
+      map.addLayer({ id: 'orbit-line-glow', type: 'line', source: 'orbit', paint: {
+        'line-color': ['coalesce', ['get', 'color'], '#B388FF'],
+        'line-width': ['interpolate',['linear'],['zoom'], 1, 2.5, 6, 4],
+        'line-opacity': 0.25, 'line-blur': 3,
+      }});
+      map.addLayer({ id: 'orbit-line', type: 'line', source: 'orbit', paint: {
+        'line-color': ['coalesce', ['get', 'color'], '#B388FF'],
+        'line-width': ['interpolate',['linear'],['zoom'], 1, 1, 6, 1.8],
+        'line-opacity': 0.9,
       }});
 
       // Maritime — ports & naval bases — ocean teal
@@ -594,7 +678,7 @@ map.addSource('mitre-nodes', { type: 'geojson', data: EMPTY_FC });
       map.addLayer({ id: 'maritime-label', type: 'symbol', source: 'maritime', minzoom: 4, layout: {
         'text-field': ['get','name'], 'text-size': 9, 'text-font': ['Open Sans Regular'],
         'text-offset': [0, 1.8], 'text-max-width': 12, 'text-allow-overlap': false,
-      }, paint: { 'text-color': '#26C6DA', 'text-halo-color': '#000', 'text-halo-width': 1, 'text-opacity': 0.7 }});
+      }, paint: { 'text-color': '#0E7490', 'text-halo-color': '#FFFFFF', 'text-halo-width': 1, 'text-opacity': 0.7 }});
 
       // Maritime chokepoints — amber threat spectrum
       map.addLayer({ id: 'choke-glow', type: 'circle', source: 'maritime-choke', paint: {
@@ -610,7 +694,7 @@ map.addSource('mitre-nodes', { type: 'geojson', data: EMPTY_FC });
       map.addLayer({ id: 'choke-label', type: 'symbol', source: 'maritime-choke', minzoom: 3, layout: {
         'text-field': ['get','name'], 'text-size': 10, 'text-font': ['Open Sans Bold'],
         'text-offset': [0, 2], 'text-max-width': 14, 'text-allow-overlap': false,
-      }, paint: { 'text-color': '#E65100', 'text-halo-color': '#000', 'text-halo-width': 1, 'text-opacity': 0.9 }});
+      }, paint: { 'text-color': '#E65100', 'text-halo-color': '#FFFFFF', 'text-halo-width': 1, 'text-opacity': 0.9 }});
 
       // Live News — muted rose
       map.addLayer({ id: 'news-glow', type: 'circle', source: 'live-news', paint: {
@@ -625,22 +709,22 @@ map.addSource('mitre-nodes', { type: 'geojson', data: EMPTY_FC });
       map.addLayer({ id: 'news-label', type: 'symbol', source: 'live-news', minzoom: 4, layout: {
         'text-field': ['get','name'], 'text-size': 9, 'text-font': ['Open Sans Regular'],
         'text-offset': [0, 1.8], 'text-max-width': 12, 'text-allow-overlap': false,
-      }, paint: { 'text-color': '#EC407A', 'text-halo-color': '#000', 'text-halo-width': 1, 'text-opacity': 0.8 }});
+      }, paint: { 'text-color': '#EC407A', 'text-halo-color': '#FFFFFF', 'text-halo-width': 1, 'text-opacity': 0.8 }});
 
       // SIGINT RSS news - gold markers
       map.addLayer({ id: 'sigint-news-glow', type: 'circle', source: 'sigint-news', paint: {
         'circle-radius': ['interpolate',['linear'],['zoom'], 1,6, 5,10, 10,18],
-        'circle-color': '#D4AF37', 'circle-opacity': 0.12, 'circle-blur': 1,
+        'circle-color': '#1A73E8', 'circle-opacity': 0.12, 'circle-blur': 1,
       }});
       map.addLayer({ id: 'sigint-news-dots', type: 'circle', source: 'sigint-news', paint: {
         'circle-radius': ['interpolate',['linear'],['zoom'], 1,3, 5,5, 10,8],
-        'circle-color': '#D4AF37', 'circle-opacity': 0.9,
+        'circle-color': '#1A73E8', 'circle-opacity': 0.9,
         'circle-stroke-width': 1.5, 'circle-stroke-color': '#FFF8DC', 'circle-stroke-opacity': 0.6,
       }});
       map.addLayer({ id: 'sigint-news-label', type: 'symbol', source: 'sigint-news', minzoom: 5, layout: {
         'text-field': ['get','source'], 'text-size': 9, 'text-font': ['Open Sans Regular'],
         'text-offset': [0, 1.6], 'text-max-width': 10, 'text-allow-overlap': false,
-      }, paint: { 'text-color': '#D4AF37', 'text-halo-color': '#000', 'text-halo-width': 1, 'text-opacity': 0.85 }});
+      }, paint: { 'text-color': '#1A73E8', 'text-halo-color': '#FFFFFF', 'text-halo-width': 1, 'text-opacity': 0.85 }});
 
       // ══ IP SWEEP — Neighborhood device visualization ══
       map.addLayer({ id: 'sweep-connections', type: 'line', source: 'ip-sweep-connections', paint: {
@@ -665,7 +749,7 @@ map.addSource('mitre-nodes', { type: 'geojson', data: EMPTY_FC });
         'text-size': 9, 'text-font': ['Open Sans Regular'],
         'text-offset': [0, 2.2], 'text-max-width': 12, 'text-allow-overlap': false,
       }, paint: {
-        'text-color': ['get', 'color'], 'text-halo-color': '#000', 'text-halo-width': 1.5, 'text-opacity': 0.9,
+        'text-color': ['get', 'color'], 'text-halo-color': '#FFFFFF', 'text-halo-width': 1.5, 'text-opacity': 0.9,
       }});
 
       // ══ SCAN TARGETS — Geolocated individual scans ══
@@ -681,7 +765,7 @@ map.addSource('mitre-nodes', { type: 'geojson', data: EMPTY_FC });
       map.addLayer({ id: 'scan-targets-label', type: 'symbol', source: 'scan-targets', layout: {
         'text-field': ['get', 'id'], 'text-size': 11, 'text-font': ['Open Sans Bold'],
         'text-offset': [0, 2], 'text-max-width': 14, 'text-allow-overlap': false,
-      }, paint: { 'text-color': '#D32F2F', 'text-halo-color': '#000', 'text-halo-width': 1.5, 'text-opacity': 0.9 }});
+      }, paint: { 'text-color': '#D32F2F', 'text-halo-color': '#FFFFFF', 'text-halo-width': 1.5, 'text-opacity': 0.9 }});
 
       // Flight layers (WebGL symbol — GPU rendered, handles 50K+ smooth)
       const flightLayers = [
@@ -698,15 +782,22 @@ map.addSource('mitre-nodes', { type: 'geojson', data: EMPTY_FC });
       });
 
       // Flight route arcs (drawn dynamically on click)
-      map.addLayer({ id: 'flight-route-atmo', type: 'line', source: 'flight-route', paint: {
-        'line-color': '#D4AF37', 'line-width': 3, 'line-opacity': 0.15, 'line-blur': 4,
+      // Flight origin→destination routes are now drawn as elevated 3D arcs via
+      // the deck.gl ArcLayer (see updateDeck), not flat ground lines.
+
+      map.addLayer({ id: 'flight-track-atmo', type: 'line', source: 'flight-track', layout: { visibility: 'none' }, paint: {
+        'line-color': '#00E676', 'line-width': 4, 'line-opacity': 0.12, 'line-blur': 5,
       }});
-      map.addLayer({ id: 'flight-route-glow', type: 'line', source: 'flight-route', paint: {
-        'line-color': '#D4AF37', 'line-width': 1.5, 'line-opacity': 0.4, 'line-blur': 2,
+      map.addLayer({ id: 'flight-track-glow', type: 'line', source: 'flight-track', layout: { visibility: 'none' }, paint: {
+        'line-color': '#00E676', 'line-width': 2, 'line-opacity': 0.35, 'line-blur': 2,
       }});
-      map.addLayer({ id: 'flight-route-core', type: 'line', source: 'flight-route', paint: {
-        'line-color': '#D4AF37', 'line-width': 1, 'line-opacity': 0.8,
-      }});
+      map.addLayer({ id: 'flight-track-core', type: 'line', source: 'flight-track', layout: { visibility: 'none' }, paint: {
+        'line-color': '#00E676', 'line-width': 1.2, 'line-opacity': 0.7,
+      }      });
+      map.addLayer({ id: 'flight-track-arrows', type: 'symbol', source: 'flight-track', layout: { visibility: 'none',
+        'symbol-placement': 'line', 'symbol-spacing': 150, 'icon-image': 'track-arrow',
+        'icon-size': 0.5, 'icon-allow-overlap': true,
+      }, paint: { 'icon-opacity': 0.5 }});
 
       // Balloons (moving entities)
       map.addLayer({ id: 'balloon-dots', type: 'circle', source: 'balloons', paint: {
@@ -718,7 +809,7 @@ map.addSource('mitre-nodes', { type: 'geojson', data: EMPTY_FC });
       map.addLayer({ id: 'balloon-label', type: 'symbol', source: 'balloons', minzoom: 4, layout: {
         'text-field': ['get','callsign'], 'text-size': 9, 'text-font': ['Open Sans Regular'],
         'text-offset': [0, 1.2], 'text-max-width': 12, 'text-allow-overlap': false,
-      }, paint: { 'text-color': ['get', 'color'], 'text-halo-color': '#000', 'text-halo-width': 1 }});
+      }, paint: { 'text-color': ['get', 'color'], 'text-halo-color': '#FFFFFF', 'text-halo-width': 1 }});
 
       // Radiation — violet base, threat spectrum for danger/warning
       map.addLayer({ id: 'rad-glow', type: 'circle', source: 'radiation', paint: {
@@ -735,7 +826,7 @@ map.addSource('mitre-nodes', { type: 'geojson', data: EMPTY_FC });
       map.addLayer({ id: 'rad-label', type: 'symbol', source: 'radiation', minzoom: 5, layout: {
         'text-field': ['concat', ['to-string', ['coalesce', ['get','reading'], 0]], ' nSv/h'], 'text-size': 9, 'text-font': ['Open Sans Bold'],
         'text-offset': [0, 1.5], 'text-allow-overlap': false,
-      }, paint: { 'text-color': ['match', ['get','status'], 'DANGER','#D32F2F', 'WARNING','#E65100', '#7E57C2'], 'text-halo-color': '#000', 'text-halo-width': 1 }});
+      }, paint: { 'text-color': ['match', ['get','status'], 'DANGER','#D32F2F', 'WARNING','#E65100', '#7E57C2'], 'text-halo-color': '#FFFFFF', 'text-halo-width': 1 }});
 
       // ══ SUBMARINE CABLES — standalone layer (all cables, uniform amber) ══
       map.addLayer({ id: 'cables-line', type: 'line', source: 'cables', paint: {
@@ -774,55 +865,6 @@ map.addSource('mitre-nodes', { type: 'geojson', data: EMPTY_FC });
       }});
 
 
-      // ══ OSIRIS SDK — Lattice Intelligence Mesh ══
-      // Polybolos Style: Delicate, translucent, steel-blue splined mesh
-
-      // ── SEA domain (Distinct Solid Lines) ──
-      // Removed glow to match the clean, diagrammatic look of submarinecablemap.com
-      map.addLayer({ id: 'sdk-sea', type: 'line', source: 'sdk-links', filter: ['==',['get','domain'],'SEA'], paint: {
-        'line-color': ['coalesce', ['get', 'color'], '#1976D2'], // Single solid color from properties
-        'line-width': ['interpolate',['linear'],['zoom'], 1, 0.8, 5, 1.5, 10, 2.5],
-        'line-opacity': ['interpolate',['linear'],['zoom'], 1, 0.3, 5, 0.5, 10, 0.7],
-      }});
-
-      // ── AIR domain (Steel Gray / Cyan) ──
-      map.addLayer({ id: 'sdk-air-atmo', type: 'line', source: 'sdk-links', filter: ['==',['get','domain'],'AIR'], paint: {
-        'line-color': '#4DD0E1',
-        'line-width': ['interpolate',['linear'],['zoom'], 1, 1.5, 5, 5, 10, 8],
-        'line-opacity': 0.04,
-        'line-blur': 3,
-      }});
-      map.addLayer({ id: 'sdk-air-glow', type: 'line', source: 'sdk-links', filter: ['==',['get','domain'],'AIR'], paint: {
-        'line-color': '#80DEEA',
-        'line-width': ['interpolate',['linear'],['zoom'], 1, 0.8, 5, 2, 10, 4],
-        'line-opacity': ['interpolate',['linear'],['zoom'], 1, 0.08, 5, 0.12, 10, 0.18],
-        'line-blur': 1,
-      }});
-      map.addLayer({ id: 'sdk-air', type: 'line', source: 'sdk-links', filter: ['==',['get','domain'],'AIR'], paint: {
-        'line-color': '#B2EBF2',
-        'line-width': ['interpolate',['linear'],['zoom'], 1, 0.15, 5, 0.6, 10, 1.2],
-        'line-opacity': ['interpolate',['linear'],['zoom'], 1, 0.2, 5, 0.35, 10, 0.5],
-      }});
-
-      // ── INTEL domain (Deep Steel / Violet) ──
-      map.addLayer({ id: 'sdk-intel-atmo', type: 'line', source: 'sdk-links', filter: ['==',['get','domain'],'INTEL'], paint: {
-        'line-color': '#7986CB',
-        'line-width': ['interpolate',['linear'],['zoom'], 1, 2.5, 5, 7, 10, 12],
-        'line-opacity': 0.06,
-        'line-blur': 5,
-      }});
-      map.addLayer({ id: 'sdk-intel-glow', type: 'line', source: 'sdk-links', filter: ['==',['get','domain'],'INTEL'], paint: {
-        'line-color': '#9FA8DA',
-        'line-width': ['interpolate',['linear'],['zoom'], 1, 1.2, 5, 3, 10, 6],
-        'line-opacity': ['interpolate',['linear'],['zoom'], 1, 0.12, 5, 0.18, 10, 0.25],
-        'line-blur': 2,
-      }});
-      map.addLayer({ id: 'sdk-intel', type: 'line', source: 'sdk-links', filter: ['==',['get','domain'],'INTEL'], paint: {
-        'line-color': '#C5CAE9',
-        'line-width': ['interpolate',['linear'],['zoom'], 1, 0.3, 5, 1, 10, 2],
-        'line-opacity': ['interpolate',['linear'],['zoom'], 1, 0.3, 5, 0.45, 10, 0.7],
-      }});
-
       // Maritime Ships (moving entities) — ocean teal family
       map.addLayer({ id: 'ship-dots', type: 'circle', source: 'maritime-ships', paint: {
         'circle-radius': ['interpolate',['linear'],['zoom'], 1,2, 5,4, 10,6],
@@ -832,7 +874,7 @@ map.addSource('mitre-nodes', { type: 'geojson', data: EMPTY_FC });
       map.addLayer({ id: 'ship-label', type: 'symbol', source: 'maritime-ships', minzoom: 5, layout: {
         'text-field': ['get','name'], 'text-size': 9, 'text-font': ['Open Sans Regular'],
         'text-offset': [0, 1.2], 'text-allow-overlap': false,
-      }, paint: { 'text-color': ['match', ['get','type'], 'military','#D32F2F', 'tanker','#E65100', 'cargo','#26C6DA', '#B0BEC5'], 'text-halo-color': '#000', 'text-halo-width': 1 }});
+      }, paint: { 'text-color': ['match', ['get','type'], 'military','#D32F2F', 'tanker','#E65100', 'cargo','#26C6DA', '#B0BEC5'], 'text-halo-color': '#FFFFFF', 'text-halo-width': 1 }});
 
       // ── Per-layer marker icons (tinted lucide glyphs on top of glow halos) ──
       // Icons sit above the existing dots; layers toggle by emptying their
@@ -878,22 +920,6 @@ map.addSource('mitre-nodes', { type: 'geojson', data: EMPTY_FC });
     map.on('moveend', () => {
       const c = map.getCenter();
       onViewStateChange?.({ zoom: map.getZoom(), latitude: c.lat });
-      // Filter orbit tracks to only show satellites passing through the current viewport
-      const zoom = map.getZoom();
-      const orbitSrc = map.getSource('orbit') as any;
-      if (orbitSrc && orbitFeaturesRef.current.length > 0) {
-        if (zoom >= 5) {
-          const bounds = map.getBounds();
-          const filtered = orbitFeaturesRef.current.filter((f: any) => {
-            const coords: [number, number][] = f.geometry.coordinates;
-            return coords.some(([lng, lat]) => bounds.contains([lng, lat]));
-          });
-          orbitSrc.setData({ type: 'FeatureCollection', features: filtered });
-        } else {
-          // Below zoom threshold — clear orbit lines to keep the map clean
-          orbitSrc.setData({ type: 'FeatureCollection', features: [] });
-        }
-      }
     });
 
     // ── POPUP HELPER ──
@@ -901,7 +927,7 @@ map.addSource('mitre-nodes', { type: 'geojson', data: EMPTY_FC });
       popupRef.current?.remove();
       popupRef.current = new maplibregl.Popup({ closeButton: true, maxWidth: '420px', offset: 14 }).setLngLat(coords).setHTML(html).addTo(map);
     };
-    const pStyle = `background:rgba(12,14,26,0.95);backdrop-filter:blur(16px);border-radius:10px;padding:16px;font-family:'JetBrains Mono',monospace;`;
+    const pStyle = `background:#FFFFFF;color:#202124;backdrop-filter:blur(16px);border-radius:12px;padding:16px;font-family:'JetBrains Mono',monospace;box-shadow:0 1px 3px rgba(60,64,67,0.2),0 4px 16px rgba(60,64,67,0.15);`;
     const linkStyle = `display:inline-block;margin-top:8px;padding:5px 12px;font-size:10px;letter-spacing:0.12em;text-decoration:none;border-radius:5px;font-family:'JetBrains Mono',monospace;`;
     // ── Flights (with FlightAware + ADS-B Exchange links + enriched route) ──
     const enrichmentCache = new Map<string, any>();
@@ -912,31 +938,34 @@ map.addSource('mitre-nodes', { type: 'geojson', data: EMPTY_FC });
         const coords = (e.features[0].geometry as any).coordinates;
         const cs = (p.callsign||'').trim();
         const icao24 = (p.icao24||'').trim();
-        const showPopup = (extra: string) => popup(coords, `<div style="${pStyle}border:1px solid rgba(212,175,55,0.3);">
+        const showPopup = (extra: string) => popup(coords, `<div style="${pStyle}border:1px solid rgba(26,115,232,0.3);">
           <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
-            <span style="color:#D4AF37;font-size:16px;font-weight:700;letter-spacing:0.1em;">${cs}</span>
-            <span style="color:#5C5A54;font-size:10px;">${icao24}</span>
+            <span style="color:#1A73E8;font-size:16px;font-weight:700;letter-spacing:0.1em;">${cs}</span>
+            <span style="color:#6F8092;font-size:10px;">${icao24}</span>
           </div>
           ${extra}
           <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;font-size:11px;margin-top:8px;">
-            <div><span style="color:#5C5A54;font-size:9px;">MODEL</span><br/><span style="color:#E8E6E0;">${p.model||'—'}</span></div>
-            <div><span style="color:#5C5A54;font-size:9px;">ALT</span><br/><span style="color:#00E5FF;">${p.alt?Math.round(p.alt)+'m':'—'}</span></div>
-            <div><span style="color:#5C5A54;font-size:9px;">SPEED</span><br/><span style="color:#E8E6E0;">${p.speed_knots||'—'}kt</span></div>
-            <div><span style="color:#5C5A54;font-size:9px;">HDG</span><br/><span style="color:#E8E6E0;">${Math.round(p.heading||0)}°</span></div>
-            <div><span style="color:#5C5A54;font-size:9px;">REG</span><br/><span style="color:#E8E6E0;">${p.registration||'—'}</span></div>
-            <div><span style="color:#5C5A54;font-size:9px;">POS</span><br/><span style="color:#E8E6E0;">${coords[1].toFixed(2)},${coords[0].toFixed(2)}</span></div>
+            <div><span style="color:#6F8092;font-size:9px;">MODEL</span><br/><span style="color:#1E293B;">${p.model||'—'}</span></div>
+            <div><span style="color:#6F8092;font-size:9px;">ALT</span><br/><span style="color:#1A73E8;">${p.alt?Math.round(p.alt)+'m':'—'}</span></div>
+            <div><span style="color:#6F8092;font-size:9px;">SPEED</span><br/><span style="color:#1E293B;">${p.speed_knots||'—'}kt</span></div>
+            <div><span style="color:#6F8092;font-size:9px;">HDG</span><br/><span style="color:#1E293B;">${Math.round(p.heading||0)}°</span></div>
+            <div><span style="color:#6F8092;font-size:9px;">REG</span><br/><span style="color:#1E293B;">${p.registration||'—'}</span></div>
+            <div><span style="color:#6F8092;font-size:9px;">POS</span><br/><span style="color:#1E293B;">${coords[1].toFixed(2)},${coords[0].toFixed(2)}</span></div>
           </div>
           <div style="margin-top:12px;display:flex;gap:6px;flex-wrap:wrap;">
-            <a href="https://www.flightaware.com/live/flight/${cs}" target="_blank" style="${linkStyle}color:#D4AF37;border:1px solid rgba(212,175,55,0.4);background:rgba(212,175,55,0.1);">⚡ FLIGHTAWARE</a>
-            <a href="https://globe.adsbexchange.com/?icao=${icao24}" target="_blank" style="${linkStyle}color:#00E5FF;border:1px solid rgba(0,229,255,0.4);background:rgba(0,229,255,0.1);">📡 ADS-B</a>
+            <a href="https://www.flightaware.com/live/flight/${cs}" target="_blank" style="${linkStyle}color:#1A73E8;border:1px solid rgba(26,115,232,0.4);background:rgba(26,115,232,0.1);">⚡ FLIGHTAWARE</a>
+            <a href="https://globe.adsbexchange.com/?icao=${icao24}" target="_blank" style="${linkStyle}color:#1A73E8;border:1px solid rgba(0,229,255,0.4);background:rgba(0,229,255,0.1);">📡 ADS-B</a>
             <a href="https://www.radarbox.com/data/flights/${cs}" target="_blank" style="${linkStyle}color:#FF69B4;border:1px solid rgba(255,105,180,0.4);background:rgba(255,105,180,0.1);">📍 RADARBOX</a>
           </div>
-          <button onclick="window.openOsirisIntel({ callsign: '${cs}', icao24: '${icao24}', model: '${p.model||''}', registration: '${p.registration||''}' })" style="width:100%;margin-top:8px;padding:6px 12px;background:rgba(212,175,55,0.15);border:1px solid rgba(212,175,55,0.5);color:#D4AF37;font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:bold;letter-spacing:0.1em;border-radius:4px;cursor:pointer;">[ DEEP DIVE INTEL ]</button>
+          <div style="margin-top:8px;display:flex;gap:6px;">
+            <button onclick="window.openOsirisIntel({ callsign: '${cs}', icao24: '${icao24}', model: '${p.model||''}', registration: '${p.registration||''}' })" style="flex:1;padding:6px 12px;background:rgba(26,115,232,0.15);border:1px solid rgba(26,115,232,0.5);color:#1A73E8;font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:bold;letter-spacing:0.1em;border-radius:4px;cursor:pointer;">[ INTEL ]</button>
+            <button onclick="window.showFlightTrack('${icao24}', '${cs}')" style="flex:1;padding:6px 12px;background:rgba(0,230,118,0.15);border:1px solid rgba(0,230,118,0.5);color:#00E676;font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:bold;letter-spacing:0.1em;border-radius:4px;cursor:pointer;">[ TRACK ]</button>
+          </div>
         </div>`);
 
         // Show initial popup with loading indicator
-        showPopup(`<div style="display:flex;gap:8px;align-items:center;margin-bottom:6px;font-size:9px;color:#5C5A54;">
-          <span style="display:inline-block;width:8px;height:8px;border:1px solid #D4AF37;border-top-color:transparent;border-radius:50%;animation:osiris-spin .6s linear infinite;"></span>
+        showPopup(`<div style="display:flex;gap:8px;align-items:center;margin-bottom:6px;font-size:9px;color:#6F8092;">
+          <span style="display:inline-block;width:8px;height:8px;border:1px solid #1A73E8;border-top-color:transparent;border-radius:50%;animation:osiris-spin .6s linear infinite;"></span>
           LOADING ROUTE...
         </div>`);
 
@@ -951,7 +980,7 @@ map.addSource('mitre-nodes', { type: 'geojson', data: EMPTY_FC });
 
         enrichmentPromise.then(data => {
           if (!data) {
-            showPopup(`<div style="font-size:9px;color:#5C5A54;margin-bottom:6px;">ROUTE: NOT FOUND</div>`);
+            showPopup(`<div style="font-size:9px;color:#6F8092;margin-bottom:6px;">ROUTE: NOT FOUND</div>`);
             return;
           }
           enrichmentCache.set(cacheKey, data);
@@ -967,38 +996,27 @@ map.addSource('mitre-nodes', { type: 'geojson', data: EMPTY_FC });
             const airline = r.airline;
 
             if (origin && dest) {
-              // Draw route arc on map
-              const map = mapRef.current;
-              if (map) {
-                const routeSrc = 'flight-route';
-                const routeFeats = [{
-                  type: 'Feature' as const,
-                  geometry: {
-                    type: 'LineString' as const,
-                    coordinates: greatCircleArc(origin.lng, origin.lat, dest.lng, dest.lat, 32),
-                  },
-                  properties: { callsign: cs },
-                }];
-                try {
-                  const src = map.getSource(routeSrc) as any;
-                  if (src) src.setData({ type: 'FeatureCollection', features: routeFeats });
-                } catch {}
-              }
+              // Draw the origin→destination route as an elevated 3D arc (deck.gl).
+              flightArcRef.current = [{
+                source: [origin.lng, origin.lat],
+                target: [dest.lng, dest.lat],
+              }];
+              updateDeck();
 
-              routeHtml = `<div style="margin-bottom:8px;padding:6px 8px;background:rgba(212,175,55,0.08);border:1px solid rgba(212,175,55,0.2);border-radius:4px;">
-                <div style="font-size:9px;color:#5C5A54;letter-spacing:0.1em;margin-bottom:4px;">═ FLIGHT ROUTE ═</div>
+              routeHtml = `<div style="margin-bottom:8px;padding:6px 8px;background:rgba(26,115,232,0.08);border:1px solid rgba(26,115,232,0.2);border-radius:4px;">
+                <div style="font-size:9px;color:#6F8092;letter-spacing:0.1em;margin-bottom:4px;">═ FLIGHT ROUTE ═</div>
                 <div style="display:grid;grid-template-columns:auto 1fr;gap:2px 8px;font-size:10px;">
-                  <span style="color:#00E5FF;">🛫</span>
-                  <span style="color:#E8E6E0;"><strong>${origin.iata || origin.icao}</strong> ${origin.municipality}, ${origin.country}</span>
+                  <span style="color:#1A73E8;">🛫</span>
+                  <span style="color:#1E293B;"><strong>${origin.iata || origin.icao}</strong> ${origin.municipality}, ${origin.country}</span>
                   <span style="color:#FF5252;">🛬</span>
-                  <span style="color:#E8E6E0;"><strong>${dest.iata || dest.icao}</strong> ${dest.municipality}, ${dest.country}</span>
+                  <span style="color:#1E293B;"><strong>${dest.iata || dest.icao}</strong> ${dest.municipality}, ${dest.country}</span>
                 </div>
-                ${airline ? `<div style="margin-top:4px;font-size:9px;color:#D4AF37;">✈ ${airline.name} · ${airline.country}${airline.iata ? ' ('+airline.iata+')' : ''}</div>` : ''}
+                ${airline ? `<div style="margin-top:4px;font-size:9px;color:#1A73E8;">✈ ${airline.name} · ${airline.country}${airline.iata ? ' ('+airline.iata+')' : ''}</div>` : ''}
               </div>`;
             } else if (airline) {
-              routeHtml = `<div style="margin-bottom:8px;padding:4px 6px;background:rgba(212,175,55,0.08);border:1px solid rgba(212,175,55,0.2);border-radius:4px;font-size:9px;">
-                <span style="color:#D4AF37;">✈ ${airline.name}</span>
-                <span style="color:#5C5A54;"> · ${airline.country}</span>
+              routeHtml = `<div style="margin-bottom:8px;padding:4px 6px;background:rgba(26,115,232,0.08);border:1px solid rgba(26,115,232,0.2);border-radius:4px;font-size:9px;">
+                <span style="color:#1A73E8;">✈ ${airline.name}</span>
+                <span style="color:#6F8092;"> · ${airline.country}</span>
               </div>`;
             }
           }
@@ -1006,7 +1024,7 @@ map.addSource('mitre-nodes', { type: 'geojson', data: EMPTY_FC });
           // Build aircraft detail
           let acHtml = '';
           if (ac) {
-            acHtml = `<div style="font-size:9px;color:#5C5A54;margin-top:2px;">
+            acHtml = `<div style="font-size:9px;color:#6F8092;margin-top:2px;">
               ${ac.icao_type ? ac.icao_type : ac.type || ''}${ac.manufacturer ? ' · '+ac.manufacturer : ''}${ac.owner ? ' · '+ac.owner : ''}
             </div>`;
           }
@@ -1053,13 +1071,13 @@ map.addSource('mitre-nodes', { type: 'geojson', data: EMPTY_FC });
         ['CITY', p.city || '—'],
         ['COUNTRY', p.country || '—'],
         ['FEED TYPE', streamType.toUpperCase()],
-      ].map(([k, v]) => `<div><span style="color:#5C5A54;font-size:8px;">${k}</span><br/><span style="color:#E8E6E0;font-size:9px;">${v}</span></div>`).join('');
+      ].map(([k, v]) => `<div><span style="color:#6F8092;font-size:8px;">${k}</span><br/><span style="color:#1E293B;font-size:9px;">${v}</span></div>`).join('');
       popup(coords, `<div style="${pStyle}border:1px solid ${dotColor}40;">
         <div style="display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid ${dotColor}40;padding-bottom:6px;margin-bottom:8px;">
           <div style="color:${dotColor};font-size:11px;font-weight:700;letter-spacing:0.05em;">${p.name || 'CCTV Camera'}</div>
-          <div style="color:#5C5A54;font-size:8px;">${coords[1].toFixed(3)}, ${coords[0].toFixed(3)}</div>
+          <div style="color:#6F8092;font-size:8px;">${coords[1].toFixed(3)}, ${coords[0].toFixed(3)}</div>
         </div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:10px;background:rgba(0,0,0,0.3);padding:6px;border-radius:4px;">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:10px;background:rgba(60,64,67,0.06);padding:6px;border-radius:4px;">
           ${camMeta}
         </div>
         <button onclick="window.openOsirisIntel({ type: 'cctv', id: '${p.id}', name: '${p.name?.replace(/'/g, '\\\'') || ''}', city: '${p.city || ''}', country: '${p.country || ''}', source: '${p.source || ''}', feed_url: '${p.feed_url || ''}', stream_url: '${p.stream_url || ''}', stream_type: '${p.stream_type || ''}', external_url: '${p.external_url || ''}', lat: ${coords[1]}, lng: ${coords[0]} })" style="width:100%;padding:7px 12px;background:linear-gradient(90deg,${dotColor}15 0%,${dotColor}25 100%);border:1px solid ${dotColor}80;color:${dotColor};font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:bold;letter-spacing:0.15em;border-radius:4px;cursor:pointer;">OPEN FEED</button>
@@ -1074,11 +1092,11 @@ map.addSource('mitre-nodes', { type: 'geojson', data: EMPTY_FC });
       const coords = (e.features[0].geometry as any).coordinates;
       popup(coords, `<div style="${pStyle}border:1px solid rgba(255,149,0,0.3);">
         <div style="color:#FF9500;font-size:14px;font-weight:700;margin-bottom:4px;">M${p.magnitude} EARTHQUAKE</div>
-        <div style="font-size:9px;color:#E8E6E0;margin-bottom:8px;">${p.place||'Unknown location'}</div>
+        <div style="font-size:9px;color:#1E293B;margin-bottom:8px;">${p.place||'Unknown location'}</div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;font-size:9px;">
-          <div><span style="color:#5C5A54;">DEPTH</span><br/><span style="color:#E8E6E0;">${p.depth||'—'}km</span></div>
-          <div><span style="color:#5C5A54;">COORDS</span><br/><span style="color:#E8E6E0;">${coords[1].toFixed(3)}, ${coords[0].toFixed(3)}</span></div>
-          <div><span style="color:#5C5A54;">SOURCE</span><br/><span style="color:#FFB74D;">${p.source||'USGS'}</span></div>
+          <div><span style="color:#6F8092;">DEPTH</span><br/><span style="color:#1E293B;">${p.depth||'—'}km</span></div>
+          <div><span style="color:#6F8092;">COORDS</span><br/><span style="color:#1E293B;">${coords[1].toFixed(3)}, ${coords[0].toFixed(3)}</span></div>
+          <div><span style="color:#6F8092;">SOURCE</span><br/><span style="color:#FFB74D;">${p.source||'USGS'}</span></div>
         </div>
         ${p.url ? `<a href="${p.url}" target="_blank" style="${linkStyle}color:#FF9500;border:1px solid rgba(255,149,0,0.4);background:rgba(255,149,0,0.1);">📊 ${p.source||'USGS'} DETAILS</a>` : ''}
       </div>`);
@@ -1093,20 +1111,27 @@ map.addSource('mitre-nodes', { type: 'geojson', data: EMPTY_FC });
       const noradId = p.noradId || '';
       const satName = p.name || 'Unknown';
 
+      // Draw ONLY this satellite's orbit as a native maplibre line on the globe
+      // (antimeridian-split so it hugs the sphere and is correct at the poles).
+      const sat = satByIdRef.current.get(String(noradId)) || satByIdRef.current.get(String(satName));
+      if (sat?.groundTrack?.length) {
+        setGeo('orbit', splitTrackFeatures(sat.groundTrack as [number, number][], sat.color || '#B388FF'));
+      }
+
       const showPopup = (extra: string) => popup(coords, `<div style="${pStyle}border:1px solid rgba(179,136,255,0.3);">
         ${extra}
         <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:4px;font-size:9px;margin-bottom:8px;">
-          <div><span style="color:#5C5A54;">MISSION</span><br/><span style="color:${p.color||'#aaa'};">${p.mission||'Unknown'}</span></div>
-          <div><span style="color:#5C5A54;">ALT</span><br/><span style="color:#00E5FF;">${p.alt ? p.alt+' km' : '—'}</span></div>
-          <div><span style="color:#5C5A54;">POS</span><br/><span style="color:#E8E6E0;">${coords[1].toFixed(2)}°, ${coords[0].toFixed(2)}°</span></div>
+          <div><span style="color:#6F8092;">MISSION</span><br/><span style="color:${p.color||'#aaa'};">${p.mission||'Unknown'}</span></div>
+          <div><span style="color:#6F8092;">ALT</span><br/><span style="color:#1A73E8;">${p.alt ? p.alt+' km' : '—'}</span></div>
+          <div><span style="color:#6F8092;">POS</span><br/><span style="color:#1E293B;">${coords[1].toFixed(2)}°, ${coords[0].toFixed(2)}°</span></div>
         </div>
-        ${noradId ? `<a href="https://db.satnogs.org/satellite/${noradId}/" target="_blank" style="display:block;text-align:center;padding:4px;margin-top:6px;font-size:8px;font-family:monospace;letter-spacing:0.1em;text-decoration:none;color:#00E5FF;border:1px solid rgba(0,229,255,0.4);background:rgba(0,229,255,0.1);border-radius:2px;cursor:pointer;">🔭 SOURCE: SATNOGS</a>` : ''}
+        ${noradId ? `<a href="https://db.satnogs.org/satellite/${noradId}/" target="_blank" style="display:block;text-align:center;padding:4px;margin-top:6px;font-size:8px;font-family:monospace;letter-spacing:0.1em;text-decoration:none;color:#1A73E8;border:1px solid rgba(0,229,255,0.4);background:rgba(0,229,255,0.1);border-radius:2px;cursor:pointer;">🔭 SOURCE: SATNOGS</a>` : ''}
       </div>`);
 
       // Show initial popup with loading
-      const loadingHtml = `<div style="color:#B388FF;font-size:13px;font-weight:700;letter-spacing:0.1em;margin-bottom:6px;">🛰️ ${satName}${noradId ? ' <span style="color:#5C5A54;font-size:9px;font-weight:400;">NORAD: '+noradId+'</span>' : ''}</div>
-        <div style="display:flex;gap:8px;align-items:center;margin-bottom:6px;font-size:9px;color:#5C5A54;">
-          <span style="display:inline-block;width:8px;height:8px;border:1px solid #B388FF;border-top-color:transparent;border-radius:50%;animation:osiris-spin .6s linear infinite;"></span>
+      const loadingHtml = `<div style="color:#1A73E8;font-size:13px;font-weight:700;letter-spacing:0.1em;margin-bottom:6px;">🛰️ ${satName}${noradId ? ' <span style="color:#6F8092;font-size:9px;font-weight:400;">NORAD: '+noradId+'</span>' : ''}</div>
+        <div style="display:flex;gap:8px;align-items:center;margin-bottom:6px;font-size:9px;color:#6F8092;">
+          <span style="display:inline-block;width:8px;height:8px;border:1px solid #1A73E8;border-top-color:transparent;border-radius:50%;animation:osiris-spin .6s linear infinite;"></span>
           LOADING SATNOGS DATA...
         </div>`;
       showPopup(loadingHtml);
@@ -1123,8 +1148,8 @@ map.addSource('mitre-nodes', { type: 'geojson', data: EMPTY_FC });
 
       promise.then(data => {
         if (!data) {
-          showPopup(`<div style="color:#B388FF;font-size:13px;font-weight:700;letter-spacing:0.1em;margin-bottom:6px;">🛰️ ${satName}${noradId ? ' <span style="color:#5C5A54;font-size:9px;font-weight:400;">NORAD: '+noradId+'</span>' : ''}</div>
-            <div style="font-size:9px;color:#5C5A54;margin-bottom:6px;">ENRICHMENT NOT FOUND</div>`);
+          showPopup(`<div style="color:#1A73E8;font-size:13px;font-weight:700;letter-spacing:0.1em;margin-bottom:6px;">🛰️ ${satName}${noradId ? ' <span style="color:#6F8092;font-size:9px;font-weight:400;">NORAD: '+noradId+'</span>' : ''}</div>
+            <div style="font-size:9px;color:#6F8092;margin-bottom:6px;">ENRICHMENT NOT FOUND</div>`);
           return;
         }
         enrichCache.set(noradId, data);
@@ -1134,22 +1159,49 @@ map.addSource('mitre-nodes', { type: 'geojson', data: EMPTY_FC });
 
         // Build header
         let headerHtml = `<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
-          <div style="color:#B388FF;font-size:13px;font-weight:700;letter-spacing:0.1em;">🛰️ ${sat?.name || satName}</div>
-          ${noradId ? `<div style="color:#5C5A54;font-size:9px;font-family:monospace;">#${noradId}</div>` : ''}
+          <div style="color:#1A73E8;font-size:13px;font-weight:700;letter-spacing:0.1em;">🛰️ ${sat?.name || satName}</div>
+          ${noradId ? `<div style="color:#6F8092;font-size:9px;font-family:monospace;">#${noradId}</div>` : ''}
         </div>`;
 
         // Satellite metadata section
         let metaHtml = '';
         if (sat) {
           const rows: string[] = [];
-          if (sat.countries) rows.push(`<div><span style="color:#5C5A54;">COUNTRIES</span><br/><span style="color:#E8E6E0;">${sat.countries}</span></div>`);
-          if (sat.status) rows.push(`<div><span style="color:#5C5A54;">STATUS</span><br/><span style="color:${sat.status === 'alive' ? '#00E676' : '#FF5252'};">${sat.status.toUpperCase()}</span></div>`);
-          if (sat.operator) rows.push(`<div><span style="color:#5C5A54;">OPERATOR</span><br/><span style="color:#E8E6E0;">${sat.operator}</span></div>`);
-          if (sat.launched) rows.push(`<div><span style="color:#5C5A54;">LAUNCHED</span><br/><span style="color:#E8E6E0;">${sat.launched.split('T')[0]}</span></div>`);
-          if (sat.decayed) rows.push(`<div><span style="color:#5C5A54;">DECAYED</span><br/><span style="color:#FF5252;">${sat.decayed.split('T')[0]}</span></div>`);
+          if (sat.countries) rows.push(`<div><span style="color:#6F8092;">COUNTRIES</span><br/><span style="color:#1E293B;">${sat.countries}</span></div>`);
+          if (sat.status) rows.push(`<div><span style="color:#6F8092;">STATUS</span><br/><span style="color:${sat.status === 'alive' ? '#00E676' : '#FF5252'};">${sat.status.toUpperCase()}</span></div>`);
+          if (sat.operator) rows.push(`<div><span style="color:#6F8092;">OPERATOR</span><br/><span style="color:#1E293B;">${sat.operator}</span></div>`);
+          if (sat.launched) rows.push(`<div><span style="color:#6F8092;">LAUNCHED</span><br/><span style="color:#1E293B;">${sat.launched.split('T')[0]}</span></div>`);
+          if (sat.decayed) rows.push(`<div><span style="color:#6F8092;">DECAYED</span><br/><span style="color:#FF5252;">${sat.decayed.split('T')[0]}</span></div>`);
 
           if (rows.length > 0) {
-            metaHtml = `<div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;font-size:9px;margin-bottom:8px;padding:6px;background:rgba(179,136,255,0.06);border-radius:4px;">${rows.join('')}</div>`;
+            metaHtml = `<div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;font-size:9px;margin-bottom:8px;padding:6px;background:rgba(26,115,232,0.06);border-radius:4px;">${rows.join('')}</div>`;
+          }
+        }
+
+        // Orbital catalog section (Celestrak SATCAT — KeepTrack-style)
+        let orbitalHtml = '';
+        const orb = data.orbital;
+        if (orb) {
+          const cell = (label: string, val: any, unit = '', color = '#1E293B') =>
+            (val !== null && val !== undefined && val !== '')
+              ? `<div><span style="color:#6F8092;">${label}</span><br/><span style="color:${color};">${val}${unit}</span></div>` : '';
+          const cells = [
+            cell('TYPE', orb.object_type),
+            cell('COSPAR', orb.intl_designator),
+            cell('OWNER', orb.owner),
+            cell('INCL', orb.inclination_deg, '°', '#1A73E8'),
+            cell('PERIOD', orb.period_min, ' min', '#1A73E8'),
+            cell('APOGEE', orb.apogee_km, ' km', '#1A73E8'),
+            cell('PERIGEE', orb.perigee_km, ' km', '#1A73E8'),
+            cell('RCS', orb.rcs_m2, ' m²'),
+            cell('LAUNCH', orb.launch_date),
+            cell('SITE', orb.launch_site),
+          ].filter(Boolean);
+          if (cells.length) {
+            orbitalHtml = `<div style="margin-bottom:8px;padding:6px;background:rgba(179,136,255,0.07);border:1px solid rgba(179,136,255,0.2);border-radius:4px;">
+              <div style="font-size:8px;color:#6F8092;letter-spacing:0.1em;margin-bottom:4px;">═ ORBITAL CATALOG (CELESTRAK) ═</div>
+              <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:4px;font-size:9px;">${cells.join('')}</div>
+            </div>`;
           }
         }
 
@@ -1160,30 +1212,30 @@ map.addSource('mitre-nodes', { type: 'geojson', data: EMPTY_FC });
             const freq = (hz: number | null) => hz ? (hz >= 1e9 ? (hz/1e9).toFixed(3)+' GHz' : hz >= 1e6 ? (hz/1e6).toFixed(2)+' MHz' : (hz/1e3).toFixed(1)+' kHz') : '—';
             return `<div style="padding:4px 0;${i > 0 ? 'border-top:1px solid rgba(179,136,255,0.15);' : ''}">
               <div style="display:flex;justify-content:space-between;align-items:center;">
-                <span style="color:#B388FF;font-size:9px;font-weight:bold;">${tx.description || tx.type || 'Transmitter'}</span>
-                <span style="color:${tx.alive ? '#00E676' : '#5C5A54'};font-size:8px;">${tx.status?.toUpperCase() || (tx.alive ? 'ACTIVE' : 'INACTIVE')}</span>
+                <span style="color:#1A73E8;font-size:9px;font-weight:bold;">${tx.description || tx.type || 'Transmitter'}</span>
+                <span style="color:${tx.alive ? '#00E676' : '#6F8092'};font-size:8px;">${tx.status?.toUpperCase() || (tx.alive ? 'ACTIVE' : 'INACTIVE')}</span>
               </div>
               <div style="display:grid;grid-template-columns:1fr 1fr;gap:2px;font-size:8px;margin-top:2px;">
-                ${tx.downlink_low ? `<div><span style="color:#5C5A54;">⬇ DL</span> <span style="color:#00E5FF;">${freq(tx.downlink_low)}</span></div>` : ''}
-                ${tx.uplink_low ? `<div><span style="color:#5C5A54;">⬆ UL</span> <span style="color:#FFD740;">${freq(tx.uplink_low)}</span></div>` : ''}
-                ${tx.mode ? `<div><span style="color:#5C5A54;">🔊 MODE</span> <span style="color:#E8E6E0;">${tx.mode}</span></div>` : ''}
-                ${tx.baud ? `<div><span style="color:#5C5A54;">⚡ BAUD</span> <span style="color:#E8E6E0;">${tx.baud}</span></div>` : ''}
+                ${tx.downlink_low ? `<div><span style="color:#6F8092;">⬇ DL</span> <span style="color:#1A73E8;">${freq(tx.downlink_low)}</span></div>` : ''}
+                ${tx.uplink_low ? `<div><span style="color:#6F8092;">⬆ UL</span> <span style="color:#FFD740;">${freq(tx.uplink_low)}</span></div>` : ''}
+                ${tx.mode ? `<div><span style="color:#6F8092;">🔊 MODE</span> <span style="color:#1E293B;">${tx.mode}</span></div>` : ''}
+                ${tx.baud ? `<div><span style="color:#6F8092;">⚡ BAUD</span> <span style="color:#1E293B;">${tx.baud}</span></div>` : ''}
               </div>
-              ${tx.type ? `<div style="font-size:7px;color:#5C5A54;margin-top:2px;">${tx.type}${tx.service && tx.service !== 'Unknown' ? ' · '+tx.service : ''}</div>` : ''}
+              ${tx.type ? `<div style="font-size:7px;color:#6F8092;margin-top:2px;">${tx.type}${tx.service && tx.service !== 'Unknown' ? ' · '+tx.service : ''}</div>` : ''}
             </div>`;
           });
-          txHtml = `<div style="margin-top:6px;padding:6px;background:rgba(0,0,0,0.3);border-radius:4px;">
-            <div style="font-size:8px;color:#5C5A54;letter-spacing:0.1em;margin-bottom:4px;">═ TRANSMITTERS (${txs.length}) ═</div>
+          txHtml = `<div style="margin-top:6px;padding:6px;background:rgba(60,64,67,0.06);border-radius:4px;">
+            <div style="font-size:8px;color:#6F8092;letter-spacing:0.1em;margin-bottom:4px;">═ TRANSMITTERS (${txs.length}) ═</div>
             ${lines.join('')}
           </div>`;
         }
 
         // Website link
         const webHtml = sat?.website
-          ? `<a href="${sat.website}" target="_blank" style="display:inline-block;margin-top:6px;padding:3px 8px;font-size:8px;color:#D4AF37;border:1px solid rgba(212,175,55,0.4);background:rgba(212,175,55,0.1);border-radius:4px;text-decoration:none;font-family:'JetBrains Mono',monospace;">🌐 OFFICIAL SITE</a>`
+          ? `<a href="${sat.website}" target="_blank" style="display:inline-block;margin-top:6px;padding:3px 8px;font-size:8px;color:#1A73E8;border:1px solid rgba(26,115,232,0.4);background:rgba(26,115,232,0.1);border-radius:4px;text-decoration:none;font-family:'JetBrains Mono',monospace;">🌐 OFFICIAL SITE</a>`
           : '';
 
-        showPopup(headerHtml + metaHtml + txHtml + webHtml);
+        showPopup(headerHtml + metaHtml + orbitalHtml + txHtml + webHtml);
       });
     });
 
@@ -1196,11 +1248,11 @@ map.addSource('mitre-nodes', { type: 'geojson', data: EMPTY_FC });
       popup(coords, `<div style="${pStyle}border:1px solid rgba(255,107,0,0.3);">
         <div style="color:#FF6B00;font-size:12px;font-weight:700;margin-bottom:6px;">${isVolcano ? '🌋 ' + (p.title || 'VOLCANO') : '🔥 ACTIVE FIRE DETECTED'}</div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;font-size:9px;margin-bottom:8px;">
-          <div><span style="color:#5C5A54;">BRIGHTNESS</span><br/><span style="color:#FF6B00;">${p.brightness||'—'}K</span></div>
-          <div><span style="color:#5C5A54;">FIRE POWER</span><br/><span style="color:#FFB74D;">${p.frp ? Number(p.frp).toFixed(1)+' MW' : '—'}</span></div>
-          <div><span style="color:#5C5A54;">SATELLITE</span><br/><span style="color:#E8E6E0;">${p.satellite||'—'}</span></div>
-          <div><span style="color:#5C5A54;">CONFIDENCE</span><br/><span style="color:#E8E6E0;">${p.confidence||'—'}${p.daynight ? ' · '+String(p.daynight).toUpperCase() : ''}</span></div>
-          <div style="grid-column:1/3;"><span style="color:#5C5A54;">COORDS</span><br/><span style="color:#E8E6E0;">${coords[1].toFixed(3)}°, ${coords[0].toFixed(3)}°</span></div>
+          <div><span style="color:#6F8092;">BRIGHTNESS</span><br/><span style="color:#FF6B00;">${p.brightness||'—'}K</span></div>
+          <div><span style="color:#6F8092;">FIRE POWER</span><br/><span style="color:#FFB74D;">${p.frp ? Number(p.frp).toFixed(1)+' MW' : '—'}</span></div>
+          <div><span style="color:#6F8092;">SATELLITE</span><br/><span style="color:#1E293B;">${p.satellite||'—'}</span></div>
+          <div><span style="color:#6F8092;">CONFIDENCE</span><br/><span style="color:#1E293B;">${p.confidence||'—'}${p.daynight ? ' · '+String(p.daynight).toUpperCase() : ''}</span></div>
+          <div style="grid-column:1/3;"><span style="color:#6F8092;">COORDS</span><br/><span style="color:#1E293B;">${coords[1].toFixed(3)}°, ${coords[0].toFixed(3)}°</span></div>
         </div>
         <a href="https://firms.modaps.eosdis.nasa.gov/map/#d:24hrs;l:noaa20-viirs,viirs,modis_a,modis_t;@${coords[0]},${coords[1]},10z" target="_blank" style="${linkStyle}color:#FF6B00;border:1px solid rgba(255,107,0,0.4);background:rgba(255,107,0,0.1);">🛰️ NASA FIRMS MAP</a>
       </div>`);
@@ -1217,15 +1269,15 @@ map.addSource('mitre-nodes', { type: 'geojson', data: EMPTY_FC });
       popup(coords, `<div style="${pStyle}border:1px solid rgba(255,23,68,0.4);box-shadow:inset 0 0 12px rgba(255,23,68,0.1);">
         <div style="display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid rgba(255,23,68,0.3);padding-bottom:6px;margin-bottom:8px;">
           <div style="color:#FF1744;font-size:12px;font-weight:700;letter-spacing:0.1em;text-shadow:0 0 4px rgba(255,23,68,0.5);">[ ${tType} ]</div>
-          <div style="color:#5C5A54;font-size:9px;">${p.country || 'UNKNOWN'}</div>
+          <div style="color:#6F8092;font-size:9px;">${p.country || 'UNKNOWN'}</div>
         </div>
-        <div style="color:#E8E6E0;font-size:11px;font-weight:bold;margin-bottom:10px;">${p.malware || 'Unidentified Threat Payload'}</div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:9px;margin-bottom:12px;background:rgba(0,0,0,0.3);padding:6px;border-radius:4px;">
-          <div><span style="color:#5C5A54;">TARGET IP</span><br/><span style="color:#00E5FF;font-family:monospace;">${p.ip}</span></div>
-          <div><span style="color:#5C5A54;">STATUS</span><br/><span style="color:${statusColor};">${(p.status||'UNKNOWN').toUpperCase()}</span></div>
+        <div style="color:#1E293B;font-size:11px;font-weight:bold;margin-bottom:10px;">${p.malware || 'Unidentified Threat Payload'}</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:9px;margin-bottom:12px;background:rgba(60,64,67,0.06);padding:6px;border-radius:4px;">
+          <div><span style="color:#6F8092;">TARGET IP</span><br/><span style="color:#1A73E8;font-family:monospace;">${p.ip}</span></div>
+          <div><span style="color:#6F8092;">STATUS</span><br/><span style="color:${statusColor};">${(p.status||'UNKNOWN').toUpperCase()}</span></div>
         </div>
         <div style="display:flex;gap:6px;">
-          <a href="https://feodotracker.abuse.ch/browse/" target="_blank" style="${linkStyle}flex:1;text-align:center;color:#E8E6E0;border:1px solid rgba(255,255,255,0.2);background:rgba(255,255,255,0.05);">THREAT INTEL ↗</a>
+          <a href="https://feodotracker.abuse.ch/browse/" target="_blank" style="${linkStyle}flex:1;text-align:center;color:#1E293B;border:1px solid rgba(255,255,255,0.2);background:rgba(255,255,255,0.05);">THREAT INTEL ↗</a>
         </div>
         <button onclick="window.openOsirisIntel({ type: 'ip', ip: '${p.ip}', threat_type: '${p.malware || p.threat_type || ''}', status: '${p.status || ''}' })" style="width:100%;margin-top:8px;padding:8px 12px;background:linear-gradient(90deg, rgba(255,23,68,0.1) 0%, rgba(255,23,68,0.2) 100%);border:1px solid rgba(255,23,68,0.6);color:#FF1744;font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:bold;letter-spacing:0.15em;border-radius:4px;cursor:pointer;transition:all 0.2s;">DEEP DIVE ANALYTICS</button>
       </div>`);
@@ -1241,14 +1293,14 @@ map.addSource('mitre-nodes', { type: 'geojson', data: EMPTY_FC });
       popup(coords, `<div style="${pStyle}border:1px solid ${dotColor}40;box-shadow:inset 0 0 12px ${dotColor}15;">
         <div style="display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid ${dotColor}40;padding-bottom:6px;margin-bottom:8px;">
           <div style="color:${dotColor};font-size:12px;font-weight:700;letter-spacing:0.1em;text-shadow:0 0 4px ${dotColor}50;">[ ${tType} ]</div>
-          <div style="color:#5C5A54;font-size:9px;">${p.country || 'UNKNOWN'}</div>
+          <div style="color:#6F8092;font-size:9px;">${p.country || 'UNKNOWN'}</div>
         </div>
-        <div style="color:#E8E6E0;font-size:11px;font-weight:bold;margin-bottom:10px;">${p.malware || 'Threat'}</div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:9px;margin-bottom:12px;background:rgba(0,0,0,0.3);padding:6px;border-radius:4px;">
-          <div><span style="color:#5C5A54;">IP</span><br/><span style="color:#00E5FF;font-family:monospace;">${p.ip}</span></div>
-          <div><span style="color:#5C5A54;">STATUS</span><br/><span style="color:#39FF14;">ACTIVE</span></div>
+        <div style="color:#1E293B;font-size:11px;font-weight:bold;margin-bottom:10px;">${p.malware || 'Threat'}</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:9px;margin-bottom:12px;background:rgba(60,64,67,0.06);padding:6px;border-radius:4px;">
+          <div><span style="color:#6F8092;">IP</span><br/><span style="color:#1A73E8;font-family:monospace;">${p.ip}</span></div>
+          <div><span style="color:#6F8092;">STATUS</span><br/><span style="color:#39FF14;">ACTIVE</span></div>
         </div>
-        ${p.url ? `<div style="font-size:9px;margin-bottom:8px;word-break:break-all;"><span style="color:#5C5A54;">URL</span><br/><span style="color:#E8E6E0;">${p.url}</span></div>` : ''}
+        ${p.url ? `<div style="font-size:9px;margin-bottom:8px;word-break:break-all;"><span style="color:#6F8092;">URL</span><br/><span style="color:#1E293B;">${p.url}</span></div>` : ''}
         <button onclick="window.openOsirisIntel({ type: 'ip', ip: '${p.ip}', threat_type: '${p.threat_type || ''}', status: 'active' })" style="width:100%;margin-top:8px;padding:8px 12px;background:linear-gradient(90deg, ${dotColor}15 0%, ${dotColor}25 100%);border:1px solid ${dotColor}80;color:${dotColor};font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:bold;letter-spacing:0.15em;border-radius:4px;cursor:pointer;transition:all 0.2s;">DEEP DIVE ANALYTICS</button>
       </div>`);
     });
@@ -1261,13 +1313,13 @@ map.addSource('mitre-nodes', { type: 'geojson', data: EMPTY_FC });
       popup(coords, `<div style="${pStyle}border:1px solid #FF910040;box-shadow:inset 0 0 12px #FF910015;">
         <div style="display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid #FF910040;padding-bottom:6px;margin-bottom:8px;">
           <div style="color:#FF9100;font-size:12px;font-weight:700;letter-spacing:0.1em;text-shadow:0 0 4px #FF910050;">[ SPAMHAUS DROP ]</div>
-          <div style="color:#5C5A54;font-size:9px;">${p.country || 'UNKNOWN'}</div>
+          <div style="color:#6F8092;font-size:9px;">${p.country || 'UNKNOWN'}</div>
         </div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:9px;margin-bottom:12px;background:rgba(0,0,0,0.3);padding:6px;border-radius:4px;">
-          <div><span style="color:#5C5A54;">CIDR</span><br/><span style="color:#00E5FF;font-family:monospace;">${p.cidr}</span></div>
-          <div><span style="color:#5C5A54;">SAMPLE IP</span><br/><span style="color:#39FF14;font-family:monospace;">${p.ip}</span></div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:9px;margin-bottom:12px;background:rgba(60,64,67,0.06);padding:6px;border-radius:4px;">
+          <div><span style="color:#6F8092;">CIDR</span><br/><span style="color:#1A73E8;font-family:monospace;">${p.cidr}</span></div>
+          <div><span style="color:#6F8092;">SAMPLE IP</span><br/><span style="color:#39FF14;font-family:monospace;">${p.ip}</span></div>
         </div>
-        <div style="font-size:9px;color:#5C5A54;">Hostile network block tracked by Spamhaus DROP project</div>
+        <div style="font-size:9px;color:#6F8092;">Hostile network block tracked by Spamhaus DROP project</div>
         <button onclick="window.openOsirisIntel({ type: 'ip', ip: '${p.ip}', threat_type: 'bgp_route', status: 'blocked' })" style="width:100%;margin-top:8px;padding:8px 12px;background:linear-gradient(90deg,#FF910015 0%,#FF910025 100%);border:1px solid #FF910080;color:#FF9100;font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:bold;letter-spacing:0.15em;border-radius:4px;cursor:pointer;transition:all 0.2s;">DEEP DIVE ANALYTICS</button>
       </div>`);
     });
@@ -1277,17 +1329,17 @@ map.addSource('mitre-nodes', { type: 'geojson', data: EMPTY_FC });
       if (!e.features?.length) return;
       const p = e.features[0].properties as any;
       const coords = (e.features[0].geometry as any).coordinates;
-      popup(coords, `<div style="${pStyle}border:1px solid #7C4DFF40;box-shadow:inset 0 0 12px #7C4DFF15;">
-        <div style="display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid #7C4DFF40;padding-bottom:6px;margin-bottom:8px;">
-          <div style="color:#7C4DFF;font-size:12px;font-weight:700;letter-spacing:0.1em;text-shadow:0 0 4px #7C4DFF50;">[ TOR EXIT NODE ]</div>
-          <div style="color:#5C5A54;font-size:9px;">${p.country || 'UNKNOWN'}</div>
+      popup(coords, `<div style="${pStyle}border:1px solid #6D28D940;box-shadow:inset 0 0 12px #6D28D915;">
+        <div style="display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid #6D28D940;padding-bottom:6px;margin-bottom:8px;">
+          <div style="color:#6D28D9;font-size:12px;font-weight:700;letter-spacing:0.1em;text-shadow:0 0 4px #6D28D950;">[ TOR EXIT NODE ]</div>
+          <div style="color:#6F8092;font-size:9px;">${p.country || 'UNKNOWN'}</div>
         </div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:9px;margin-bottom:12px;background:rgba(0,0,0,0.3);padding:6px;border-radius:4px;">
-          <div><span style="color:#5C5A54;">IP</span><br/><span style="color:#00E5FF;font-family:monospace;">${p.ip}</span></div>
-          <div><span style="color:#5C5A54;">NETWORK</span><br/><span style="color:#39FF14;font-family:monospace;">TOR</span></div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:9px;margin-bottom:12px;background:rgba(60,64,67,0.06);padding:6px;border-radius:4px;">
+          <div><span style="color:#6F8092;">IP</span><br/><span style="color:#1A73E8;font-family:monospace;">${p.ip}</span></div>
+          <div><span style="color:#6F8092;">NETWORK</span><br/><span style="color:#39FF14;font-family:monospace;">TOR</span></div>
         </div>
-        <div style="font-size:9px;color:#5C5A54;">This IP is a known Tor exit relay — traffic originates from the Tor anonymity network</div>
-        <button onclick="window.openOsirisIntel({ type: 'ip', ip: '${p.ip}', threat_type: 'tor_exit', status: 'active' })" style="width:100%;margin-top:8px;padding:8px 12px;background:linear-gradient(90deg,#7C4DFF15 0%,#7C4DFF25 100%);border:1px solid #7C4DFF80;color:#7C4DFF;font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:bold;letter-spacing:0.15em;border-radius:4px;cursor:pointer;transition:all 0.2s;">DEEP DIVE ANALYTICS</button>
+        <div style="font-size:9px;color:#6F8092;">This IP is a known Tor exit relay — traffic originates from the Tor anonymity network</div>
+        <button onclick="window.openOsirisIntel({ type: 'ip', ip: '${p.ip}', threat_type: 'tor_exit', status: 'active' })" style="width:100%;margin-top:8px;padding:8px 12px;background:linear-gradient(90deg,#6D28D915 0%,#6D28D925 100%);border:1px solid #6D28D980;color:#6D28D9;font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:bold;letter-spacing:0.15em;border-radius:4px;cursor:pointer;transition:all 0.2s;">DEEP DIVE ANALYTICS</button>
       </div>`);
     });
 
@@ -1296,16 +1348,16 @@ map.addSource('mitre-nodes', { type: 'geojson', data: EMPTY_FC });
       if (!e.features?.length) return;
       const p = e.features[0].properties as any;
       const coords = (e.features[0].geometry as any).coordinates;
-      const cveColor = p.cvss >= 9 ? '#FF1744' : p.cvss >= 7 ? '#FF6D00' : p.cvss >= 4 ? '#FF9100' : '#00E5FF';
+      const cveColor = p.cvss >= 9 ? '#FF1744' : p.cvss >= 7 ? '#FF6D00' : p.cvss >= 4 ? '#FF9100' : '#1A73E8';
       popup(coords, `<div style="${pStyle}border:1px solid ${cveColor}40;box-shadow:inset 0 0 12px ${cveColor}15;">
         <div style="display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid ${cveColor}40;padding-bottom:6px;margin-bottom:8px;">
           <div style="color:${cveColor};font-size:12px;font-weight:700;letter-spacing:0.1em;text-shadow:0 0 4px ${cveColor}50;">[ ${p.title} ]</div>
-          <div style="color:#5C5A54;font-size:9px;">CVSS ${p.cvss}</div>
+          <div style="color:#6F8092;font-size:9px;">CVSS ${p.cvss}</div>
         </div>
-        <div style="font-size:10px;color:#E8E6E0;margin-bottom:10px;line-height:1.4;">${p.summary || 'No description available'}</div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:9px;margin-bottom:12px;background:rgba(0,0,0,0.3);padding:6px;border-radius:4px;">
-          <div><span style="color:#5C5A54;">SEVERITY</span><br/><span style="color:${cveColor};font-weight:bold;">${p.severity}</span></div>
-          <div><span style="color:#5C5A54;">VENDORS</span><br/><span style="color:#39FF14;">${p.vendors || 'N/A'}</span></div>
+        <div style="font-size:10px;color:#1E293B;margin-bottom:10px;line-height:1.4;">${p.summary || 'No description available'}</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:9px;margin-bottom:12px;background:rgba(60,64,67,0.06);padding:6px;border-radius:4px;">
+          <div><span style="color:#6F8092;">SEVERITY</span><br/><span style="color:${cveColor};font-weight:bold;">${p.severity}</span></div>
+          <div><span style="color:#6F8092;">VENDORS</span><br/><span style="color:#39FF14;">${p.vendors || 'N/A'}</span></div>
         </div>
         <button onclick="window.openOsirisIntel({ type: 'cve', id: '${p.title}', cvss: ${p.cvss}, severity: '${p.severity}' })" style="width:100%;margin-top:8px;padding:8px 12px;background:linear-gradient(90deg,${cveColor}15 0%,${cveColor}25 100%);border:1px solid ${cveColor}80;color:${cveColor};font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:bold;letter-spacing:0.15em;border-radius:4px;cursor:pointer;transition:all 0.2s;">DEEP DIVE ANALYTICS</button>
       </div>`);
@@ -1324,8 +1376,8 @@ map.addSource('mitre-nodes', { type: 'geojson', data: EMPTY_FC });
         const desc = techDescs[i] || '';
         return `<div style="background:rgba(0,230,118,0.06);border-left:2px solid #00E67660;padding:4px 6px;margin-bottom:4px;border-radius:0 3px 3px 0;">
           <div style="display:flex;gap:6px;align-items:baseline;">
-            <span style="color:#00E5FF;font-family:monospace;font-size:8px;font-weight:700;">${id}</span>
-            <span style="color:#E8E6E0;font-size:9px;font-weight:600;">${name}</span>
+            <span style="color:#1A73E8;font-family:monospace;font-size:8px;font-weight:700;">${id}</span>
+            <span style="color:#1E293B;font-size:9px;font-weight:600;">${name}</span>
           </div>
           ${desc ? `<div style="color:#8A8A84;font-size:8px;margin-top:2px;line-height:1.4;">${desc}</div>` : ''}
         </div>`;
@@ -1333,13 +1385,13 @@ map.addSource('mitre-nodes', { type: 'geojson', data: EMPTY_FC });
       popup(coords, `<div style="${pStyle}border:1px solid #00E67640;box-shadow:inset 0 0 12px #00E67615;max-width:280px;">
         <div style="display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid #00E67640;padding-bottom:6px;margin-bottom:8px;">
           <div style="color:#00E676;font-size:12px;font-weight:700;letter-spacing:0.1em;text-shadow:0 0 4px #00E67650;">[ ${p.name} ]</div>
-          <div style="color:#5C5A54;font-size:9px;">${p.country || 'UNKNOWN'}</div>
+          <div style="color:#6F8092;font-size:9px;">${p.country || 'UNKNOWN'}</div>
         </div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:9px;margin-bottom:10px;background:rgba(0,0,0,0.3);padding:6px;border-radius:4px;">
-          <div><span style="color:#5C5A54;">GROUP ID</span><br/><span style="color:#00E5FF;font-family:monospace;">${p.group_id}</span></div>
-          <div><span style="color:#5C5A54;">COUNTRY</span><br/><span style="color:#39FF14;">${p.country}</span></div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:9px;margin-bottom:10px;background:rgba(60,64,67,0.06);padding:6px;border-radius:4px;">
+          <div><span style="color:#6F8092;">GROUP ID</span><br/><span style="color:#1A73E8;font-family:monospace;">${p.group_id}</span></div>
+          <div><span style="color:#6F8092;">COUNTRY</span><br/><span style="color:#39FF14;">${p.country}</span></div>
         </div>
-        <div style="font-size:8px;color:#5C5A54;text-transform:uppercase;letter-spacing:0.12em;margin-bottom:4px;">TECHNIQUES (${techIds.length})</div>
+        <div style="font-size:8px;color:#6F8092;text-transform:uppercase;letter-spacing:0.12em;margin-bottom:4px;">TECHNIQUES (${techIds.length})</div>
         ${techRows}
         <div style="border-top:1px solid #00E67620;margin-top:8px;padding-top:6px;">
           <button onclick="window.openOsirisIntel({ type: 'apt', group: '${p.name}', group_id: '${p.group_id}', country: '${p.country}', techniques: '${p.techniques || ''}' })" style="width:100%;padding:7px 12px;background:linear-gradient(90deg,#00E67615 0%,#00E67625 100%);border:1px solid #00E67680;color:#00E676;font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:bold;letter-spacing:0.15em;border-radius:4px;cursor:pointer;">DEEP DIVE ANALYTICS</button>
@@ -1371,17 +1423,17 @@ map.addSource('mitre-nodes', { type: 'geojson', data: EMPTY_FC });
       popup(coords, `<div style="${pStyle}border:1px solid rgba(255,61,61,0.3);">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
           <div style="color:#FF3D3D;font-size:12px;font-weight:700;">⚠️ ${catLabel}</div>
-          ${p.source ? `<div style="color:#5C5A54;font-size:8px;letter-spacing:0.1em;">${p.source}</div>` : ''}
+          ${p.source ? `<div style="color:#6F8092;font-size:8px;letter-spacing:0.1em;">${p.source}</div>` : ''}
         </div>
-        <div style="font-size:9px;color:#E8E6E0;margin-bottom:8px;line-height:1.4;">${p.name||'Unclassified incident'}</div>
+        <div style="font-size:9px;color:#1E293B;margin-bottom:8px;line-height:1.4;">${p.name||'Unclassified incident'}</div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;font-size:9px;margin-bottom:6px;">
           ${p.source === 'ACLED'
-            ? `<div><span style="color:#5C5A54;">FATALITIES</span><br/><span style="color:#FF1744;font-weight:700;">${p.fatalities ?? 0}</span></div>
-               <div><span style="color:#5C5A54;">DATE</span><br/><span style="color:#E8E6E0;">${p.date||'—'}</span></div>
-               ${p.actors ? `<div style="grid-column:1/3;"><span style="color:#5C5A54;">ACTORS</span><br/><span style="color:#FFB74D;">${p.actors}</span></div>` : ''}
-               <div style="grid-column:1/3;"><span style="color:#5C5A54;">LOCATION</span><br/><span style="color:#E8E6E0;">${p.country || ''} · ${coords[1].toFixed(2)}°, ${coords[0].toFixed(2)}°</span></div>`
-            : `<div><span style="color:#5C5A54;">REPORTS</span><br/><span style="color:#FF8A80;">${p.count||1}</span></div>
-               <div><span style="color:#5C5A54;">COORDS</span><br/><span style="color:#E8E6E0;">${coords[1].toFixed(2)}°, ${coords[0].toFixed(2)}°</span></div>`}
+            ? `<div><span style="color:#6F8092;">FATALITIES</span><br/><span style="color:#FF1744;font-weight:700;">${p.fatalities ?? 0}</span></div>
+               <div><span style="color:#6F8092;">DATE</span><br/><span style="color:#1E293B;">${p.date||'—'}</span></div>
+               ${p.actors ? `<div style="grid-column:1/3;"><span style="color:#6F8092;">ACTORS</span><br/><span style="color:#FFB74D;">${p.actors}</span></div>` : ''}
+               <div style="grid-column:1/3;"><span style="color:#6F8092;">LOCATION</span><br/><span style="color:#1E293B;">${p.country || ''} · ${coords[1].toFixed(2)}°, ${coords[0].toFixed(2)}°</span></div>`
+            : `<div><span style="color:#6F8092;">REPORTS</span><br/><span style="color:#FF8A80;">${p.count||1}</span></div>
+               <div><span style="color:#6F8092;">COORDS</span><br/><span style="color:#1E293B;">${coords[1].toFixed(2)}°, ${coords[0].toFixed(2)}°</span></div>`}
         </div>
         <a href="${sourceUrl}" target="_blank" style="${linkStyle}flex:1;text-align:center;color:#FF3D3D;border:1px solid rgba(255,61,61,0.4);background:rgba(255,61,61,0.15);display:inline-block;width:100%;box-sizing:border-box;margin-top:4px;">[ ${p.source === 'ACLED' ? 'ACLED RECORD' : isLiveua ? 'LIVEUAMAP' : 'OPEN SOURCE'} ↗ ]</a>
       </div>`);
@@ -1395,52 +1447,18 @@ map.addSource('mitre-nodes', { type: 'geojson', data: EMPTY_FC });
       const color = p.severity === 'war' ? '#FF1744' : p.severity === 'high' ? '#FF9500' : '#FFD500';
       popup(coords, `<div style="${pStyle}border:1px solid ${color}40;">
         <div style="color:${color};font-size:12px;font-weight:700;margin-bottom:6px;">⚠️ ${p.label || 'WARNING EVENT'}</div>
-        <div style="font-size:10px;color:#E8E6E0;margin-bottom:8px;line-height:1.4;">${p.description || 'Global event detected at this location.'}</div>
+        <div style="font-size:10px;color:#1E293B;margin-bottom:8px;line-height:1.4;">${p.description || 'Global event detected at this location.'}</div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;font-size:9px;margin-bottom:8px;">
-          <div><span style="color:#5C5A54;">SEVERITY</span><br/><span style="color:${color};">${(p.severity||'unknown').toUpperCase()}</span></div>
-          <div><span style="color:#5C5A54;">COORDS</span><br/><span style="color:#E8E6E0;">${coords[1].toFixed(3)}°, ${coords[0].toFixed(3)}°</span></div>
+          <div><span style="color:#6F8092;">SEVERITY</span><br/><span style="color:${color};">${(p.severity||'unknown').toUpperCase()}</span></div>
+          <div><span style="color:#6F8092;">COORDS</span><br/><span style="color:#1E293B;">${coords[1].toFixed(3)}°, ${coords[0].toFixed(3)}°</span></div>
         </div>
         ${p.sourceUrl ? `<a href="${p.sourceUrl}" target="_blank" style="${linkStyle}flex:1;text-align:center;color:${color};border:1px solid ${color}40;background:${color}15;display:inline-block;width:100%;box-sizing:border-box;margin-top:4px;">[ OPEN SOURCE ↗ ]</a>` : ''}
       </div>`);
     });
 
 
-    // ── OSIRIS SDK link click ──
-    const SDK_SOURCE_URLS: Record<string, string> = {
-      'AIS Maritime': 'https://www.marinetraffic.com',
-      'AIS Stream': 'https://aisstream.io',
-      'AIS → Lattice': 'https://aisstream.io',
-      'ADS-B / OpenSky': 'https://opensky-network.org',
-      'ADS-B → Lattice': 'https://opensky-network.org',
-      'Naval Intelligence': 'https://www.odni.gov',
-    };
-    ['sdk-sea','sdk-sea-glow','sdk-air','sdk-air-glow','sdk-intel','sdk-intel-glow'].forEach(layer => {
-      map.on('click', layer, e => {
-        if (!e.features?.length) return;
-        const p = e.features[0].properties as any;
-        const coords = e.lngLat;
-        const srcUrl = p.url || SDK_SOURCE_URLS[p.source] || 'https://osirisai.live';
-        const domainLabel = p.domain === 'SEA' ? '⚓ MARITIME' : p.domain === 'AIR' ? '✈ AIR CORRIDOR' : '🛡 NAVAL INTEL';
-        const domainColor = p.domain === 'SEA' ? '#4FC3F7' : p.domain === 'AIR' ? '#B3E5FC' : '#81D4FA';
-        const linkStyle = 'text-decoration:none;padding:3px 8px;border-radius:4px;font-size:9px;font-weight:700;letter-spacing:0.05em;';
-        popup([coords.lng, coords.lat], `<div style="${pStyle}border:1px solid ${domainColor}40;">
-          <div style="display:flex;align-items:center;gap:6px;margin-bottom:8px;">
-            <div style="width:8px;height:8px;border-radius:50%;background:${domainColor};box-shadow:0 0 8px ${domainColor};"></div>
-            <span style="color:${domainColor};font-size:11px;font-weight:700;letter-spacing:0.1em;">${domainLabel}</span>
-          </div>
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:9px;margin-bottom:8px;">
-            <div><span style="color:#5C5A54;">FROM</span><br/><span style="color:#E8E6E0;">${p.fromName || 'Origin'}</span></div>
-            <div><span style="color:#5C5A54;">TO</span><br/><span style="color:#E8E6E0;">${p.toName || 'Destination'}</span></div>
-            <div><span style="color:#5C5A54;">DOMAIN</span><br/><span style="color:${domainColor};">${p.domain}</span></div>
-            <div><span style="color:#5C5A54;">SOURCE</span><br/><a href="${srcUrl}" target="_blank" style="color:${domainColor};text-decoration:underline;cursor:pointer;">${p.source || 'OSIRIS'}</a></div>
-          </div>
-          <a href="${srcUrl}" target="_blank" style="${linkStyle}color:${domainColor};border:1px solid ${domainColor}40;background:${domainColor}18;display:inline-block;margin-top:4px;">OPEN SOURCE ↗</a>
-        </div>`);
-      });
-    });
-
     // ── Generic hover for clickables ──
-    ['conflict-icons','cctv-dots','eq-circles','sat-dots','sat-label','fires-heat','gdelt-dots','weather-dots','infra-dots','maritime-dots','choke-dots','news-dots','sigint-news-dots','balloon-dots','rad-dots','ship-dots','sweep-device-dots','scan-targets-dots','sdk-sea','sdk-sea-glow','sdk-sea-atmo','sdk-air','sdk-air-glow','sdk-air-atmo','sdk-intel','sdk-intel-glow','sdk-intel-atmo','malware-dots','ransomware-dots','power-plants-dots','cables-line','cable-landing-points-dots'].forEach(layer => {
+    ['conflict-icons','cctv-dots','eq-circles','sat-dots','sat-label','fires-heat','gdelt-dots','weather-dots','infra-dots','maritime-dots','choke-dots','news-dots','sigint-news-dots','balloon-dots','rad-dots','ship-dots','sweep-device-dots','scan-targets-dots','malware-dots','ransomware-dots','power-plants-dots','cables-line','cable-landing-points-dots'].forEach(layer => {
       map.on('mouseenter', layer, () => { map.getCanvas().style.cursor = 'pointer'; });
       map.on('mouseleave', layer, () => { map.getCanvas().style.cursor = ''; });
     });
@@ -1452,10 +1470,10 @@ map.addSource('mitre-nodes', { type: 'geojson', data: EMPTY_FC });
       const coords = e.features[0].geometry.coordinates.slice();
       popup(coords, `<div style="${pStyle}border:1px solid rgba(255,61,61,0.5);">
         <div style="color:#FF3D3D;font-size:12px;font-weight:700;margin-bottom:6px;">🎯 TARGET: ${p.id}</div>
-        <div style="font-size:9px;color:#E8E6E0;margin-bottom:8px;">${p.city || 'Unknown'}, ${p.country || 'Unknown'} — ${p.isp || 'Unknown ISP'}</div>
+        <div style="font-size:9px;color:#1E293B;margin-bottom:8px;">${p.city || 'Unknown'}, ${p.country || 'Unknown'} — ${p.isp || 'Unknown ISP'}</div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;font-size:9px;">
-          <div><span style="color:#5C5A54;">TYPE</span><br/><span style="color:#00E5FF;">${(p.type || 'UNKNOWN').toUpperCase()}</span></div>
-          <div><span style="color:#5C5A54;">COORDS</span><br/><span style="color:#E8E6E0;">${coords[1].toFixed(3)}°, ${coords[0].toFixed(3)}°</span></div>
+          <div><span style="color:#6F8092;">TYPE</span><br/><span style="color:#1A73E8;">${(p.type || 'UNKNOWN').toUpperCase()}</span></div>
+          <div><span style="color:#6F8092;">COORDS</span><br/><span style="color:#1E293B;">${coords[1].toFixed(3)}°, ${coords[0].toFixed(3)}°</span></div>
         </div>
         <button onclick="window.openOsirisIntel({ type: 'ip', ip: '${p.id}' })" style="width:100%;margin-top:8px;padding:6px 12px;background:rgba(255,109,0,0.15);border:1px solid rgba(255,109,0,0.5);color:#FF6D00;font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:bold;letter-spacing:0.1em;border-radius:4px;cursor:pointer;">[ IP INTEL DEEP DIVE ]</button>
       </div>`);
@@ -1478,9 +1496,9 @@ map.addSource('mitre-nodes', { type: 'geojson', data: EMPTY_FC });
 
       popup(coords, `<div style="${pStyle}border:1px solid ${color}40;">
         <div style="color:${color};font-size:12px;font-weight:700;margin-bottom:4px;">🏢 ${p.name}</div>
-        <div style="font-size:9px;color:#aaa;margin-bottom:8px;">${p.category} | ${p.city}, ${p.country}</div>
+        <div style="font-size:9px;color:#5F6368;margin-bottom:8px;">${p.category} | ${p.city}, ${p.country}</div>
         <div style="display:grid;grid-template-columns:1fr;gap:4px;font-size:11px;">
-          <div><span style="color:#5C5A54;font-size:9px;">SCM RISK LEVEL</span><br/><span style="color:${color};font-weight:bold;">${p.risk_level}</span></div>
+          <div><span style="color:#6F8092;font-size:9px;">SCM RISK LEVEL</span><br/><span style="color:${color};font-weight:bold;">${p.risk_level}</span></div>
         </div>
         ${threatsHtml}
       </div>`);
@@ -1494,14 +1512,14 @@ map.addSource('mitre-nodes', { type: 'geojson', data: EMPTY_FC });
       const ports = JSON.parse(p.ports || '[]');
       const vulns = JSON.parse(p.vulns || '[]');
       const hostnames = JSON.parse(p.hostnames || '[]');
-      const riskColors: Record<string, string> = { CRITICAL: '#FF3D3D', HIGH: '#FF6B00', MEDIUM: '#FFD700', LOW: '#76FF03', INFO: '#5C5A54' };
-      popup(coords, `<div style="font-family:monospace;font-size:11px;color:#E8E6E0;">
+      const riskColors: Record<string, string> = { CRITICAL: '#FF3D3D', HIGH: '#FF6B00', MEDIUM: '#FFD700', LOW: '#76FF03', INFO: '#6F8092' };
+      popup(coords, `<div style="font-family:monospace;font-size:11px;color:#1E293B;">
         <div style="font-size:13px;font-weight:bold;margin-bottom:6px;color:${p.color};">${p.device_type}</div>
-        <div style="font-size:12px;margin-bottom:8px;color:#fff;">${p.ip}</div>
+        <div style="font-size:12px;margin-bottom:8px;color:#202124;">${p.ip}</div>
         ${hostnames.length > 0 ? `<div style="font-size:9px;color:#8A8880;margin-bottom:6px;">${hostnames.join(', ')}</div>` : ''}
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:8px;">
-          <div><span style="color:#5C5A54;">PORTS</span><br/><span style="color:#E8E6E0;">${ports.length}</span></div>
-          <div><span style="color:#5C5A54;">RISK</span><br/><span style="color:${riskColors[p.risk_level] || '#666'};">${p.risk_level}</span></div>
+          <div><span style="color:#6F8092;">PORTS</span><br/><span style="color:#1E293B;">${ports.length}</span></div>
+          <div><span style="color:#6F8092;">RISK</span><br/><span style="color:${riskColors[p.risk_level] || '#666'};">${p.risk_level}</span></div>
         </div>
         <div style="font-size:9px;color:#8A8880;margin-bottom:6px;">Open: ${ports.slice(0, 12).join(', ')}${ports.length > 12 ? ' ...' : ''}</div>
         ${vulns.length > 0 ? `<div style="font-size:9px;color:#FF3D3D;margin-bottom:6px;">⚠ CVEs: ${vulns.slice(0, 5).join(', ')}${vulns.length > 5 ? ` +${vulns.length - 5} more` : ''}</div>` : ''}
@@ -1516,12 +1534,12 @@ map.addSource('mitre-nodes', { type: 'geojson', data: EMPTY_FC });
       const coords = (e.features[0].geometry as any).coordinates;
       popup(coords, `<div style="${pStyle}border:1px solid ${p.color}40;">
         <div style="color:${p.color};font-size:12px;font-weight:700;letter-spacing:0.1em;margin-bottom:4px;">🎈 ${p.callsign}</div>
-        <div style="font-size:9px;color:#aaa;margin-bottom:8px;">${p.type.toUpperCase()} / STATUS: ${p.status.toUpperCase()}</div>
+        <div style="font-size:9px;color:#5F6368;margin-bottom:8px;">${p.type.toUpperCase()} / STATUS: ${p.status.toUpperCase()}</div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;font-size:9px;">
-          <div><span style="color:#5C5A54;">ALTITUDE</span><br/><span style="color:#E8E6E0;">${p.altitude} m</span></div>
-          <div><span style="color:#5C5A54;">SPEED</span><br/><span style="color:#E8E6E0;">${Math.round(p.speed)} km/h</span></div>
-          <div><span style="color:#5C5A54;">VERT RATE</span><br/><span style="color:${p.verticalRate > 0 ? '#00E676' : '#FF3D3D'};">${p.verticalRate.toFixed(1)} m/s</span></div>
-          <div><span style="color:#5C5A54;">TEMP</span><br/><span style="color:#E8E6E0;">${p.temperature}°C</span></div>
+          <div><span style="color:#6F8092;">ALTITUDE</span><br/><span style="color:#1E293B;">${p.altitude} m</span></div>
+          <div><span style="color:#6F8092;">SPEED</span><br/><span style="color:#1E293B;">${Math.round(p.speed)} km/h</span></div>
+          <div><span style="color:#6F8092;">VERT RATE</span><br/><span style="color:${p.verticalRate > 0 ? '#00E676' : '#FF3D3D'};">${p.verticalRate.toFixed(1)} m/s</span></div>
+          <div><span style="color:#6F8092;">TEMP</span><br/><span style="color:#1E293B;">${p.temperature}°C</span></div>
         </div>
       </div>`);
     });
@@ -1534,11 +1552,11 @@ map.addSource('mitre-nodes', { type: 'geojson', data: EMPTY_FC });
       const color = p.status === 'DANGER' ? '#FF1744' : p.status === 'WARNING' ? '#FF9500' : '#AB47BC';
       popup(coords, `<div style="${pStyle}border:1px solid ${color}40;">
         <div style="color:${color};font-size:12px;font-weight:700;margin-bottom:4px;">☢️ ${p.name}</div>
-        <div style="font-size:9px;color:#aaa;margin-bottom:8px;">${p.city}, ${p.country}</div>
+        <div style="font-size:9px;color:#5F6368;margin-bottom:8px;">${p.city}, ${p.country}</div>
         <div style="display:grid;grid-template-columns:1fr;gap:4px;font-size:11px;">
-          <div><span style="color:#5C5A54;font-size:9px;">READING</span><br/><span style="color:${color};font-weight:bold;">${p.reading} nSv/h</span></div>
-          <div><span style="color:#5C5A54;font-size:9px;">STATUS</span><br/><span style="color:${color};">${p.status}</span></div>
-          <div><span style="color:#5C5A54;font-size:9px;">NETWORK</span><br/><span style="color:#E8E6E0;">${p.network}</span></div>
+          <div><span style="color:#6F8092;font-size:9px;">READING</span><br/><span style="color:${color};font-weight:bold;">${p.reading} nSv/h</span></div>
+          <div><span style="color:#6F8092;font-size:9px;">STATUS</span><br/><span style="color:${color};">${p.status}</span></div>
+          <div><span style="color:#6F8092;font-size:9px;">NETWORK</span><br/><span style="color:#1E293B;">${p.network}</span></div>
         </div>
       </div>`);
     });
@@ -1548,22 +1566,22 @@ map.addSource('mitre-nodes', { type: 'geojson', data: EMPTY_FC });
       if (!e.features?.length) return;
       const p = e.features[0].properties as any;
       const coords = (e.features[0].geometry as any).coordinates;
-      const color = p.type === 'military' ? '#FF1744' : p.type === 'tanker' ? '#FF9500' : '#00E5FF';
+      const color = p.type === 'military' ? '#FF1744' : p.type === 'tanker' ? '#FF9500' : '#1A73E8';
       const icon = p.type === 'military' ? '⚔️' : p.type === 'tanker' ? '🛢️' : '🚢';
       
       popup(coords, `<div style="${pStyle}border:1px solid ${color}60;box-shadow:inset 0 0 12px ${color}15;">
         <div style="display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid ${color}40;padding-bottom:6px;margin-bottom:8px;">
           <div style="color:${color};font-size:12px;font-weight:700;letter-spacing:0.1em;">${icon} [ ${(p.type||'VESSEL').toUpperCase()} ]</div>
-          <div style="color:#5C5A54;font-size:9px;">FLAG: ${p.flag||'UNK'}</div>
+          <div style="color:#6F8092;font-size:9px;">FLAG: ${p.flag||'UNK'}</div>
         </div>
-        <div style="color:#E8E6E0;font-size:11px;font-weight:bold;margin-bottom:10px;">${p.name || 'UNIDENTIFIED VESSEL'}</div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:9px;margin-bottom:8px;background:rgba(0,0,0,0.3);padding:6px;border-radius:4px;">
-          <div><span style="color:#5C5A54;">SPEED</span><br/><span style="color:${color};font-family:monospace;">${Number(p.speed).toFixed(1)} kn</span></div>
-          <div><span style="color:#5C5A54;">HEADING</span><br/><span style="color:${color};font-family:monospace;">${Number(p.heading).toFixed(0)}°</span></div>
-          <div><span style="color:#5C5A54;">LATITUDE</span><br/><span style="color:#E8E6E0;font-family:monospace;">${coords[1].toFixed(4)}°</span></div>
-          <div><span style="color:#5C5A54;">LONGITUDE</span><br/><span style="color:#E8E6E0;font-family:monospace;">${coords[0].toFixed(4)}°</span></div>
+        <div style="color:#1E293B;font-size:11px;font-weight:bold;margin-bottom:10px;">${p.name || 'UNIDENTIFIED VESSEL'}</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:9px;margin-bottom:8px;background:rgba(60,64,67,0.06);padding:6px;border-radius:4px;">
+          <div><span style="color:#6F8092;">SPEED</span><br/><span style="color:${color};font-family:monospace;">${Number(p.speed).toFixed(1)} kn</span></div>
+          <div><span style="color:#6F8092;">HEADING</span><br/><span style="color:${color};font-family:monospace;">${Number(p.heading).toFixed(0)}°</span></div>
+          <div><span style="color:#6F8092;">LATITUDE</span><br/><span style="color:#1E293B;font-family:monospace;">${coords[1].toFixed(4)}°</span></div>
+          <div><span style="color:#6F8092;">LONGITUDE</span><br/><span style="color:#1E293B;font-family:monospace;">${coords[0].toFixed(4)}°</span></div>
         </div>
-        <div><span style="color:#5C5A54;font-size:9px;">DESTINATION: </span><span style="color:#E8E6E0;font-size:9px;">${p.destination || 'UNKNOWN'}</span></div>
+        <div><span style="color:#6F8092;font-size:9px;">DESTINATION: </span><span style="color:#1E293B;font-size:9px;">${p.destination || 'UNKNOWN'}</span></div>
         <a href="https://www.marinetraffic.com/en/ais/details/ships/mmsi:${p.mmsi}" target="_blank" style="${linkStyle}flex:1;text-align:center;color:${color};border:1px solid ${color}40;background:${color}15;display:inline-block;width:100%;box-sizing:border-box;margin-top:4px;">[ OPEN SOURCE ↗ ]</a>
       </div>`);
     });
@@ -1577,15 +1595,15 @@ map.addSource('mitre-nodes', { type: 'geojson', data: EMPTY_FC });
       const sevColor = p.severity === 'high' ? '#FF1744' : p.severity === 'medium' ? '#FF9500' : '#FFD700';
       popup(coords, `<div style="${pStyle}border:1px solid rgba(224,64,251,0.3);">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
-          <div style="color:#E040FB;font-size:14px;font-weight:700;">${iconEmoji} ${p.type || 'Weather Event'}</div>
-          ${p.provider ? `<div style="color:#5C5A54;font-size:8px;letter-spacing:0.1em;">${p.provider}</div>` : ''}
+          <div style="color:#C026D3;font-size:14px;font-weight:700;">${iconEmoji} ${p.type || 'Weather Event'}</div>
+          ${p.provider ? `<div style="color:#6F8092;font-size:8px;letter-spacing:0.1em;">${p.provider}</div>` : ''}
         </div>
-        <div style="font-size:10px;color:#E8E6E0;margin-bottom:8px;line-height:1.4;">${p.title || 'Unknown event'}</div>
+        <div style="font-size:10px;color:#1E293B;margin-bottom:8px;line-height:1.4;">${p.title || 'Unknown event'}</div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;font-size:9px;margin-bottom:8px;">
-          <div><span style="color:#5C5A54;">SEVERITY</span><br/><span style="color:${sevColor};">${(p.severity||'low').toUpperCase()}</span></div>
-          ${p.area ? `<div><span style="color:#5C5A54;">AREA</span><br/><span style="color:#E8E6E0;">${p.area}</span></div>` : `<div><span style="color:#5C5A54;">COORDS</span><br/><span style="color:#E8E6E0;">${coords[1].toFixed(2)}°, ${coords[0].toFixed(2)}°</span></div>`}
+          <div><span style="color:#6F8092;">SEVERITY</span><br/><span style="color:${sevColor};">${(p.severity||'low').toUpperCase()}</span></div>
+          ${p.area ? `<div><span style="color:#6F8092;">AREA</span><br/><span style="color:#1E293B;">${p.area}</span></div>` : `<div><span style="color:#6F8092;">COORDS</span><br/><span style="color:#1E293B;">${coords[1].toFixed(2)}°, ${coords[0].toFixed(2)}°</span></div>`}
         </div>
-        ${p.source ? `<a href="${p.source}" target="_blank" style="${linkStyle}color:#E040FB;border:1px solid rgba(224,64,251,0.4);background:rgba(224,64,251,0.1);display:inline-block;width:100%;box-sizing:border-box;text-align:center;">📡 ${p.provider || 'SOURCE'} ↗</a>` : ''}
+        ${p.source ? `<a href="${p.source}" target="_blank" style="${linkStyle}color:#C026D3;border:1px solid rgba(224,64,251,0.4);background:rgba(224,64,251,0.1);display:inline-block;width:100%;box-sizing:border-box;text-align:center;">📡 ${p.provider || 'SOURCE'} ↗</a>` : ''}
       </div>`);
     });
 
@@ -1598,12 +1616,12 @@ map.addSource('mitre-nodes', { type: 'geojson', data: EMPTY_FC });
       popup(coords, `<div style="${pStyle}border:1px solid rgba(118,255,3,0.3);">
         <div style="color:#76FF03;font-size:14px;font-weight:700;margin-bottom:4px;">☢️ ${p.name || 'Nuclear Facility'}</div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:9px;margin-bottom:8px;">
-          <div><span style="color:#5C5A54;">STATUS</span><br/><span style="color:${statusColor};">${p.status || '—'}</span></div>
-          <div><span style="color:#5C5A54;">CITY</span><br/><span style="color:#E8E6E0;">${p.city || '—'}, ${p.country || ''}</span></div>
-          <div><span style="color:#5C5A54;">REACTORS</span><br/><span style="color:#76FF03;">${p.reactors || '—'}</span></div>
-          <div><span style="color:#5C5A54;">CAPACITY</span><br/><span style="color:#E8E6E0;">${p.capacityMW ? p.capacityMW.toLocaleString() + ' MW' : '—'}</span></div>
-          <div><span style="color:#5C5A54;">OWNER</span><br/><span style="color:#E8E6E0;">${p.owner || '—'}</span></div>
-          <div><span style="color:#5C5A54;">COORDS</span><br/><span style="color:#E8E6E0;">${coords[1].toFixed(3)}°, ${coords[0].toFixed(3)}°</span></div>
+          <div><span style="color:#6F8092;">STATUS</span><br/><span style="color:${statusColor};">${p.status || '—'}</span></div>
+          <div><span style="color:#6F8092;">CITY</span><br/><span style="color:#1E293B;">${p.city || '—'}, ${p.country || ''}</span></div>
+          <div><span style="color:#6F8092;">REACTORS</span><br/><span style="color:#76FF03;">${p.reactors || '—'}</span></div>
+          <div><span style="color:#6F8092;">CAPACITY</span><br/><span style="color:#1E293B;">${p.capacityMW ? p.capacityMW.toLocaleString() + ' MW' : '—'}</span></div>
+          <div><span style="color:#6F8092;">OWNER</span><br/><span style="color:#1E293B;">${p.owner || '—'}</span></div>
+          <div><span style="color:#6F8092;">COORDS</span><br/><span style="color:#1E293B;">${coords[1].toFixed(3)}°, ${coords[0].toFixed(3)}°</span></div>
         </div>
         <a href="https://www.google.com/maps/@${coords[1]},${coords[0]},14z/data=!3m1!1e3" target="_blank" style="${linkStyle}color:#76FF03;border:1px solid rgba(118,255,3,0.4);background:rgba(118,255,3,0.1);">SATELLITE VIEW</a>
       </div>`);
@@ -1620,17 +1638,17 @@ map.addSource('mitre-nodes', { type: 'geojson', data: EMPTY_FC });
       const congestionHtml = p.congestion ? `
         <div style="margin-top:8px;padding-top:6px;border-top:1px solid rgba(255,255,255,0.1);">
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;">
-            <div><span style="color:#5C5A54;font-size:9px;">CONGESTION</span><br/><span style="color:${p.congestion === 'SEVERE' ? '#FF1744' : p.congestion === 'CONGESTED' ? '#FF9500' : '#00E676'};font-weight:bold;font-size:10px;">${p.congestion}</span></div>
-            <div><span style="color:#5C5A54;font-size:9px;">EST. DWELL TIME</span><br/><span style="color:#E8E6E0;font-weight:bold;font-size:10px;">${p.dwell_time || 'Unknown'}</span></div>
+            <div><span style="color:#6F8092;font-size:9px;">CONGESTION</span><br/><span style="color:${p.congestion === 'SEVERE' ? '#FF1744' : p.congestion === 'CONGESTED' ? '#FF9500' : '#00E676'};font-weight:bold;font-size:10px;">${p.congestion}</span></div>
+            <div><span style="color:#6F8092;font-size:9px;">EST. DWELL TIME</span><br/><span style="color:#1E293B;font-weight:bold;font-size:10px;">${p.dwell_time || 'Unknown'}</span></div>
           </div>
         </div>` : '';
 
       popup(coords, `<div style="${pStyle}border:1px solid ${typeColor}40;">
         <div style="color:${typeColor};font-weight:bold;font-size:11px;margin-bottom:4px;">${p.name}</div>
-        <div style="color:#999;font-size:9px;margin-bottom:6px;">${typeLabel} — ${p.country}</div>
-        ${p.volume ? `<div style="font-size:9px;color:#aaa;">Volume: <span style="color:${typeColor};font-weight:bold;">${p.volume}</span></div>` : ''}
-        ${p.fleet ? `<div style="font-size:9px;color:#aaa;">Fleet: <span style="color:${typeColor};font-weight:bold;">${p.fleet}</span></div>` : ''}
-        ${p.rank ? `<div style="font-size:9px;color:#aaa;">Global Rank: <span style="color:${typeColor};font-weight:bold;">#${p.rank}</span></div>` : ''}
+        <div style="color:#5F6368;font-size:9px;margin-bottom:6px;">${typeLabel} — ${p.country}</div>
+        ${p.volume ? `<div style="font-size:9px;color:#5F6368;">Volume: <span style="color:${typeColor};font-weight:bold;">${p.volume}</span></div>` : ''}
+        ${p.fleet ? `<div style="font-size:9px;color:#5F6368;">Fleet: <span style="color:${typeColor};font-weight:bold;">${p.fleet}</span></div>` : ''}
+        ${p.rank ? `<div style="font-size:9px;color:#5F6368;">Global Rank: <span style="color:${typeColor};font-weight:bold;">#${p.rank}</span></div>` : ''}
         ${congestionHtml}
       </div>`);
     });
@@ -1643,8 +1661,8 @@ map.addSource('mitre-nodes', { type: 'geojson', data: EMPTY_FC });
       const riskCol = p.risk === 'CRITICAL' ? '#FF1744' : p.risk === 'HIGH' ? '#FF9500' : p.risk === 'ELEVATED' ? '#FFD700' : '#00E676';
       popup(coords, `<div style="${pStyle}border:1px solid ${riskCol}40;">
         <div style="color:#FF9500;font-weight:bold;font-size:11px;margin-bottom:4px;">${p.name}</div>
-        <div style="font-size:9px;color:#aaa;">Traffic: <span style="color:#fff;">${p.traffic}</span></div>
-        <div style="font-size:9px;color:#aaa;">Risk: <span style="color:${riskCol};font-weight:bold;">${p.risk}</span></div>
+        <div style="font-size:9px;color:#5F6368;">Traffic: <span style="color:#202124;">${p.traffic}</span></div>
+        <div style="font-size:9px;color:#5F6368;">Risk: <span style="color:${riskCol};font-weight:bold;">${p.risk}</span></div>
       </div>`);
     });
 
@@ -1671,17 +1689,17 @@ map.addSource('mitre-nodes', { type: 'geojson', data: EMPTY_FC });
       popup(coords, `<div style="${pStyle}border:1px solid rgba(255,23,68,0.4);box-shadow:inset 0 0 12px rgba(255,23,68,0.1);">
         <div style="display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid rgba(255,23,68,0.3);padding-bottom:6px;margin-bottom:8px;">
           <div style="color:#FF1744;font-size:12px;font-weight:700;letter-spacing:0.1em;text-shadow:0 0 4px rgba(255,23,68,0.5);">[ RANSOMWARE ]</div>
-          <div style="color:#5C5A54;font-size:9px;">${p.country || p.country_code || 'UNKNOWN'}</div>
+          <div style="color:#6F8092;font-size:9px;">${p.country || p.country_code || 'UNKNOWN'}</div>
         </div>
-        <div style="color:#E8E6E0;font-size:11px;font-weight:bold;margin-bottom:10px;">${p.post_title || 'Ransomware Incident'}</div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:9px;margin-bottom:12px;background:rgba(0,0,0,0.3);padding:6px;border-radius:4px;">
-          <div><span style="color:#5C5A54;">GROUP</span><br/><span style="color:#00E5FF;font-weight:bold;">${p.group_name || '—'}</span></div>
-          <div><span style="color:#5C5A54;">SECTOR</span><br/><span style="color:#E8E6E0;">${p.activity || '—'}</span></div>
-          <div><span style="color:#5C5A54;">DISCOVERED</span><br/><span style="color:#E8E6E0;">${p.discovered || '—'}</span></div>
-          <div><span style="color:#5C5A54;">PUBLISHED</span><br/><span style="color:#E8E6E0;">${p.published || '—'}</span></div>
+        <div style="color:#1E293B;font-size:11px;font-weight:bold;margin-bottom:10px;">${p.post_title || 'Ransomware Incident'}</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:9px;margin-bottom:12px;background:rgba(60,64,67,0.06);padding:6px;border-radius:4px;">
+          <div><span style="color:#6F8092;">GROUP</span><br/><span style="color:#1A73E8;font-weight:bold;">${p.group_name || '—'}</span></div>
+          <div><span style="color:#6F8092;">SECTOR</span><br/><span style="color:#1E293B;">${p.activity || '—'}</span></div>
+          <div><span style="color:#6F8092;">DISCOVERED</span><br/><span style="color:#1E293B;">${p.discovered || '—'}</span></div>
+          <div><span style="color:#6F8092;">PUBLISHED</span><br/><span style="color:#1E293B;">${p.published || '—'}</span></div>
         </div>
-        ${p.revenue ? `<div style="font-size:9px;color:#5C5A54;margin-bottom:4px;">Revenue: <span style="color:#D4AF37;">$${Number(p.revenue).toLocaleString()}</span></div>` : ''}
-        ${p.employees ? `<div style="font-size:9px;color:#5C5A54;margin-bottom:4px;">Employees: <span style="color:#E8E6E0;">${Number(p.employees).toLocaleString()}</span></div>` : ''}
+        ${p.revenue ? `<div style="font-size:9px;color:#6F8092;margin-bottom:4px;">Revenue: <span style="color:#1A73E8;">$${Number(p.revenue).toLocaleString()}</span></div>` : ''}
+        ${p.employees ? `<div style="font-size:9px;color:#6F8092;margin-bottom:4px;">Employees: <span style="color:#1E293B;">${Number(p.employees).toLocaleString()}</span></div>` : ''}
         ${p.website ? `<a href="${p.website}" target="_blank" style="${linkStyle}color:#FF1744;border:1px solid rgba(255,23,68,0.4);background:rgba(255,23,68,0.1);">LEAK SITE ↗</a>` : ''}
         <button onclick="window.openOsirisIntel({ type: 'ip', ip: '${p.group_name || ''}', threat_type: 'ransomware', status: 'active' })" style="width:100%;margin-top:8px;padding:8px 12px;background:linear-gradient(90deg, rgba(255,23,68,0.1) 0%, rgba(255,23,68,0.2) 100%);border:1px solid rgba(255,23,68,0.6);color:#FF1744;font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:bold;letter-spacing:0.15em;border-radius:4px;cursor:pointer;transition:all 0.2s;">DEEP DIVE ANALYTICS</button>
       </div>`);
@@ -1696,12 +1714,12 @@ map.addSource('mitre-nodes', { type: 'geojson', data: EMPTY_FC });
       popup(coords, `<div style="${pStyle}border:1px solid ${fuelColor}40;">
         <div style="color:${fuelColor};font-size:13px;font-weight:700;margin-bottom:4px;">⚡ ${p.name || 'Power Plant'}</div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:9px;margin-bottom:8px;">
-          <div><span style="color:#5C5A54;">FUEL TYPE</span><br/><span style="color:${fuelColor};font-weight:bold;">${p.fuel_type || '—'}</span></div>
-          <div><span style="color:#5C5A54;">CAPACITY</span><br/><span style="color:#E8E6E0;">${p.capacity_mw ? Number(p.capacity_mw).toLocaleString() + ' MW' : '—'}</span></div>
-          <div><span style="color:#5C5A54;">COUNTRY</span><br/><span style="color:#E8E6E0;">${p.country_long || p.country || '—'}</span></div>
-          <div><span style="color:#5C5A54;">YEAR</span><br/><span style="color:#E8E6E0;">${p.commissioning_year || '—'}</span></div>
+          <div><span style="color:#6F8092;">FUEL TYPE</span><br/><span style="color:${fuelColor};font-weight:bold;">${p.fuel_type || '—'}</span></div>
+          <div><span style="color:#6F8092;">CAPACITY</span><br/><span style="color:#1E293B;">${p.capacity_mw ? Number(p.capacity_mw).toLocaleString() + ' MW' : '—'}</span></div>
+          <div><span style="color:#6F8092;">COUNTRY</span><br/><span style="color:#1E293B;">${p.country_long || p.country || '—'}</span></div>
+          <div><span style="color:#6F8092;">YEAR</span><br/><span style="color:#1E293B;">${p.commissioning_year || '—'}</span></div>
         </div>
-        ${p.owner ? `<div style="font-size:9px;color:#5C5A54;">Owner: <span style="color:#E8E6E0;">${p.owner}</span></div>` : ''}
+        ${p.owner ? `<div style="font-size:9px;color:#6F8092;">Owner: <span style="color:#1E293B;">${p.owner}</span></div>` : ''}
         <a href="https://www.google.com/maps/@${coords[1]},${coords[0]},14z" target="_blank" style="${linkStyle}color:${fuelColor};border:1px solid ${fuelColor}40;background:${fuelColor}10;">SATELLITE VIEW</a>
       </div>`);
     });
@@ -1737,10 +1755,10 @@ map.addSource('mitre-nodes', { type: 'geojson', data: EMPTY_FC });
       popup([coords.lng, coords.lat], `<div style="${pStyle}border:1px solid ${cableColor}40;">
         <div style="color:${cableColor};font-size:13px;font-weight:700;margin-bottom:4px;">🔌 ${p.name || 'Submarine Cable'}</div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:9px;margin-bottom:8px;">
-          <div><span style="color:#5C5A54;">LENGTH</span><br/><span style="color:#E8E6E0;">${length}</span></div>
-          <div><span style="color:#5C5A54;">RFS YEAR</span><br/><span style="color:#E8E6E0;">${rfsYear}</span></div>
-          <div><span style="color:#5C5A54;">OWNERS</span><br/><span style="color:#E8E6E0;">${owners}</span></div>
-          <div><span style="color:#5C5A54;">LANDING PTS</span><br/><span style="color:#E8E6E0;">${landingPts}</span></div>
+          <div><span style="color:#6F8092;">LENGTH</span><br/><span style="color:#1E293B;">${length}</span></div>
+          <div><span style="color:#6F8092;">RFS YEAR</span><br/><span style="color:#1E293B;">${rfsYear}</span></div>
+          <div><span style="color:#6F8092;">OWNERS</span><br/><span style="color:#1E293B;">${owners}</span></div>
+          <div><span style="color:#6F8092;">LANDING PTS</span><br/><span style="color:#1E293B;">${landingPts}</span></div>
         </div>
         <a href="${cableUrl}" target="_blank" rel="noopener noreferrer" style="${linkStyle}color:${cableColor};border:1px solid ${cableColor}40;background:${cableColor}15;">VIEW ON SUBMARINECABLEMAP ↗</a>
       </div>`);
@@ -1757,7 +1775,46 @@ map.addSource('mitre-nodes', { type: 'geojson', data: EMPTY_FC });
       </div>`);
     });
 
-    return () => { map.remove(); mapRef.current = null; };
+    (window as any).showFlightTrack = async (icao24: string, callsign: string) => {
+      try {
+        const res = await fetch(`/api/flights/tracks?icao24=${encodeURIComponent(icao24)}`, { cache: 'no-store' });
+        const data = await res.json();
+        if (data?.geojson) {
+          const trackSrc = mapRef.current?.getSource('flight-track') as any;
+          if (trackSrc) {
+            trackSrc.setData(data.geojson);
+            mapRef.current?.setLayoutProperty('flight-track-atmo', 'visibility', 'visible');
+            mapRef.current?.setLayoutProperty('flight-track-glow', 'visibility', 'visible');
+            mapRef.current?.setLayoutProperty('flight-track-core', 'visibility', 'visible');
+            mapRef.current?.setLayoutProperty('flight-track-arrows', 'visibility', 'visible');
+          }
+          const coords = data.geojson?.geometry?.coordinates;
+          if (coords?.length > 1) {
+            const bounds = coords.reduce(
+              (b: any, c: number[]) => b.extend([c[0], c[1]]),
+              new maplibregl.LngLatBounds(coords[0], coords[0])
+            );
+            mapRef.current?.fitBounds(bounds, { padding: 80, maxZoom: 10, duration: 2000 });
+          }
+        }
+      } catch (e) {
+        console.warn('[TRACK] Failed to load flight track:', e);
+      }
+    };
+    (window as any).hideFlightTrack = () => {
+      mapRef.current?.setLayoutProperty('flight-track-atmo', 'visibility', 'none');
+      mapRef.current?.setLayoutProperty('flight-track-glow', 'visibility', 'none');
+      mapRef.current?.setLayoutProperty('flight-track-core', 'visibility', 'none');
+      mapRef.current?.setLayoutProperty('flight-track-arrows', 'visibility', 'none');
+      const src = mapRef.current?.getSource('flight-track') as any;
+      if (src) src.setData(EMPTY_FC);
+    };
+
+    return () => {
+      map.remove(); mapRef.current = null;
+      delete (window as any).showFlightTrack;
+      delete (window as any).hideFlightTrack;
+    };
   }, []);
 
   // Day/Night
@@ -1800,7 +1857,7 @@ map.addSource('mitre-nodes', { type: 'geojson', data: EMPTY_FC });
         properties: { callsign: f.callsign, heading: f.heading || 0, alt: f.alt, model: f.model, speed_knots: f.speed_knots, registration: f.registration, icao24: f.icao24 },
       }));
     };
-    setGeo('flights', activeLayers.flights ? toFeatures(data.commercial_flights, 10) : []);
+    setGeo('flights', activeLayers.flights ? toFeatures(data.commercial_flights) : []);
     setGeo('private-fl', activeLayers.private ? toFeatures(data.private_flights, 2) : []);
     setGeo('jets', activeLayers.jets ? toFeatures(data.private_jets, 2) : []);
     setGeo('military', activeLayers.military ? toFeatures(data.military_flights) : []);
@@ -1816,7 +1873,7 @@ map.addSource('mitre-nodes', { type: 'geojson', data: EMPTY_FC });
       const ghostPriv = '#CE93D8';
       const ghostGov = '#D500F9';
 
-      const flightCom = isGhost ? phantomPurple : '#00E5FF';
+      const flightCom = isGhost ? phantomPurple : '#1A73E8';
       const flightPriv = isGhost ? ghostPriv : '#FFD700';
       const flightGov = isGhost ? ghostGov : '#FF9500';
       const flightMil = '#FF0000';
@@ -1864,31 +1921,20 @@ map.addSource('mitre-nodes', { type: 'geojson', data: EMPTY_FC });
     if (!mapReady) return;
     const sats = activeLayers.satellites && data.satellites ? data.satellites : [];
     setGeo('satellites', sats.length ? sats.map((s: any) => ({ type: 'Feature', geometry: { type: 'Point', coordinates: [s.lng, s.lat] }, properties: { name: s.name, color: s.color, mission: s.mission, alt: s.alt, noradId: s.noradId } })) : []);
-    // Orbit ground tracks — store all in ref, then filter by viewport
-    const allOrbitFeatures: any[] = [];
+    // Index satellites by id/name so a single orbit can be drawn on click.
+    // We do NOT render all orbits at once (that blankets the globe) — the
+    // elevated 3D orbit path is shown only for the satellite the user clicks.
+    const byId = new Map<string, any>();
     if (sats.length) {
       for (const s of sats) {
-        if (s.groundTrack && s.groundTrack.length) {
-          allOrbitFeatures.push({
-            type: 'Feature',
-            geometry: { type: 'LineString', coordinates: s.groundTrack as [number, number][] },
-            properties: { color: s.color || '#B388FF' },
-          });
-        }
+        if (!s.groundTrack || !s.groundTrack.length) continue;
+        if (s.noradId != null) byId.set(String(s.noradId), s);
+        if (s.name) byId.set(String(s.name), s);
       }
     }
-    orbitFeaturesRef.current = allOrbitFeatures;
-    // Apply viewport filtering immediately
-    const map = mapRef.current;
-    if (map && map.getZoom() >= 5) {
-      const bounds = map.getBounds();
-      const filtered = allOrbitFeatures.filter((f: any) =>
-        f.geometry.coordinates.some(([lng, lat]: number[]) => bounds.contains([lng, lat]))
-      );
-      setGeo('orbit', filtered);
-    } else {
-      setGeo('orbit', allOrbitFeatures);
-    }
+    satByIdRef.current = byId;
+    // Clear any previously-shown orbit when the satellite layer reloads/toggles off.
+    if (!sats.length) setGeo('orbit', []);
   }, [mapReady, data.satellites, activeLayers.satellites, setGeo]);
 
   useEffect(() => {
@@ -1999,21 +2045,6 @@ map.addSource('mitre-nodes', { type: 'geojson', data: EMPTY_FC });
     setGeo('radiation', activeLayers.radiation && data.radiation ? data.radiation.map((r: any) => ({ type: 'Feature', geometry: { type: 'Point', coordinates: [r.lng, r.lat] }, properties: { name: r.name, city: r.city, country: r.country, reading: r.reading, status: r.status, network: r.network } })) : []);
   }, [mapReady, data.radiation, activeLayers.radiation, setGeo]);
 
-  // ══ OSIRIS SDK — Lattice Sensor Mesh ══
-  // Uses real submarine cable data for SEA domain, curated routes for AIR/INTEL
-  useEffect(() => {
-    if (!mapReady) return;
-    setGeo('sdk-entities', []);
-
-    const anySDK = activeLayers.sdk_sea || activeLayers.sdk_air || activeLayers.sdk_naval;
-    if (!anySDK) {
-      setGeo('sdk-links', []);
-      return;
-    }
-
-    setGeo('sdk-links', []);
-  }, [mapReady, activeLayers.sdk_sea, activeLayers.sdk_air, activeLayers.sdk_naval, setGeo]);
-
   useEffect(() => {
     if (!mapReady) return;
     setGeo('live-news', activeLayers.live_news && data.live_feeds ? data.live_feeds.map((f: any) => ({ type: 'Feature', geometry: { type: 'Point', coordinates: [f.lng, f.lat] }, properties: { name: f.name, city: f.city, country: f.country, url: f.url, category: f.category, embed_allowed: f.embed_allowed !== false } })) : []);
@@ -2102,10 +2133,11 @@ map.addSource('mitre-nodes', { type: 'geojson', data: EMPTY_FC });
     setVis(['mitre-glow','mitre-dots','mitre-label'], activeLayers.mitre_attack);
     setVis(['jam-fill','jam-line','jam-label'], activeLayers.gps_jamming);
     setVis(['day-night-fill'], activeLayers.day_night);
-    setVis(['fl-commercial'], activeLayers.flights);
-    setVis(['fl-private'], activeLayers.private);
-    setVis(['fl-jets'], activeLayers.jets);
-    setVis(['fl-military'], activeLayers.military);
+      setVis(['fl-commercial'], activeLayers.flights);
+      setVis(['fl-private'], activeLayers.private);
+      setVis(['fl-jets'], activeLayers.jets);
+      setVis(['fl-military'], activeLayers.military);
+      setVis(['flight-track-atmo','flight-track-glow','flight-track-core','flight-track-arrows'], activeLayers.flight_track);
     setVis(['cctv-glow','cctv-dots','cctv-label'], activeLayers.cctv);
     setVis(['fires-heat'], activeLayers.fires);
     setVis(['weather-glow','weather-dots','weather-label'], activeLayers.weather);
@@ -2119,9 +2151,6 @@ map.addSource('mitre-nodes', { type: 'geojson', data: EMPTY_FC });
 
     setVis(['balloon-dots','balloon-label'], activeLayers.balloons);
     setVis(['rad-glow','rad-dots','rad-label'], activeLayers.radiation);
-    setVis(['sdk-sea','sdk-sea-glow','sdk-sea-atmo'], activeLayers.sdk_sea !== false);
-    setVis(['sdk-air','sdk-air-glow','sdk-air-atmo'], activeLayers.sdk_air !== false);
-    setVis(['sdk-intel','sdk-intel-glow','sdk-intel-atmo'], activeLayers.sdk_naval !== false);
     setVis(['cables-line','cables-glow','cable-landing-points-dots'], activeLayers.cables);
     setVis(['ransomware-glow','ransomware-dots','ransomware-label'], activeLayers.ransomware);
     setVis(['power-plants-glow','power-plants-dots','power-plants-label'], activeLayers.power_plants);

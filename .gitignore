@@ -60,3 +60,7 @@ scanner_backend_backup.js
 
 # AbuseIPDB API key
 .abuseipdb_key
+
+# Runtime caches
+.abuseipdb_cache.json
+*_cache.json

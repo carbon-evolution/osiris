@@ -32,7 +32,7 @@ interface GraphData { nodes: EntityNode[]; links: EntityLink[]; }
 // ── PALETTE ──
 
 const TYPE_COLORS: Record<string, string> = {
-  aircraft: '#00E5FF', vessel: '#00BCD4', company: '#D4AF37',
+  aircraft: '#1A73E8', vessel: '#00BCD4', company: '#1A73E8',
   person: '#B388FF', country: '#76FF03', event: '#FF9500', sanction: '#FF1744',
   ip: '#FF6D00', apt: '#00E676', cve: '#FF1744',
 };
@@ -46,7 +46,7 @@ const TYPE_ICONS: Record<string, typeof Plane> = {
 // ── PROPS ──
 
 interface Props {
-  entity: { type: string; id: string; label?: string; properties?: Record<string, any> } | null;
+  entity: { type: string; id: string; label?: string; properties?: Record<string, any>; seedGraph?: { nodes: any[]; links: any[] } } | null;
   onClose: () => void;
 }
 
@@ -112,6 +112,17 @@ function EntityGraphPanel({ entity, onClose }: Props) {
       id: `${entity.type}:${entity.id}`, label: entity.label || entity.id,
       type: entity.type as EntityNode['type'], properties: entity.properties,
     };
+    // Pre-built association graph (e.g. threat-infrastructure web) — render it
+    // directly instead of resolving the seed via the API.
+    if (entity.seedGraph && entity.seedGraph.nodes?.length) {
+      const sg = entity.seedGraph;
+      const nodes = sg.nodes.some((n: any) => n.id === root.id) ? sg.nodes : [root, ...sg.nodes];
+      setGraphData({ nodes, links: sg.links || [] });
+      setExpandedIds(new Set([`${entity.type}:${entity.id}`]));
+      setSelectedNode(nodes.find((n: any) => n.id === root.id) || root);
+      setError(null);
+      return;
+    }
     setGraphData({ nodes: [root], links: [] });
     setExpandedIds(new Set());
     setSelectedNode(root);
@@ -176,9 +187,9 @@ function EntityGraphPanel({ entity, onClose }: Props) {
       // Black background for text readability
       const label = n.label.length > 22 ? n.label.slice(0, 20) + '…' : n.label;
       const textWidth = ctx.measureText(label).width;
-      ctx.fillStyle = 'rgba(0,0,0,0.6)';
-      ctx.fillRect(n.x! - textWidth/2 - 2, n.y! + size + 3, textWidth + 4, fontSize + 2);
-      ctx.fillStyle = isSelected ? '#fff' : color;
+      ctx.fillStyle = 'rgba(255,255,255,0.92)';
+      ctx.fillRect(n.x! - textWidth/2 - 3, n.y! + size + 3, textWidth + 6, fontSize + 3);
+      ctx.fillStyle = isSelected ? '#1A73E8' : '#202124';
       ctx.fillText(label, n.x!, n.y! + size + 4);
     }
   }, [selectedNode]);
@@ -188,14 +199,14 @@ function EntityGraphPanel({ entity, onClose }: Props) {
     if (!s.x || !t.x) return;
     ctx.beginPath(); ctx.moveTo(s.x, s.y); ctx.lineTo(t.x, t.y);
     // Smooth, thin, non-dashed lines
-    ctx.strokeStyle = 'rgba(212,175,55,0.15)'; // faint gold
+    ctx.strokeStyle = 'rgba(60,64,67,0.25)'; // faint gray
     ctx.lineWidth = Math.max(0.5, 1 / globalScale); 
     ctx.stroke();
     
     const fs = Math.max(8 / globalScale, 2);
     if (fs > 3) {
       ctx.font = `${fs}px 'JetBrains Mono', monospace`; 
-      ctx.fillStyle = 'rgba(212,175,55,0.4)';
+      ctx.fillStyle = 'rgba(95,99,104,0.85)';
       ctx.textAlign = 'center'; ctx.fillText(link.label || '', (s.x + t.x) / 2, (s.y + t.y) / 2);
     }
   }, []);
@@ -264,13 +275,13 @@ function EntityGraphPanel({ entity, onClose }: Props) {
 
         {/* ROOT LABEL */}
         {entity ? (
-          <div className="px-6 py-2 border-b border-[var(--border-primary)] flex items-center gap-3 bg-black/20 relative z-20">
+          <div className="px-6 py-2 border-b border-[var(--border-primary)] flex items-center gap-3 bg-[var(--bg-tertiary)] relative z-20">
             {(() => { const I = TYPE_ICONS[entity.type] || Globe; return <I className="w-4 h-4" style={{ color: TYPE_COLORS[entity.type] }} />; })()}
-            <span className="text-xs font-mono text-white/90 tracking-widest uppercase truncate">{entity.label || entity.id}</span>
+            <span className="text-xs font-mono text-[var(--text-primary)] tracking-widest uppercase truncate">{entity.label || entity.id}</span>
             <span className="text-[10px] font-mono text-[var(--gold-primary)]/70 ml-auto tracking-widest">{graphData.nodes.length} NODES // {graphData.links.length} LINKS</span>
           </div>
         ) : (
-          <div className="px-6 py-3 border-b border-[var(--border-primary)] flex items-center gap-3 bg-black/20 relative z-20">
+          <div className="px-6 py-3 border-b border-[var(--border-primary)] flex items-center gap-3 bg-[var(--bg-tertiary)] relative z-20">
             <Network className="w-4 h-4 text-[var(--gold-primary)]/50 animate-osiris-pulse" />
             <span className="text-xs font-mono text-[var(--gold-primary)]/50 tracking-widest uppercase truncate typewriter">[ AWAITING TARGET LOCK ]</span>
           </div>
@@ -301,7 +312,7 @@ function EntityGraphPanel({ entity, onClose }: Props) {
           )}
           {graphData.nodes.length === 0 && !loading && (
             <div className="absolute inset-0 flex items-center justify-center">
-              <span className="text-xs font-mono text-white/30">No graph data yet</span>
+              <span className="text-xs font-mono text-[var(--text-muted)]">No graph data yet</span>
             </div>
           )}
         </div>
@@ -317,7 +328,7 @@ function EntityGraphPanel({ entity, onClose }: Props) {
                 <div className="flex items-center gap-2">
                   <div className="w-1.5 h-1.5 bg-[var(--gold-primary)] animate-osiris-pulse shadow-[0_0_8px_var(--gold-primary)]" />
                   {(() => { const I = TYPE_ICONS[selectedNode.type] || Globe; return <I className="w-4 h-4" style={{ color: TYPE_COLORS[selectedNode.type] }} />; })()}
-                  <span className="text-[13px] font-mono font-bold text-white tracking-[0.1em] uppercase">{selectedNode.label}</span>
+                  <span className="text-[13px] font-mono font-bold text-[var(--text-heading)] tracking-[0.1em] uppercase">{selectedNode.label}</span>
                 </div>
                 <span className="text-[10px] font-mono font-bold px-2 py-0.5 border"
                   style={{ color: TYPE_COLORS[selectedNode.type], borderColor: `${TYPE_COLORS[selectedNode.type]}80`, background: `${TYPE_COLORS[selectedNode.type]}15`, textShadow: `0 0 5px ${TYPE_COLORS[selectedNode.type]}` }}>
@@ -329,7 +340,7 @@ function EntityGraphPanel({ entity, onClose }: Props) {
                   {Object.entries(selectedNode.properties).map(([k, v], i) => (
                     <div key={`${selectedNode.id}-${k}`}>
                       <span className="text-[9px] font-mono text-[var(--gold-primary)]/70 uppercase tracking-widest">{k.replace(/_/g, ' ')}</span>
-                      <div className="text-[11px] font-mono text-white/90 truncate flex items-center gap-1 mt-0.5">
+                      <div className="text-[11px] font-mono text-[var(--text-primary)] truncate flex items-center gap-1 mt-0.5">
                         <span className="w-1 h-1 bg-[var(--gold-primary)]/40 inline-block" />
                         <span className="typewriter" style={{ animationDelay: `${i * 0.1}s` }}>
                           {typeof v === 'boolean' ? (v ? 'YES' : 'NO') : String(v || '—')}
@@ -357,7 +368,7 @@ function EntityGraphPanel({ entity, onClose }: Props) {
           {Object.entries(TYPE_COLORS).map(([t, c]) => (
             <div key={t} className="flex items-center gap-1">
               <div className="w-2 h-2 rounded-full" style={{ background: c }} />
-              <span className="text-[8px] font-mono text-white/40 uppercase">{t}</span>
+              <span className="text-[8px] font-mono text-[var(--text-muted)] uppercase">{t}</span>
             </div>
           ))}
         </div>

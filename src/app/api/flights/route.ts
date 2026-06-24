@@ -1,21 +1,21 @@
 
 import { NextResponse } from 'next/server';
-import { stealthFetch } from '@/lib/stealthFetch';
 
 /**
  * OSIRIS — Flight Data API
- * Fetches real-time aircraft positions from adsb.lol (no API key required)
- * Covers 6 global regions for maximum coverage
+ * Fetches real-time aircraft positions from OpenSky (free, anonymous, fast for us)
+ * and airplanes.live for military & private jet classification.
  */
 
-const REGIONS = [
-  { lat: 39.8, lon: -98.5, dist: 2000 },   // North America
-  { lat: 50.0, lon: 15.0, dist: 2000 },     // Europe
-  { lat: 35.0, lon: 105.0, dist: 2000 },    // Asia
-  { lat: -25.0, lon: 133.0, dist: 2000 },   // Australia
-  { lat: 0.0, lon: 20.0, dist: 2500 },      // Africa
-  { lat: -15.0, lon: -60.0, dist: 2000 },   // South America
-];
+/* Timeout that races against the fetch but does NOT abort the body stream.
+   AbortSignal.timeout() poisons response.json() because the signal is shared.
+   Promise.race gives us a connection-level timeout without locking the body. */
+function fetchWithTimeout(url: string, ms: number): Promise<Response | null> {
+  return Promise.race([
+    fetch(url),
+    new Promise<never>((_, reject) => setTimeout(() => reject(new Error('timeout')), ms)),
+  ]).catch(() => null);
+}
 
 // Helicopter type codes
 const HELI_TYPES = new Set([
@@ -53,22 +53,6 @@ const MILITARY_INDICATORS = new Set([
 ]);
 
 const AIRLINE_CODE_RE = /^([A-Z]{3})\d/;
-
-async function fetchRegion(region: typeof REGIONS[0]): Promise<any[]> {
-  try {
-    const url = `https://api.airplanes.live/v2/point/${region.lat}/${region.lon}/${region.dist}`;
-    const res = await stealthFetch(url, {
-      signal: AbortSignal.timeout(12000),
-    });
-    if (res.ok) {
-      const data = await res.json();
-      return data.ac || [];
-    }
-  } catch (e) {
-    console.warn(`Region fetch failed for lat=${region.lat}:`, e);
-  }
-  return [];
-}
 
 function classifyFlight(f: any) {
   const modelUpper = (f.t || '').toUpperCase();
@@ -166,69 +150,73 @@ export async function GET() {
   const JAMMING_NACAP_THRESHOLD = 4;
 
   // Start new global fetch
+  // NOTE: We do NOT use AbortSignal.timeout() as fetch init because
+  // the timeout also locks the response body stream. By the time
+  // Promise.all resolves (waiting for OpenSky's ~30s response), any
+  // shorter timeouts would have already fired and aborted the body
+  // streams, making .json() throw "operation aborted" on all sources.
+  // Instead, we fetch without per-source timeouts and rely on an
+  // overall timeout via the enclosing try/catch.
   fetchPromise = (async () => {
-    // Fetch OpenSky for global traffic and airplanes.live for military & private jets
-    const [osRes, milRes, laddRes] = await Promise.allSettled([
-      stealthFetch('https://opensky-network.org/api/states/all', { signal: AbortSignal.timeout(15000) }),
-      stealthFetch('https://api.airplanes.live/v2/mil', { signal: AbortSignal.timeout(12000) }),
-      stealthFetch('https://api.airplanes.live/v2/ladd', { signal: AbortSignal.timeout(12000) })
+    const [osFetch, milFetch, laddFetch] = await Promise.all([ 
+      fetchWithTimeout('https://opensky-network.org/api/states/all', 45000),
+      fetchWithTimeout('https://api.airplanes.live/v2/mil', 20000),
+      fetchWithTimeout('https://api.airplanes.live/v2/ladd', 20000),
     ]);
 
     const allRaw: any[] = [];
     const seenHex = new Set<string>();
 
-    // Process military flights first so they take precedence (preserves nac_p for jamming)
-    if (milRes.status === 'fulfilled' && milRes.value.ok) {
+    if (osFetch?.ok) {
       try {
-        const data = await milRes.value.json();
-        for (const ac of (data.ac || [])) {
-          const hex = (ac.hex || '').toLowerCase().trim();
-          if (hex && !seenHex.has(hex)) {
-            seenHex.add(hex);
-            allRaw.push(ac);
-          }
-        }
-      } catch(e) {}
-    }
-
-    // Process LADD (Private Jets) flights
-    if (laddRes.status === 'fulfilled' && laddRes.value.ok) {
-      try {
-        const data = await laddRes.value.json();
-        for (const ac of (data.ac || [])) {
-          const hex = (ac.hex || '').toLowerCase().trim();
-          if (hex && !seenHex.has(hex)) {
-            seenHex.add(hex);
-            allRaw.push(ac);
-          }
-        }
-      } catch(e) {}
-    }
-
-    // Process OpenSky flights globally
-    if (osRes.status === 'fulfilled' && osRes.value.ok) {
-      try {
-        const data = await osRes.value.json();
+        const data = await osFetch.json();
         for (const s of (data.states || [])) {
           const hex = (s[0] || '').toLowerCase().trim();
           if (hex && !seenHex.has(hex)) {
             seenHex.add(hex);
-            // Translate OpenSky to tar1090 format
             allRaw.push({
               hex: s[0],
               flight: s[1]?.trim(),
               lon: s[5],
               lat: s[6],
-              alt_baro: typeof s[7] === 'number' ? s[7] * 3.28084 : null, // meters to feet
-              gs: typeof s[9] === 'number' ? s[9] * 1.94384 : null, // m/s to knots
+              alt_baro: typeof s[7] === 'number' ? s[7] * 3.28084 : null,
+              gs: typeof s[9] === 'number' ? s[9] * 1.94384 : null,
               track: s[10],
               squawk: s[14],
-              category_os: s[17], // OpenSky category
+              category_os: s[17],
             });
           }
         }
       } catch(e) {}
     }
+
+    if (milFetch?.ok) {
+      try {
+        const data = await milFetch.json();
+        for (const ac of (data.ac || [])) {
+          const hex = (ac.hex || '').toLowerCase().trim();
+          if (hex && !seenHex.has(hex)) {
+            seenHex.add(hex);
+            allRaw.push(ac);
+          }
+        }
+      } catch(e) {}
+    }
+
+    if (laddFetch?.ok) {
+      try {
+        const data = await laddFetch.json();
+        for (const ac of (data.ac || [])) {
+          const hex = (ac.hex || '').toLowerCase().trim();
+          if (hex && !seenHex.has(hex)) {
+            seenHex.add(hex);
+            allRaw.push(ac);
+          }
+        }
+      } catch(e) {}
+    }
+
+
 
     // Classify all flights
     const commercial: any[] = [];
@@ -275,12 +263,26 @@ export async function GET() {
 
   try {
     const data = await fetchPromise;
-    cachedData = data;
-    lastFetchTime = Date.now();
     fetchPromise = null;
 
-    const cacheControl = data.total < 100 
-      ? 'no-store, max-age=0' 
+    // OpenSky (anonymous) is rate-limited; when it fails, the result collapses
+    // to just the airplanes.live mil/ladd feeds (~tens of flights). Don't let
+    // that degraded snapshot overwrite a healthy cache — keep serving the last
+    // good data so the map doesn't suddenly drop to ~140 flights.
+    const newCom = data.commercial_flights?.length || 0;
+    const prevCom = cachedData?.commercial_flights?.length || 0;
+    if (newCom < 300 && prevCom > newCom) {
+      lastFetchTime = Date.now(); // serve cached for the TTL window, then retry
+      return NextResponse.json(cachedData, {
+        headers: { 'Cache-Control': 'public, s-maxage=15, stale-while-revalidate=60' },
+      });
+    }
+
+    cachedData = data;
+    lastFetchTime = Date.now();
+
+    const cacheControl = data.total < 100
+      ? 'no-store, max-age=0'
       : 'public, s-maxage=30, stale-while-revalidate=60';
 
     return NextResponse.json(data, {
