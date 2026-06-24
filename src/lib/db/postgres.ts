@@ -34,6 +34,18 @@ export async function ensureSchema(): Promise<void> {
     )
   `);
   await p.query('CREATE INDEX IF NOT EXISTS feed_items_kind_seen ON feed_items (kind, seen_at DESC)');
+  await p.query(`
+    CREATE TABLE IF NOT EXISTS audit_log (
+      id           BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+      at           TIMESTAMPTZ NOT NULL DEFAULT now(),
+      app_user     TEXT,
+      ip           TEXT,
+      source       TEXT,
+      query        TEXT,
+      result_count INTEGER
+    )
+  `);
+  await p.query('CREATE INDEX IF NOT EXISTS audit_log_at ON audit_log (at DESC)');
 }
 
 export async function closePool(): Promise<void> {
