@@ -31,7 +31,8 @@ export const cveCollector: Collector = {
       pubStartDate: start.toISOString(),
       pubEndDate: end.toISOString(),
     });
-    const res = await fetch(`${NVD_URL}?${qs.toString()}`, { signal: AbortSignal.timeout(30000) });
+    // NVD's keyless tier is slow + rate-limited (5 req/30s); give it room.
+    const res = await fetch(`${NVD_URL}?${qs.toString()}`, { signal: AbortSignal.timeout(60000) });
     if (!res.ok) throw new Error(`NVD ${res.status}`);
     return res.json();
   },
