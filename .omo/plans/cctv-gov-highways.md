@@ -35,6 +35,18 @@ were done. Cameras surface under the existing **CCTV** layer (camera icon).
     API, no clean keyless camera-IMAGE endpoint found.
   - Denmark Vejdirektoratet → DATEX registration. Slovenia promet.si → NAP login.
   - data.tii.ie portal = locked S3 (use the GraphQL map API, as ireland.ts does).
+- DONE (2026-06-24) — **KEYLESS expansion (user can't register for keys):**
+  - **Iceland** ✅ 161 cams. Vegagerðin via umferdin.is SSR __NEXT_DATA__
+    (`props.pageProps.cameras`), direct JPGs on www.vegagerdin.is/vgdata/
+    vefmyndavelar/. `iceland.ts`, bbox lat 63–67 / lng -25 to -13.
+  - **Lithuania** ✅ 313 cams. eismoinfo.lt `/eismoinfo-backend/camera-info-table`.
+    Coords are LKS94/EPSG:3346 → inverse-TM converted to WGS84 in `lithuania.ts`
+    (verified: Vilnius cam → 54.64N,25.18E). Images 403 without Referer, so marked
+    stream_type 'mjpeg' to route via proxy; added `eismoinfo.lt` to proxy
+    ALLOWED_DOMAINS + new REFERER_BY_HOST map. bbox lat 53.8–56.5 / lng 20.9–26.9.
+  - NOTE: Canada 511 (Ontario+Quebec) already covered by fetchCanadaCameras; the
+    511 platform `/api/v2/get/cameras` + `/map/Cctv/{viewId}` images is keyless and
+    reusable for more US states / Alberta if wanted.
 - Context: `open-webcams.ts` already pulls ~6,000 global webcams keyless
   (incl. JP/KR/EU/APAC cities). This effort adds DENSE national HIGHWAY networks.
 

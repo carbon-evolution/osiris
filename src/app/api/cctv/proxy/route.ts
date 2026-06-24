@@ -25,7 +25,14 @@ const ALLOWED_DOMAINS = [
   'weathercam.digitraffic.fi',
   'sigip.infraestruturasdeportugal.pt',
   'its.binamarga.pu.go.id',
+  // Lithuania — eismoinfo.lt image endpoint 403s without a same-origin Referer.
+  'eismoinfo.lt',
 ];
+
+// Hosts that require a Referer header to serve their images.
+const REFERER_BY_HOST: Record<string, string> = {
+  'eismoinfo.lt': 'https://eismoinfo.lt/',
+};
 
 const BOUNDARY_PAT = /boundary=([^;\s]+)/i;
 
@@ -69,6 +76,7 @@ export async function GET(req: Request) {
       signal: AbortSignal.timeout(15000),
       headers: {
         'User-Agent': 'Mozilla/5.0 (compatible; OSIRIS/1.0; +https://github.com/simplifaisoul/osiris)',
+        ...(REFERER_BY_HOST[host] ? { Referer: REFERER_BY_HOST[host] } : {}),
       },
     });
 

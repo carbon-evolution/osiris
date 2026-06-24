@@ -26,6 +26,8 @@ import { fetchSingaporeCameras } from './singapore';
 import { fetchSouthKoreaCameras } from './south-korea';
 import { fetchSwedenCameras } from './sweden';
 import { fetchIrelandCameras } from './ireland';
+import { fetchIcelandCameras } from './iceland';
+import { fetchLithuaniaCameras } from './lithuania';
 import { fetchHongKongCameras } from './hong-kong';
 import { fetchNorthCarolinaCameras } from './north-carolina';
 import { fetchCaltransCameras } from './caltrans';
@@ -415,6 +417,8 @@ const REGION_FETCHERS: Record<string, () => Promise<any[]>> = {
   'south-korea': fetchSouthKoreaCameras,
   'sweden': fetchSwedenCameras,
   'ireland': fetchIrelandCameras,
+  'iceland': fetchIcelandCameras,
+  'lithuania': fetchLithuaniaCameras,
 }
 
 // Determine which regions to fetch based on viewport bounds
@@ -490,6 +494,10 @@ function getRegionsForBounds(lat: number, lng: number, radius: number): string[]
   if (lat > 55.2 && lat < 69.1 && lng > 10.9 && lng < 24.2) regions.push('sweden');
   // Ireland — TII motorway/national-road cameras (keyless GraphQL, ~240 cams)
   if (lat > 51.3 && lat < 55.5 && lng > -10.7 && lng < -5.9) regions.push('ireland');
+  // Iceland — Vegagerðin road cameras (keyless, ~160 cams)
+  if (lat > 63 && lat < 67 && lng > -25 && lng < -13) regions.push('iceland');
+  // Lithuania — eismoinfo.lt road cameras (keyless, ~310 cams)
+  if (lat > 53.8 && lat < 56.5 && lng > 20.9 && lng < 26.9) regions.push('lithuania');
 
   // Middle East
   const inMiddleEast = lat > 29 && lat < 34.5 && lng > 34 && lng < 36.5;
