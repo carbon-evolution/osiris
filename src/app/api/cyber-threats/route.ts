@@ -1,9 +1,47 @@
 import { NextResponse } from 'next/server';
+import { readFresh } from '@/lib/feedStore';
 
 // Cyber threat intelligence from public feeds
 // Inspired by WorldMonitor's infrastructure tracking
+// Local-first: serves locally-synced CISA KEV (workers) when fresh, else live.
 
 export async function GET() {
+  // ── Local-first: synced CISA KEV from Postgres ──
+  if (process.env.LOCAL_FIRST !== 'false') {
+    try {
+      const local = await readFresh('kev', 24 * 60 * 60 * 1000); // 24h freshness
+      if (local.length > 0) {
+        const threats = local
+          .filter(r => {
+            const added = new Date(String(r.data.dateAdded));
+            return (Date.now() - added.getTime()) / (1000 * 60 * 60 * 24) <= 30;
+          })
+          .slice(0, 10)
+          .map(r => ({
+            id: r.uid,
+            name: r.data.name,
+            vendor: r.data.vendor,
+            product: r.data.product,
+            severity: 'CRITICAL',
+            date: r.data.dateAdded,
+            source: 'CISA KEV (local)',
+          }));
+        return NextResponse.json({
+          threats,
+          stats: {
+            cisa_total: local.length,
+            active_cves: threats.length,
+            threat_level: threats.length >= 8 ? 'CRITICAL' : threats.length >= 4 ? 'HIGH' : 'ELEVATED',
+            source: 'local',
+          },
+          timestamp: new Date().toISOString(),
+        }, { headers: { 'Cache-Control': 'public, s-maxage=300' } });
+      }
+    } catch (e) {
+      console.warn('[OSIRIS] local KEV read failed, falling back to live:', e instanceof Error ? e.message : e);
+    }
+  }
+
   try {
     const results: any = { threats: [], stats: {}, timestamp: new Date().toISOString() };
 
