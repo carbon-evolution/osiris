@@ -23,6 +23,8 @@ import { fetchUSDotCameras } from './us-dot-additional';
 import { fetchIntlHighwayCameras } from './intl-highways';
 import { fetchTaiwanHighwayCameras } from './taiwan-highways';
 import { fetchSingaporeCameras } from './singapore';
+import { fetchSouthKoreaCameras } from './south-korea';
+import { fetchSwedenCameras } from './sweden';
 import { fetchHongKongCameras } from './hong-kong';
 import { fetchNorthCarolinaCameras } from './north-carolina';
 import { fetchCaltransCameras } from './caltrans';
@@ -409,6 +411,8 @@ const REGION_FETCHERS: Record<string, () => Promise<any[]>> = {
   'netherlands': fetchNetherlandsCameras,
   'indonesia': fetchIndonesiaCameras,
   'singapore': fetchSingaporeCameras,
+  'south-korea': fetchSouthKoreaCameras,
+  'sweden': fetchSwedenCameras,
 }
 
 // Determine which regions to fetch based on viewport bounds
@@ -437,6 +441,8 @@ function getRegionsForBounds(lat: number, lng: number, radius: number): string[]
   if (lat > 20 && lat < 27 && lng > 117 && lng < 123) regions.push('taiwan-highways');
   // Singapore — data.gov.sg LTA traffic cameras (~90 cameras)
   if (lat > 1.15 && lat < 1.48 && lng > 103.6 && lng < 104.1) regions.push('singapore');
+  // South Korea — ITS expressway + national highway cams (free key ITS_KR_KEY)
+  if (lat > 33 && lat < 39 && lng > 124.5 && lng < 131.5) regions.push('south-korea');
   // Hong Kong — Transport Department traffic cameras (~300 cameras)
   if (lat > 22.1 && lat < 22.6 && lng > 113.7 && lng < 114.5) regions.push('hong-kong');
   // North Carolina — NCDOT ArcGIS cameras (~1,109 cameras)
@@ -478,6 +484,8 @@ function getRegionsForBounds(lat: number, lng: number, radius: number): string[]
   if (inPoland) regions.push('poland');
   if (inEstonia) regions.push('estonia');
   if (inNetherlands) regions.push('netherlands');
+  // Sweden — Trafikverket traffic cameras (free key TRAFIKVERKET_KEY)
+  if (lat > 55.2 && lat < 69.1 && lng > 10.9 && lng < 24.2) regions.push('sweden');
 
   // Middle East
   const inMiddleEast = lat > 29 && lat < 34.5 && lng > 34 && lng < 36.5;

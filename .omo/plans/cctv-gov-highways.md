@@ -13,6 +13,14 @@ were done. Cameras surface under the existing **CCTV** layer (camera icon).
   REGION_FETCHERS (`singapore`) + bbox branch (lat 1.15–1.48, lng 103.6–104.1).
   Region endpoint + viewport auto-load + image fetch all return 200. No proxy
   allowlist needed (jpg loads directly; images.data.gov.sg is https).
+- DONE (2026-06-24) — **Batch 2: South Korea + Sweden** (key policy = allow free
+  keys, approved). `south-korea.ts` (ITS, type=ex+its, HLS, env `ITS_KR_KEY`) and
+  `sweden.ts` (Trafikverket POST query, JPG, env `TRAFIKVERKET_KEY`) implemented,
+  wired (REGION_FETCHERS + bbox branches: KR lat 33–39/lng 124.5–131.5, SE lat
+  55.2–69.1/lng 10.9–24.2), keys documented in `.env.example`. Both gracefully
+  return [] without a key (verified: HTTP 200, 0 cams, no errors). **Live verify
+  pending real keys** — user to register (ITS its.go.kr/opendata, Trafikverket
+  api.trafikinfo). KR HLS: if feeds load black, add host to HLS_PROXY_HOSTS.
 - Context: `open-webcams.ts` already pulls ~6,000 global webcams keyless
   (incl. JP/KR/EU/APAC cities). This effort adds DENSE national HIGHWAY networks.
 
@@ -68,9 +76,11 @@ Serbia, Macedonia, Turkey, Romania, Switzerland, Taiwan, Hong Kong, Indonesia,
 Australia, New Zealand, Japan(landmarks), + US states.
 
 ## Next action when resuming
-Batch 1 (Singapore) is DONE. **Decision still needed: key policy** (see above) —
-Batch 2 (South Korea ITS, Sweden Trafikverket) needs free per-country keys.
-If keys approved: implement `south-korea.ts` (ITS `openapi.its.go.kr/api/NCCTVInfo`,
-env `ITS_KR_KEY`) + `sweden.ts` (Trafikverket, env key). Otherwise skip to Batch 3
-(investigate keyless/DATEX feeds: UK National Highways, Belgium, Norway, Ireland,
-Denmark, Slovenia).
+Batches 1 (Singapore) + 2 (South Korea, Sweden) DONE. Key policy = free keys allowed.
+1. User registers ITS_KR_KEY + TRAFIKVERKET_KEY → drop in `.env.local`, live-verify
+   both regions return cameras (and KR HLS streams actually play; if black, add the
+   HLS host to HLS_PROXY_HOSTS).
+2. Batch 3 (keyless/DATEX): UK National Highways (DATEX II / WebTRIS), Belgium
+   (Verkeerscentrum Vlaanderen + Brussels Mobiris), Norway (Statens vegvesen DATEX),
+   Ireland TII, Denmark Vejdirektoratet, Slovenia promet.si.
+3. Batch 4 (curated/landmark fallback): Japan NEXCO, Malaysia, Thailand, India, PH.
