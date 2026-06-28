@@ -769,19 +769,22 @@ map.addSource('mitre-nodes', { type: 'geojson', data: EMPTY_FC });
       }});
 
       // ══ SCAN TARGETS — Geolocated individual scans ══
+      // Recon/OSINT findings — colour by threat verdict so malicious findings
+      // (URLhaus, isMalicious, DNS-threat…) read crimson like the live threat
+      // layers, while clean/info lookups stay cyan.
       map.addLayer({ id: 'scan-targets-glow', type: 'circle', source: 'scan-targets', paint: {
         'circle-radius': ['interpolate',['linear'],['zoom'], 1,12, 5,25, 10,40],
-        'circle-color': '#D32F2F', 'circle-opacity': 0.15, 'circle-blur': 1,
+        'circle-color': ['case', ['get','malicious'], '#D32F2F', '#00E5FF'], 'circle-opacity': 0.15, 'circle-blur': 1,
       }});
       map.addLayer({ id: 'scan-targets-dots', type: 'circle', source: 'scan-targets', paint: {
         'circle-radius': ['interpolate',['linear'],['zoom'], 1,5, 5,8, 10,12],
-        'circle-color': '#D32F2F', 'circle-opacity': 0.9,
+        'circle-color': ['case', ['get','malicious'], '#D32F2F', '#00E5FF'], 'circle-opacity': 0.9,
         'circle-stroke-width': 1.5, 'circle-stroke-color': '#ECEFF1', 'circle-stroke-opacity': 0.7,
       }});
       map.addLayer({ id: 'scan-targets-label', type: 'symbol', source: 'scan-targets', layout: {
         'text-field': ['get', 'id'], 'text-size': 11, 'text-font': ['Open Sans Bold'],
         'text-offset': [0, 2], 'text-max-width': 14, 'text-allow-overlap': false,
-      }, paint: { 'text-color': '#D32F2F', 'text-halo-color': '#FFFFFF', 'text-halo-width': 1.5, 'text-opacity': 0.9 }});
+      }, paint: { 'text-color': ['case', ['get','malicious'], '#D32F2F', '#00E5FF'], 'text-halo-color': '#FFFFFF', 'text-halo-width': 1.5, 'text-opacity': 0.9 }});
 
       // Flight layers (WebGL symbol — GPU rendered, handles 50K+ smooth)
       const flightLayers = [
