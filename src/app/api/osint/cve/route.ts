@@ -1,8 +1,9 @@
+import { withQueryCache } from '@/lib/feeds/serve';
 import { NextResponse } from 'next/server';
 import { isRateLimited, getClientIp } from '@/lib/ssrf-guard';
 
 // CVE Intelligence — fetches vulnerability details from CIRCL CVE API (free, no key)
-export async function GET(req: Request) {
+async function _GET(req: Request) {
   const { searchParams } = new URL(req.url);
   const cve = searchParams.get('cve');
   if (!cve) return NextResponse.json({ error: 'Missing cve parameter' }, { status: 400 });
@@ -121,3 +122,5 @@ export async function GET(req: Request) {
     return NextResponse.json({ error: 'CVE lookup failed' }, { status: 500 });
   }
 }
+
+export const GET = withQueryCache('osint/cve', 86400000, _GET);

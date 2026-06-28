@@ -1,3 +1,4 @@
+import { withCache } from '@/lib/feeds/serve';
 
 import { NextResponse } from 'next/server';
 
@@ -38,7 +39,7 @@ const LIVE_FEEDS = [
   { id: 'rt',       name: 'RT News',   city: 'Moscow',  country: 'RU', lat: 55.755, lng:  37.617, url: 'https://rumble.com/c/RTNewsEN', embed_allowed: false, category: 'state', language: 'en' },
 ];
 
-export async function GET() {
+async function _GET() {
   return NextResponse.json({
     feeds: LIVE_FEEDS,
     total: LIVE_FEEDS.length,
@@ -49,3 +50,4 @@ export async function GET() {
   });
 }
 
+export const GET = withCache('live-news', 600000, _GET);

@@ -1,3 +1,4 @@
+import { withQueryCache } from '@/lib/feeds/serve';
 import { NextResponse } from 'next/server';
 import { safeFetch, isRateLimited, getClientIp } from '@/lib/ssrf-guard';
 import { matchExact, type SanctionEntry } from '@/lib/sanctions';
@@ -7,7 +8,7 @@ import { matchExact, type SanctionEntry } from '@/lib/sanctions';
 // OFAC SDN list so a sanctioned registrant surfaces alongside the WHOIS
 // metadata (still keyless — the SDN snapshot is sourced from the open
 // OpenSanctions mirror).
-export async function GET(req: Request) {
+async function _GET(req: Request) {
   const { searchParams } = new URL(req.url);
   const domain = searchParams.get('domain');
   if (!domain) return NextResponse.json({ error: 'Missing domain parameter' }, { status: 400 });
@@ -113,3 +114,5 @@ export async function GET(req: Request) {
     return NextResponse.json({ error: 'WHOIS lookup failed' }, { status: 500 });
   }
 }
+
+export const GET = withQueryCache('osint/whois', 86400000, _GET);

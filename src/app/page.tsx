@@ -45,6 +45,8 @@ import KeyboardShortcuts from '@/components/KeyboardShortcuts';
 import GlobalStatusBar from '@/components/GlobalStatusBar';
 import LiveAlerts from '@/components/LiveAlerts';
 import AiAnalyst from '@/components/AiAnalyst';
+import CacheBadges from '@/components/CacheBadges';
+import OfflineBanner from '@/components/OfflineBanner';
 
 const OsirisMap = dynamic(() => import('@/components/OsirisMap'), { ssr: false });
 const LayerPanel = dynamic(() => import('@/components/LayerPanel'));
@@ -186,6 +188,8 @@ export default function Dashboard() {
   const dataRef = useRef<any>({});
   const [dataVersion, setDataVersion] = useState(0);
   const data = dataRef.current;
+  // Local-cache freshness, keyed by feed name (from X-OSIRIS-* response headers).
+  const [cacheMeta, setCacheMeta] = useState<Record<string, { status: string; ageSec: number; sourceOk: boolean }>>({});
 
   const [backendStatus, setBackendStatus] = useState<'connecting' | 'connected' | 'error'>('connecting');
   const [mapView, setMapView] = useState({ zoom: 2.5, latitude: 20 });
@@ -439,6 +443,19 @@ export default function Dashboard() {
       // Force the browser to bypass its local disk cache for real-time data
       const res = await fetch(url, { ...options, cache: 'no-store' });
       if (res.ok) {
+        // Capture local-cache staleness headers (set by cache-first feeds).
+        const cacheStatus = res.headers.get('X-OSIRIS-Cache');
+        if (cacheStatus) {
+          const kind = url.replace(/^\/api\//, '').split('?')[0];
+          setCacheMeta(prev => ({
+            ...prev,
+            [kind]: {
+              status: cacheStatus,
+              ageSec: Number(res.headers.get('X-OSIRIS-Age') || 0),
+              sourceOk: res.headers.get('X-OSIRIS-Source-Ok') !== 'false',
+            },
+          }));
+        }
         const json = await res.json();
         const d = transform ? transform(json) : json;
         dataRef.current = { ...dataRef.current, ...d };
@@ -1434,6 +1451,12 @@ export default function Dashboard() {
 
       {/* ── AI INTELLIGENCE ANALYST (Gemini 2.5 Flash, floating brain button) ── */}
       <AiAnalyst data={data} />
+
+      {/* ── LOCAL-CACHE FRESHNESS BADGES (bottom-left) ── */}
+      <CacheBadges meta={cacheMeta} />
+
+      {/* ── OFFLINE / CACHED-INTELLIGENCE BANNER (top) ── */}
+      <OfflineBanner meta={cacheMeta} />
 
       {/* Shortcut hint */}
       <div className="desktop-only absolute bottom-[26px] right-5 z-[200] pointer-events-none text-[6px] font-mono text-[var(--text-muted)]/40 tracking-widest">

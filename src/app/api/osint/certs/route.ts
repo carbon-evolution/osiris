@@ -1,8 +1,9 @@
+import { withQueryCache } from '@/lib/feeds/serve';
 import { NextResponse } from 'next/server';
 import { isRateLimited, getClientIp } from '@/lib/ssrf-guard';
 
 // Certificate Transparency lookup via crt.sh (free, no key)
-export async function GET(req: Request) {
+async function _GET(req: Request) {
   const { searchParams } = new URL(req.url);
   const domain = searchParams.get('domain');
   if (!domain) return NextResponse.json({ error: 'Missing domain parameter' }, { status: 400 });
@@ -68,3 +69,5 @@ export async function GET(req: Request) {
     return NextResponse.json({ domain, certificates: [], subdomains: [], error: 'Lookup failed' }, { status: 500 });
   }
 }
+
+export const GET = withQueryCache('osint/certs', 86400000, _GET);

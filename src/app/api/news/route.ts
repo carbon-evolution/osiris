@@ -1,3 +1,4 @@
+import { withCache } from '@/lib/feeds/serve';
 import { NextResponse } from 'next/server';
 import crypto from 'crypto';
 
@@ -99,7 +100,7 @@ function parseRSSItems(xml: string, sourceName: string): any[] {
   return items;
 }
 
-export async function GET() {
+async function _GET() {
   try {
     const feedPromises = TELEGRAM_CHANNELS.map(async (channel) => {
       try {
@@ -170,3 +171,5 @@ export async function GET() {
     return NextResponse.json({ news: [], error: 'Failed to fetch intel' }, { status: 500 });
   }
 }
+
+export const GET = withCache('news', 1800000, _GET);

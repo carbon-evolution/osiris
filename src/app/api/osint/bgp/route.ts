@@ -1,8 +1,9 @@
+import { withQueryCache } from '@/lib/feeds/serve';
 import { NextResponse } from 'next/server';
 import { isRateLimited, getClientIp } from '@/lib/ssrf-guard';
 
 // BGP/ASN Lookup via bgpview.io (free, no key)
-export async function GET(req: Request) {
+async function _GET(req: Request) {
   const { searchParams } = new URL(req.url);
   const query = searchParams.get('query'); // Can be IP, ASN, or prefix
   if (!query) return NextResponse.json({ error: 'Missing query parameter (IP, ASN number, or prefix)' }, { status: 400 });
@@ -75,3 +76,5 @@ export async function GET(req: Request) {
     return NextResponse.json({ error: 'BGP lookup failed' }, { status: 500 });
   }
 }
+
+export const GET = withQueryCache('osint/bgp', 21600000, _GET);

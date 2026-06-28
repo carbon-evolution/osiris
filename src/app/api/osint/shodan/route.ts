@@ -1,7 +1,8 @@
+import { withQueryCache } from '@/lib/feeds/serve';
 import { NextResponse } from 'next/server';
 import { guardRequest } from '@/lib/guard';
 
-export async function GET(req: Request) {
+async function _GET(req: Request) {
   const blocked = await guardRequest(req, 'osint/shodan');
   if (blocked) return blocked;
 
@@ -40,3 +41,5 @@ export async function GET(req: Request) {
     return NextResponse.json({ error: 'Shodan lookup failed', detail: error.message }, { status: 502 });
   }
 }
+
+export const GET = withQueryCache('osint/shodan', 21600000, _GET);

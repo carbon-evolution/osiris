@@ -1,3 +1,4 @@
+import { withCache } from '@/lib/feeds/serve';
 import { NextResponse } from 'next/server';
 
 /**
@@ -28,7 +29,7 @@ const SUPPLIERS = [
   { id: 'sup-panasonic-nevada', name: 'Panasonic Giga (Tier 1)', city: 'Sparks', country: 'US', lat: 39.539, lng: -119.439, category: 'Battery' },
 ];
 
-export async function GET() {
+async function _GET() {
   const dynamicSuppliers = [...SUPPLIERS].map(s => ({ ...s, risk_level: 'NORMAL', active_threats: [] as string[] }));
 
   // Fast distance approximation (km)
@@ -98,3 +99,5 @@ export async function GET() {
     headers: { 'Cache-Control': 'no-store' },
   });
 }
+
+export const GET = withCache('scm-suppliers', 21600000, _GET);

@@ -1,3 +1,4 @@
+import { withCache } from '@/lib/feeds/serve';
 import { NextResponse } from 'next/server';
 
 export const dynamic = 'force-dynamic';
@@ -93,7 +94,7 @@ async function batchGeo(ips: string[]): Promise<Map<string, any>> {
   return geoMap;
 }
 
-export async function GET() {
+async function _GET() {
   const response: any = {
     cves: [],
     spamhaus_drop: [],
@@ -286,3 +287,5 @@ export async function GET() {
     headers: { 'Cache-Control': 'public, s-maxage=300, stale-while-revalidate=600' },
   });
 }
+
+export const GET = withCache('cyber-intel', 300000, _GET);

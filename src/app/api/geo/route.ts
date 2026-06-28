@@ -1,8 +1,9 @@
+import { withQueryCache } from '@/lib/feeds/serve';
 import { NextRequest, NextResponse } from 'next/server';
 
 // Server-side proxy for IP geolocation — avoids mixed-content block on HTTPS pages
 // Uses ipapi.co (HTTPS) as primary, with ip-api.com (HTTP) as fallback
-export async function GET(request: NextRequest) {
+async function _GET(request: NextRequest) {
   try {
     // Extract the real client IP from standard proxy headers
     const clientIp =
@@ -62,3 +63,5 @@ export async function GET(request: NextRequest) {
     );
   }
 }
+
+export const GET = withQueryCache('geo', 86400000, _GET);

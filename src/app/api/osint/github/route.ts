@@ -1,6 +1,7 @@
+import { withQueryCache } from '@/lib/feeds/serve';
 import { NextResponse } from 'next/server';
 
-export async function GET(req: Request) {
+async function _GET(req: Request) {
   const { searchParams } = new URL(req.url);
   const username = searchParams.get('user');
 
@@ -37,3 +38,5 @@ export async function GET(req: Request) {
     return NextResponse.json({ error: 'GitHub lookup failed', detail: error.message }, { status: 502 });
   }
 }
+
+export const GET = withQueryCache('osint/github', 21600000, _GET);

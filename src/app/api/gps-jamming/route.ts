@@ -1,3 +1,4 @@
+import { withCache } from '@/lib/feeds/serve';
 import { NextResponse } from 'next/server';
 import * as h3 from 'h3-js';
 
@@ -11,7 +12,7 @@ function getDateStr(): string {
   return d.toISOString().split('T')[0];
 }
 
-export async function GET() {
+async function _GET() {
   try {
     const dateStr = getDateStr();
     const url = `${GPSJAM_URL}/${dateStr}-h3_4.csv`;
@@ -121,3 +122,5 @@ function processData(csv: string, dateStr: string) {
     headers: { 'Cache-Control': 'public, s-maxage=600, stale-while-revalidate=1800' },
   });
 }
+
+export const GET = withCache('gps-jamming', 600000, _GET);

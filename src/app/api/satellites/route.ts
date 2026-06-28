@@ -1,3 +1,4 @@
+import { withCache } from '@/lib/feeds/serve';
 
 import { NextResponse } from 'next/server';
 import { stealthFetch } from '@/lib/stealthFetch';
@@ -154,7 +155,7 @@ const SATNOGS_API = 'https://db.satnogs.org/api/tle/?format=json';
 let globalCachedSats: any[] = [];
 let globalCacheTime = 0;
 
-export async function GET() {
+async function _GET() {
   try {
     const nowTime = Date.now();
     let allSats: any[] = globalCachedSats;
@@ -247,3 +248,5 @@ export async function GET() {
     return NextResponse.json({ satellites: [], error: 'Failed to fetch satellite data' }, { status: 500 });
   }
 }
+
+export const GET = withCache('satellites', 3600000, _GET);

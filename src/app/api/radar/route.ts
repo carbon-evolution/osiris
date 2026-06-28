@@ -1,3 +1,4 @@
+import { withCache } from '@/lib/feeds/serve';
 import { NextResponse } from 'next/server';
 
 export const dynamic = 'force-dynamic';
@@ -24,7 +25,7 @@ const COUNTRY_CENTROIDS: Record<string, [number, number]> = {
   VE:[-66,8],VN:[106,16],YE:[48,15.5],ZM:[28,-14],ZW:[30,-20],
 };
 
-export async function GET() {
+async function _GET() {
   try {
     const now = Math.floor(Date.now() / 1000);
     const from = now - 86400; // Last 24 hours
@@ -85,3 +86,5 @@ export async function GET() {
     return NextResponse.json({ outages: [], total: 0, error: 'IODA unavailable' }, { status: 500 });
   }
 }
+
+export const GET = withCache('radar', 600000, _GET);

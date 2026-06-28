@@ -1,6 +1,7 @@
+import { withQueryCache } from '@/lib/feeds/serve';
 import { NextResponse } from 'next/server';
 
-export async function GET(req: Request) {
+async function _GET(req: Request) {
   const { searchParams } = new URL(req.url);
   const mac = searchParams.get('mac');
 
@@ -36,3 +37,5 @@ export async function GET(req: Request) {
     return NextResponse.json({ error: 'MAC lookup failed', detail: error.message }, { status: 502 });
   }
 }
+
+export const GET = withQueryCache('osint/mac', 86400000, _GET);

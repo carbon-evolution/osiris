@@ -68,6 +68,16 @@ Built on **Next.js 16 (App Router)**, **React 19**, and **MapLibre GL JS** (WebG
 - **Readable, self-contained UI** — the chat panel now carries its own dark high-contrast colour scheme, so text stays legible regardless of the active map theme.
 - **Mounted on the dashboard** — the analyst panel (floating brain button, bottom-right) is now wired into the main view.
 
+**Local cache-first data layer (June 2026):**
+
+OSIRIS now serves **42 data routes from a local Redis + Postgres cache** instead of hitting upstream APIs on every page load. Data flow: `Resource → local cache → OSIRIS → dashboard`.
+
+- **Quota protection** — a normal page load never calls an upstream API; live APIs are touched only on scheduled/stale refreshes, so free-tier limits aren't burned by browsing.
+- **Offline resilience** — if a source is unreachable, the dashboard keeps rendering the **last-known-good** data instead of going blank.
+- **Staleness visibility** — every cached response carries `X-OSIRIS-Cache` / `X-OSIRIS-Age` / `X-OSIRIS-Source-Ok` headers, surfaced as freshness badges (bottom-left) and a global **"OFFLINE — serving cached intelligence"** banner when a source is down.
+- **Per-query OSINT cache** — on-demand lookups (ip / dns / whois / cve / shodan …) are cached **per target**, so repeated lookups are instant and quota-free; stale per-query entries are pruned automatically.
+- **How it's built** — `cacheFirst()` engine (`src/lib/cacheFirst.ts`) over a durable `feed_snapshots` table; pilot feeds (earthquakes/markets/flights) are background-refreshed by the worker scheduler; the rest self-refresh when stale. Requires the local backend (Postgres + Redis) running.
+
 ## ✨ Features
 
 ### 🗺️ Multi-Layer Map (40+ Data Sources)
@@ -284,7 +294,7 @@ npm run build && npm start
 
 ## 🗄️ Local Intelligence Backend (optional)
 
-By default every layer fetches from upstream APIs on each request. The optional **local backend** moves threat-intel feeds and curated datasets onto your own infrastructure, so the dashboard keeps working when upstream APIs throttle or go down — and adds rate-limiting + audit logging for the abuse-prone routes.
+The **local backend** (Postgres + Redis) powers the cache-first data layer: it moves threat-intel feeds, curated datasets, and **42 cached data/OSINT routes** onto your own infrastructure, so the dashboard keeps working — serving last-known-good data — when upstream APIs throttle or go down, and free-tier quota isn't burned on every page load. It also adds rate-limiting + audit logging for the abuse-prone routes. Bring it up with `npm run data:up` (or just Postgres + Redis: `docker compose -f backend/docker-compose.data.yml --profile lean up -d`).
 
 It is **fully opt-in**: if you don't start it, OSIRIS runs exactly as before.
 

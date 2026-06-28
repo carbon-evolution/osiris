@@ -1,3 +1,4 @@
+import { withCache } from '@/lib/feeds/serve';
 
 import { NextResponse } from 'next/server';
 
@@ -6,7 +7,7 @@ import { NextResponse } from 'next/server';
  * Fetches live warfront GeoJSON from DeepState Map
  */
 
-export async function GET() {
+async function _GET() {
   try {
     const url = 'https://deepstatemap.live/api/history/last';
     const res = await fetch(url, {
@@ -33,3 +34,4 @@ export async function GET() {
   }
 }
 
+export const GET = withCache('frontlines', 3600000, _GET);

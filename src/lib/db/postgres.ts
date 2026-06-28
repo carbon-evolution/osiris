@@ -34,6 +34,16 @@ export async function ensureSchema(): Promise<void> {
     )
   `);
   await p.query('CREATE INDEX IF NOT EXISTS feed_items_kind_seen ON feed_items (kind, seen_at DESC)');
+  // Whole-feed snapshot store: one row per feed holding its last full response.
+  // Backs the cache-first layer (serve last-known-good even when upstream is down).
+  await p.query(`
+    CREATE TABLE IF NOT EXISTS feed_snapshots (
+      kind        TEXT PRIMARY KEY,
+      data        JSONB NOT NULL,
+      fetched_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+      source_ok   BOOLEAN NOT NULL DEFAULT true
+    )
+  `);
   await p.query(`
     CREATE TABLE IF NOT EXISTS audit_log (
       id           BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,

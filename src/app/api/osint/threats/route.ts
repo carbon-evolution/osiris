@@ -1,8 +1,9 @@
+import { withQueryCache } from '@/lib/feeds/serve';
 import { NextResponse } from 'next/server';
 import { isRateLimited, getClientIp } from '@/lib/ssrf-guard';
 
 // Threat Intelligence — AlienVault OTX public pulse feed + Tor exit nodes
-export async function GET(req: Request) {
+async function _GET(req: Request) {
   const { searchParams } = new URL(req.url);
   const query = searchParams.get('query'); // Optional: IP or domain to check
   
@@ -103,3 +104,5 @@ export async function GET(req: Request) {
     return NextResponse.json({ error: 'Threat lookup failed' }, { status: 500 });
   }
 }
+
+export const GET = withQueryCache('osint/threats', 21600000, _GET);

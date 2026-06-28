@@ -1,3 +1,4 @@
+import { withQueryCache } from '@/lib/feeds/serve';
 import { NextResponse } from 'next/server';
 import { isRateLimited, getClientIp } from '@/lib/ssrf-guard';
 import { matchExact, type SanctionEntry } from '@/lib/sanctions';
@@ -127,7 +128,7 @@ async function getIpAsn(ip: string): Promise<{ asn: number; org: string } | null
   return null;
 }
 
-export async function GET(req: Request) {
+async function _GET(req: Request) {
   const { searchParams } = new URL(req.url);
   const domain = searchParams.get('domain');
   const ip = searchParams.get('ip');
@@ -289,3 +290,5 @@ export async function GET(req: Request) {
     }, { status: 500 });
   }
 }
+
+export const GET = withQueryCache('osint/dns-threat', 21600000, _GET);

@@ -1,3 +1,4 @@
+import { withQueryCache } from '@/lib/feeds/serve';
 import { NextResponse } from 'next/server';
 import { isRateLimited, getClientIp } from '@/lib/ssrf-guard';
 import { search, type Schema } from '@/lib/sanctions';
@@ -14,7 +15,7 @@ const ALLOWED_SCHEMAS: Schema[] = [
   'LegalEntity',
 ];
 
-export async function GET(req: Request) {
+async function _GET(req: Request) {
   const { searchParams } = new URL(req.url);
   const query = (searchParams.get('query') || '').trim();
   const schemaParam = searchParams.get('schema');
@@ -63,3 +64,5 @@ export async function GET(req: Request) {
     );
   }
 }
+
+export const GET = withQueryCache('osint/sanctions', 86400000, _GET);

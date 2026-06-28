@@ -1,3 +1,4 @@
+import { withCache } from '@/lib/feeds/serve';
 import { NextResponse } from 'next/server';
 import { stealthFetch } from '@/lib/stealthFetch';
 import { fetchAcledEvents, acledConfigured } from '@/lib/acled';
@@ -10,7 +11,7 @@ export const dynamic = 'force-dynamic';
  * (opt-in, OAuth — only used when ACLED_EMAIL/ACLED_PASSWORD are set).
  */
 
-export async function GET() {
+async function _GET() {
   try {
     // ACLED — structured, geocoded conflict events with actors + fatalities.
     // Runs in parallel; skipped entirely when credentials aren't configured.
@@ -150,3 +151,5 @@ export async function GET() {
     return NextResponse.json({ events: [], total: 0, error: 'GDELT unavailable' }, { status: 500 });
   }
 }
+
+export const GET = withCache('gdelt', 1800000, _GET);

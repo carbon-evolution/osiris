@@ -1,3 +1,4 @@
+import { withCache } from '@/lib/feeds/serve';
 import { NextResponse } from 'next/server';
 
 /**
@@ -7,7 +8,7 @@ import { NextResponse } from 'next/server';
  * Data: PM2.5, PM10, O3, NO2, SO2, CO measurements worldwide
  */
 
-export async function GET() {
+async function _GET() {
   try {
     // OpenAQ v2 — get latest measurements globally
     // We request PM2.5 (most health-relevant) with coordinates
@@ -68,3 +69,5 @@ export async function GET() {
     return NextResponse.json({ stations: [], error: 'Failed to fetch air quality data' }, { status: 500 });
   }
 }
+
+export const GET = withCache('air-quality', 1800000, _GET);

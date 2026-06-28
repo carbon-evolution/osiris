@@ -1,8 +1,9 @@
+import { withQueryCache } from '@/lib/feeds/serve';
 import { NextResponse } from 'next/server';
 import { isRateLimited, getClientIp } from '@/lib/ssrf-guard';
 
 // DNS Lookup via Google DNS-over-HTTPS (free, no key)
-export async function GET(req: Request) {
+async function _GET(req: Request) {
   const { searchParams } = new URL(req.url);
   const domain = searchParams.get('domain');
   if (!domain) return NextResponse.json({ error: 'Missing domain parameter' }, { status: 400 });
@@ -64,3 +65,5 @@ export async function GET(req: Request) {
     return NextResponse.json({ error: 'DNS lookup failed' }, { status: 500 });
   }
 }
+
+export const GET = withQueryCache('osint/dns', 21600000, _GET);

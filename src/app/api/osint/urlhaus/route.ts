@@ -1,3 +1,4 @@
+import { withQueryCache } from '@/lib/feeds/serve';
 import { NextResponse } from 'next/server';
 import { isRateLimited, getClientIp } from '@/lib/ssrf-guard';
 
@@ -16,7 +17,7 @@ export const dynamic = 'force-dynamic';
  */
 const URLHAUS_API = 'https://urlhaus-api.abuse.ch/v1';
 
-export async function GET(req: Request) {
+async function _GET(req: Request) {
   const { searchParams } = new URL(req.url);
   const host = searchParams.get('host');
   const url = searchParams.get('url');
@@ -212,3 +213,5 @@ export async function GET(req: Request) {
     }, { status: 502 });
   }
 }
+
+export const GET = withQueryCache('osint/urlhaus', 21600000, _GET);

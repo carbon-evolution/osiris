@@ -1,6 +1,7 @@
+import { withQueryCache } from '@/lib/feeds/serve';
 import { NextResponse } from 'next/server';
 
-export async function GET(req: Request) {
+async function _GET(req: Request) {
   const { searchParams } = new URL(req.url);
   const email = searchParams.get('email');
 
@@ -49,3 +50,5 @@ export async function GET(req: Request) {
     return NextResponse.json({ error: 'Leak lookup failed', detail: error.message }, { status: 500 });
   }
 }
+
+export const GET = withQueryCache('osint/leaks', 86400000, _GET);
