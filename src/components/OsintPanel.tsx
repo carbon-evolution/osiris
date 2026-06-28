@@ -431,18 +431,22 @@ function OsintPanelInner({ isMobile, onSweepVisualize, onScanGeolocate }: OsintP
 
     // ── DNS ──
     if (activeTab === 'dns') {
+      // Backend (/api/osint/dns) returns { records: { A:[{data}], MX:[{data}], ... } }.
+      // Read that nested shape; each record's value is in `.data`.
+      const rec = r.records || {};
+      const vals = (t: string): string[] => (Array.isArray(rec[t]) ? rec[t] : []).map((x: any) => x?.data ?? x).filter(Boolean);
       return (
         <div>
           <SectionHeader title="DNS RECORDS" icon={Server} color="#448AFF" />
           <ResultRow label="Domain" value={r.domain || query} color="#448AFF" />
-          {r.A && <ResultRow label="A Records" value={Array.isArray(r.A) ? r.A.join(', ') : r.A} />}
-          {r.AAAA && <ResultRow label="AAAA" value={Array.isArray(r.AAAA) ? r.AAAA.join(', ') : r.AAAA} />}
-          {r.MX && <ResultRow label="MX" value={Array.isArray(r.MX) ? r.MX.map((m:any) => m.exchange || m).join(', ') : r.MX} />}
-          {r.NS && <ResultRow label="NS" value={Array.isArray(r.NS) ? r.NS.join(', ') : r.NS} />}
-          {r.TXT && <ResultRow label="TXT" value={Array.isArray(r.TXT) ? r.TXT.join(' | ') : r.TXT} />}
-          {r.CNAME && <ResultRow label="CNAME" value={Array.isArray(r.CNAME) ? r.CNAME.join(', ') : r.CNAME} />}
-          {r.SOA && <ResultRow label="SOA" value={typeof r.SOA === 'object' ? `${r.SOA.nsname} (${r.SOA.hostmaster})` : r.SOA} />}
-          {renderFallbackExcluding(['domain','A','AAAA','MX','NS','TXT','CNAME','SOA','timestamp','cached'])}
+          {vals('A').length > 0 && <ResultRow label="A Records" value={vals('A').join(', ')} />}
+          {vals('AAAA').length > 0 && <ResultRow label="AAAA" value={vals('AAAA').join(', ')} />}
+          {vals('MX').length > 0 && <ResultRow label="MX" value={vals('MX').join(', ')} />}
+          {vals('NS').length > 0 && <ResultRow label="NS" value={vals('NS').join(', ')} />}
+          {vals('TXT').length > 0 && <ResultRow label="TXT" value={vals('TXT').join(' | ')} />}
+          {vals('CNAME').length > 0 && <ResultRow label="CNAME" value={vals('CNAME').join(', ')} />}
+          {vals('SOA').length > 0 && <ResultRow label="SOA" value={vals('SOA').join(', ')} />}
+          {renderFallbackExcluding(['domain','records','summary','timestamp','cached'])}
         </div>
       );
     }

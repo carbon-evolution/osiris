@@ -56,7 +56,14 @@ export function withCache(
       const r = await cacheFirst(kind, ttlMs, async () => {
         const res = await handler(req);
         if (!res.ok) throw new Error(`upstream returned ${res.status}`);
-        return (await res.json()) as unknown;
+        const data = (await res.json()) as unknown;
+        // Don't cache error payloads (some routes return {error} with HTTP 200);
+        // throwing keeps the bad response out of the cache and lets the wrapper
+        // fall back to the handler's native response or a still-good snapshot.
+        if (data && typeof data === 'object' && 'error' in (data as Record<string, unknown>)) {
+          throw new Error(String((data as Record<string, unknown>).error));
+        }
+        return data;
       }, opts);
       return NextResponse.json(r.data as Record<string, unknown>, { headers: staleHeaders(r) });
     } catch {
@@ -95,7 +102,14 @@ export function withQueryCache(
       const r = await cacheFirst(key, ttlMs, async () => {
         const res = await handler(req);
         if (!res.ok) throw new Error(`upstream returned ${res.status}`);
-        return (await res.json()) as unknown;
+        const data = (await res.json()) as unknown;
+        // Don't cache error payloads (some routes return {error} with HTTP 200);
+        // throwing keeps the bad response out of the cache and lets the wrapper
+        // fall back to the handler's native response or a still-good snapshot.
+        if (data && typeof data === 'object' && 'error' in (data as Record<string, unknown>)) {
+          throw new Error(String((data as Record<string, unknown>).error));
+        }
+        return data;
       }, opts);
       return NextResponse.json(r.data as Record<string, unknown>, { headers: staleHeaders(r) });
     } catch {

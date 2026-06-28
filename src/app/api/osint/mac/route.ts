@@ -13,26 +13,25 @@ async function _GET(req: Request) {
   const cleanMac = mac.trim().toUpperCase().replace(/[^A-F0-9:-]/g, '');
 
   try {
-    const res = await fetch(`https://macvendors.co/api/${encodeURIComponent(cleanMac)}`, {
+    // macvendors.co is dead (308-redirects to nothing). api.macvendors.com is the
+    // live endpoint and returns the vendor as PLAIN TEXT (or 404 if unknown).
+    const res = await fetch(`https://api.macvendors.com/${encodeURIComponent(cleanMac)}`, {
       signal: AbortSignal.timeout(8000),
-      headers: { 'Accept': 'application/json' }
     });
 
+    if (res.status === 404) {
+      return NextResponse.json({ mac: cleanMac, vendor: 'Not Found' });
+    }
     if (!res.ok) {
       throw new Error(`MacVendors API HTTP ${res.status}`);
     }
 
-    const data = await res.json();
-    if (data && data.result && data.result.company) {
-      return NextResponse.json({
-        mac: cleanMac,
-        vendor: data.result.company,
-        address: data.result.address,
-        prefix: data.result.mac_prefix
-      });
-    } else {
-      return NextResponse.json({ mac: cleanMac, vendor: 'Not Found' });
-    }
+    const vendor = (await res.text()).trim();
+    return NextResponse.json({
+      mac: cleanMac,
+      vendor: vendor || 'Not Found',
+      prefix: cleanMac.replace(/[:-]/g, '').slice(0, 6),
+    });
   } catch (error: any) {
     return NextResponse.json({ error: 'MAC lookup failed', detail: error.message }, { status: 502 });
   }

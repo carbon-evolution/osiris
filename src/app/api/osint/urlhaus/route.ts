@@ -16,6 +16,13 @@ export const dynamic = 'force-dynamic';
  * Docs: https://urlhaus-api.abuse.ch/
  */
 const URLHAUS_API = 'https://urlhaus-api.abuse.ch/v1';
+// abuse.ch made authentication mandatory in 2024 — without an Auth-Key every
+// request returns 401. Get a free key at https://auth.abuse.ch and set URLHAUS_KEY.
+const URLHAUS_KEY = (typeof process !== 'undefined' && process.env && process.env.URLHAUS_KEY) || '';
+const uhHeaders: Record<string, string> = {
+  Accept: 'application/json',
+  ...(URLHAUS_KEY ? { 'Auth-Key': URLHAUS_KEY } : {}),
+};
 
 async function _GET(req: Request) {
   const { searchParams } = new URL(req.url);
@@ -39,11 +46,21 @@ async function _GET(req: Request) {
       });
     }
 
+    // abuse.ch requires a key for lookups — fail clearly instead of a vague 502.
+    if (!URLHAUS_KEY) {
+      return NextResponse.json({
+        source: 'URLhaus (abuse.ch)',
+        error: 'URLhaus API key required — abuse.ch now mandates authentication. Get a free key at https://auth.abuse.ch and set URLHAUS_KEY in .env.local.',
+        needs_key: true,
+        timestamp: new Date().toISOString(),
+      }, { status: 503 });
+    }
+
     // ── Host lookup (IP or domain) ──
     if (host) {
       const res = await fetch(`${URLHAUS_API}/host/${encodeURIComponent(host)}/`, {
         method: 'POST',
-        headers: { 'Accept': 'application/json' },
+        headers: uhHeaders,
         signal: AbortSignal.timeout(15000),
       });
       if (!res.ok) {
@@ -100,7 +117,7 @@ async function _GET(req: Request) {
         method: 'POST',
         headers: {
           'Content-Type': 'application/x-www-form-urlencoded',
-          'Accept': 'application/json',
+          ...uhHeaders,
         },
         body: new URLSearchParams({ url }),
         signal: AbortSignal.timeout(15000),
@@ -153,7 +170,7 @@ async function _GET(req: Request) {
     if (hash) {
       const res = await fetch(`${URLHAUS_API}/payload/${encodeURIComponent(hash)}/`, {
         method: 'POST',
-        headers: { 'Accept': 'application/json' },
+        headers: uhHeaders,
         signal: AbortSignal.timeout(15000),
       });
       if (!res.ok) {

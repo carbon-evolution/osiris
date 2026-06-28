@@ -37,7 +37,9 @@ async function ismFetch(path: string, params: Record<string, string>): Promise<a
   });
   if (!res.ok) {
     if (res.status === 429) throw new Error('Rate limited by isMalicious');
-    if (res.status === 403) throw new Error('isMalicious API key invalid or missing');
+    if (res.status === 401 || res.status === 403) {
+      throw new Error('isMalicious API key invalid or expired — get a new free key at https://ismalicious.com and set ISMALICIOUS_KEY in .env.local');
+    }
     throw new Error(`isMalicious returned ${res.status}`);
   }
   return res.json();
@@ -180,16 +182,19 @@ async function _GET(req: Request) {
 
     return NextResponse.json(result);
   } catch (e) {
-    console.warn('[OSIRIS] isMalicious error:', e instanceof Error ? e.message : e);
+    const msg = e instanceof Error ? e.message : 'unknown';
+    console.warn('[OSIRIS] isMalicious error:', msg);
+    const keyIssue = /key invalid|expired|missing/i.test(msg);
     return NextResponse.json({
       source: 'isMalicious',
       query: searchParams.get('query') || '',
-      error: 'isMalicious lookup failed',
-      details: e instanceof Error ? e.message : 'unknown',
+      error: keyIssue ? msg : 'isMalicious lookup failed',
+      details: msg,
+      needs_key: keyIssue,
       api_key_configured: !!API_KEY,
       malicious: null,
       timestamp: new Date().toISOString(),
-    }, { status: 502 });
+    }, { status: keyIssue ? 503 : 502 });
   }
 }
 
