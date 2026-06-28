@@ -154,11 +154,32 @@ function buildContext(data: DashboardData): IntelligenceContext {
     source: ev.source || 'GDELT',
   }));
 
+  // Cyber alerts — pull real CVEs from the live cyber-intel feed when present.
+  // (Previously hardcoded to [], so the briefing's cyber section had no data.)
+  interface CveItem {
+    id: string;
+    summary?: string;
+    severity?: string;
+    published?: string;
+    vendors?: string[];
+  }
+  const cveList = (data.cyber_intel as { cves?: CveItem[] } | undefined)?.cves ?? [];
+  const cyberAlerts = cveList.slice(0, 10).map((c) => ({
+    id: c.id,
+    name: c.summary || c.id,
+    vendor: Array.isArray(c.vendors) && c.vendors.length > 0 ? c.vendors[0] : '—',
+    product: '',
+    severity: c.severity || 'UNKNOWN',
+    date: c.published || '',
+    due: '',
+    source: 'CVE Feed',
+  }));
+
   return {
     earthquakes,
     news,
     threats,
-    cyberAlerts: [],
+    cyberAlerts,
     timestamp: new Date().toISOString(),
   };
 }
@@ -424,7 +445,20 @@ export default function AiAnalyst({ data }: AiAnalystProps) {
                 boxShadow:
                   '0 0 60px rgba(0, 0, 0, 0.8), 0 0 30px rgba(212, 175, 55, 0.08), 0 1px 0 rgba(212, 175, 55, 0.1) inset',
                 backdropFilter: 'blur(40px) saturate(1.5)',
-              }}
+                // Self-contained DARK theme: this panel is always dark, so override the
+                // page theme variables here so text stays readable regardless of the
+                // active map theme (light/cream theme would otherwise make text near-black).
+                ['--text-primary' as string]: '#E8EAED',
+                ['--text-heading' as string]: '#F8F9FA',
+                ['--text-secondary' as string]: '#C4C7CC',
+                ['--text-muted' as string]: '#9AA0A6',
+                ['--gold-primary' as string]: '#E5C158',
+                ['--gold-dim' as string]: '#C9A227',
+                ['--cyan-primary' as string]: '#3DD6F5',
+                ['--bg-tertiary' as string]: 'rgba(255, 255, 255, 0.05)',
+                ['--border-secondary' as string]: 'rgba(212, 175, 55, 0.18)',
+                ['--hover-accent' as string]: 'rgba(212, 175, 55, 0.10)',
+              } as React.CSSProperties}
             >
               {/* ── Header ── */}
               <div
@@ -450,7 +484,7 @@ export default function AiAnalyst({ data }: AiAnalystProps) {
                   <div className="flex flex-col">
                     <span className="hud-text text-[11px] text-[var(--text-heading)]">OSIRIS ANALYST</span>
                     <span className="text-[7px] font-mono tracking-[0.2em] text-[var(--text-muted)]">
-                      GEMINI 2.0 FLASH • ONLINE
+                      GEMINI 2.5 FLASH • ONLINE
                     </span>
                   </div>
                 </div>

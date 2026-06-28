@@ -48,7 +48,25 @@ Built on **Next.js 16 (App Router)**, **React 19**, and **MapLibre GL JS** (WebG
 
 *Every resource type has its own map icon — camera for CCTV, flame for wildfire, triangle for incidents, anchor for ports — with colour-coded fallback dots for uncategorized sources.*
 
+### ✈️ Live aviation tracking
+
+![Thousands of live aircraft over North America with a flight detail card open](docs/screenshots/aviation-live-tracking.png)
+
+*Real-time aviation layer — commercial, private, private-jet, and military traffic — with a per-flight detail card (route, altitude, heading) and FlightAware / track / intel actions.*
+
 ---
+
+## 🆕 Recent Updates
+
+**AI Intelligence Analyst overhaul (June 2026):**
+
+- **Upgraded to Gemini 2.5 Flash** — the previous `gemini-2.0-flash` model was retired by Google; the analyst now runs on `gemini-2.5-flash`.
+- **Live web search grounding** — the analyst now augments dashboard data with **Google Search**, so it can verify and answer with current, real-world facts instead of being limited to on-screen feeds.
+- **Concise responses** — reworked system prompt: direct answer first, a few sentences by default; long-form reserved for the one-click briefing.
+- **Consistent briefings** — added low-temperature generation config, eliminating the contradictory output that previously appeared on repeated briefing runs.
+- **Real cyber data in briefings** — live CVEs from the cyber-intel feed are now passed into the analyst's context (the cyber section was previously empty).
+- **Readable, self-contained UI** — the chat panel now carries its own dark high-contrast colour scheme, so text stays legible regardless of the active map theme.
+- **Mounted on the dashboard** — the analyst panel (floating brain button, bottom-right) is now wired into the main view.
 
 ## ✨ Features
 
@@ -158,13 +176,19 @@ Results are enriched with automatic **IP geolocation** and **OFAC/SDN sanctions 
 
 ### 🧠 AI Intelligence Analyst
 
-A premium chat interface powered by **Gemini 2.0 Flash** that correlates live seismic, OSINT, threat, and cyber data to deliver actionable intelligence assessments. Features:
+A premium chat interface powered by **Gemini 2.5 Flash** that correlates live seismic, OSINT, threat, and cyber data **plus live web search** to deliver concise, actionable intelligence assessments.
+
+![OSIRIS AI Analyst answering a web-grounded query over the live cyber-threat layer](docs/screenshots/ai-analyst-web-grounded.png)
+
+*The AI Analyst panel (right) answering in plain, readable text over the European cyber-threat intelligence layer — active CVEs, Spamhaus DROP routing intel, Tor exit nodes, and MITRE ATT&CK.*
 
 - **Natural-language queries** — "What are the top 3 threats right now?", "Assess cyber risks to critical infrastructure"
-- **📋 Full intelligence briefing** — One-click generation of structured operational briefings from all current data
-- **🔑 Optional local API key** — Bring your own Gemini key (stored in localStorage only)
-- **📊 Context-aware** — Automatically builds intelligence context from live dashboard data (earthquakes, news, GDELT events)
-- **SIGINT-style UI** — Scan-line header animations, markdown rendering, and chat history
+- **🌐 Live web grounding** — Backed by **Google Search**, so the analyst verifies facts (exact earthquake magnitudes, casualty counts, breaking events, CVE details) against the internet instead of being limited to dashboard data
+- **✂️ Concise by default** — Leads with the direct answer in 1–4 sentences; expands only when you ask for a full briefing
+- **📋 Full intelligence briefing** — One-click generation of structured operational briefings from all current data, now with consistent, low-temperature output (no more contradictory re-runs)
+- **🔑 Optional local API key** — Bring your own Gemini key (stored in localStorage only), or set `GEMINI_API_KEY_1..8` server-side with automatic round-robin rotation
+- **📊 Context-aware** — Automatically builds intelligence context from live dashboard data (earthquakes, news, GDELT events, **and active CVEs**)
+- **SIGINT-style UI** — Self-contained dark glass panel with readable high-contrast text, scan-line header animations, markdown rendering, and chat history
 
 ### 🔗 Entity Intelligence Graph
 

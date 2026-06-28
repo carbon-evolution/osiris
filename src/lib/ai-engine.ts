@@ -6,7 +6,7 @@
  * ═══════════════════════════════════════════════════════════════
  */
 
-import { GoogleGenerativeAI, type GenerativeModel } from '@google/generative-ai';
+import { GoogleGenerativeAI, type GenerativeModel, type Tool } from '@google/generative-ai';
 
 /* ─────────────────────────────────────────────────────────────
    Data Interfaces — Zero `any` types
@@ -73,37 +73,27 @@ export interface IntelligenceContext {
    System Prompt — Palantir-grade analyst persona
    ───────────────────────────────────────────────────────────── */
 
-const SYSTEM_PROMPT = `You are OSIRIS Intelligence Analyst — a senior, elite intelligence analyst embedded within the OSIRIS Global Intelligence Platform. You operate at the level of a Palantir Forward Deployed Engineer crossed with a CIA PDB (Presidential Daily Brief) analyst.
+const SYSTEM_PROMPT = `You are OSIRIS Intelligence Analyst — a sharp, senior intelligence analyst embedded in the OSIRIS Global Intelligence Platform.
 
-## YOUR ROLE
-- You correlate data across multiple intelligence feeds: seismic monitoring, OSINT news streams, global threat events, and cyber vulnerability databases
-- You identify non-obvious patterns, emerging threat vectors, and cascading risk scenarios
-- You provide ACTIONABLE intelligence — not summaries, but assessments with confidence levels
-- You think in terms of second and third-order effects
+## SOURCES — use ALL of them
+1. The OSIRIS dashboard context provided in each request (live seismic, OSINT news, threat, and cyber feeds).
+2. **Google Search — you have live web access. USE IT** to verify, update, and fill gaps, especially for specific facts (exact earthquake magnitudes, casualty counts, breaking events, CVE details, named incidents). Prefer fresh, authoritative sources.
+3. Your own knowledge.
+When the dashboard data is thin, or the user asks about something not in it, SEARCH THE WEB and answer anyway — never refuse just because it isn't in the dashboard feed.
 
-## YOUR ANALYTICAL FRAMEWORK
-1. **PATTERN RECOGNITION**: Cross-reference events across feeds. A cyber attack + earthquake + political instability in the same region = elevated compound risk
-2. **THREAT ASSESSMENT**: Rate threats on a CRITICAL / HIGH / ELEVATED / LOW scale with reasoning
-3. **TEMPORAL ANALYSIS**: Identify acceleration patterns — are events clustering? Is frequency increasing?
-4. **GEOSPATIAL CORRELATION**: Events in proximity may be related. Identify geographic hotspots
-5. **CONFIDENCE LEVELS**: Always state your confidence (HIGH / MODERATE / LOW) and cite which data points support your assessment
+## STYLE — BE CONCISE
+- Lead with the DIRECT answer in the first sentence.
+- Default to 1–4 sentences or a few tight bullets. Only go long when the user explicitly asks for a full briefing or deep analysis.
+- No filler, no preamble, no restating the question. Plain, precise language.
+- Use a short markdown header only when it genuinely helps; skip heavy military notation (DTG/AOR/COA) for normal questions.
 
-## OUTPUT FORMAT
-- Use military-style brevity when appropriate
-- Structure responses with clear headers using markdown
-- Lead with the most critical finding (inverted pyramid)
-- Include "BOTTOM LINE UP FRONT (BLUF)" for complex analyses
-- Use tactical notation: DTG (Date-Time Group), AOR (Area of Responsibility), COA (Course of Action)
-- End with "ASSESSMENT CONFIDENCE" and "RECOMMENDED ACTIONS" sections when appropriate
+## ACCURACY
+- When it matters, distinguish OSIRIS dashboard data from web/general knowledge (e.g. "Dashboard shows…; web confirms…").
+- If the dashboard and the web disagree, say so and give the verified figure.
+- Don't invent specific numbers — search for them. State confidence only when something is genuinely uncertain.
+- Rate threats CRITICAL / HIGH / ELEVATED / LOW with brief reasoning when asked to assess.
 
-## CONSTRAINTS
-- Never fabricate data points — only analyze what is provided in the context
-- If data is insufficient for a confident assessment, state so explicitly
-- Distinguish between correlation and causation
-- Flag when events may be connected vs. coincidental
-- You are an analyst, not a policymaker — present options, not directives
-
-You have access to the live intelligence context of the OSIRIS platform. Analyze it with precision.`;
+You are an analyst: give the best, most current answer, then stop.`;
 
 const BRIEFING_PROMPT = `Generate a comprehensive OSIRIS Daily Intelligence Briefing based on the current operational data. Structure it as follows:
 
@@ -138,6 +128,29 @@ Identify where multiple threat vectors intersect (e.g., earthquake near a confli
 State overall confidence level and key analytical gaps.
 
 Analyze the provided data thoroughly. Be specific — reference actual events, magnitudes, locations, and CVE IDs from the context.`;
+
+/* ─────────────────────────────────────────────────────────────
+   Generation Config — LOW temperature for consistent, grounded
+   intelligence output. Without this the model defaults to temp ≈ 1.0,
+   which produces a different (and self-contradicting) briefing on
+   every run. Intelligence assessments must be repeatable and factual.
+   ───────────────────────────────────────────────────────────── */
+
+const GENERATION_CONFIG = {
+  temperature: 0.2,
+  topP: 0.9,
+  maxOutputTokens: 8192,
+} as const;
+
+/* ─────────────────────────────────────────────────────────────
+   Grounding — live Google Search so the analyst can verify facts
+   against the internet, not just the OSIRIS dashboard feed.
+   (SDK 0.24.1 only types the legacy `googleSearchRetrieval`, which
+   errors on gemini-2.5; the working tool is `googleSearch`, which the
+   SDK forwards verbatim — hence the cast.)
+   ───────────────────────────────────────────────────────────── */
+
+const GROUNDING_TOOLS: Tool[] = [{ googleSearch: {} } as unknown as Tool];
 
 /* ─────────────────────────────────────────────────────────────
    Client Factory
@@ -223,8 +236,10 @@ export async function analyzeIntelligence(
   userQuery: string
 ): Promise<string> {
   const model: GenerativeModel = client.getGenerativeModel({
-    model: 'gemini-2.0-flash',
+    model: 'gemini-2.5-flash',
     systemInstruction: SYSTEM_PROMPT,
+    generationConfig: GENERATION_CONFIG,
+    tools: GROUNDING_TOOLS,
   });
 
   const contextData = serializeContext(context);
@@ -235,7 +250,7 @@ ${contextData}
 ## ANALYST QUERY
 ${userQuery}
 
-Provide your intelligence assessment based on the operational data above and the analyst's query.`;
+Answer the query directly and concisely. Use the OSIRIS data above as context, but also use live Google Search and your own knowledge to give the most accurate, current answer — do NOT limit yourself to the dashboard data. If a specific fact (e.g. an exact earthquake magnitude) isn't in the data or differs from reality, search the web and give the correct figure.`;
 
   const result = await model.generateContent(prompt);
   const response = result.response;
@@ -251,8 +266,10 @@ export async function generateBriefing(
   context: IntelligenceContext
 ): Promise<string> {
   const model: GenerativeModel = client.getGenerativeModel({
-    model: 'gemini-2.0-flash',
+    model: 'gemini-2.5-flash',
     systemInstruction: SYSTEM_PROMPT,
+    generationConfig: GENERATION_CONFIG,
+    tools: GROUNDING_TOOLS,
   });
 
   const contextData = serializeContext(context);
