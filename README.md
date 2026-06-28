@@ -58,6 +58,16 @@ Built on **Next.js 16 (App Router)**, **React 19**, and **MapLibre GL JS** (WebG
 
 ## 🆕 Recent Updates
 
+**Recon toolkit hardening (June 2026):**
+
+A full audit of the RECON/OSINT toolkit repaired every broken tool:
+
+- **DNS** — fixed the result renderer (it read a flat shape while the backend returns nested records), so DNS lookups now display again.
+- **Dead/changed sources swapped out** — MAC vendor lookup → `api.macvendors.com`; BGP/ASN → **RIPEstat** (bgpview.io is gone); certificate transparency + subdomain enumeration gained a **Cert Spotter** fallback for when crt.sh is down.
+- **Auth-gated sources** — URLhaus and isMalicious now report a clear "needs API key" message (and pick up `URLHAUS_KEY` / `ISMALICIOUS_KEY` when set) instead of failing opaquely.
+- **Scanner speed/timeouts** — the port scan now runs **in parallel** (was timing out as "Scanner unreachable" on firewalled hosts), and the vuln scan fingerprints HTTP **and** HTTPS. The scanner sidecar now lives in its own repo: [carbon-evolution/osiris-scanner](https://github.com/carbon-evolution/osiris-scanner).
+- **Cache correctness** — the cache layer no longer stores error responses, so a transient upstream outage can't get frozen into the cache.
+
 **AI Intelligence Analyst overhaul (June 2026):**
 
 - **Upgraded to Gemini 2.5 Flash** — the previous `gemini-2.0-flash` model was retired by Google; the analyst now runs on `gemini-2.5-flash`.
