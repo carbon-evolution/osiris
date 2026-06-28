@@ -1,3 +1,4 @@
+import { withQueryCache } from '@/lib/feeds/serve';
 import { NextRequest, NextResponse } from 'next/server';
 
 export const dynamic = 'force-dynamic';
@@ -7,7 +8,7 @@ export const dynamic = 'force-dynamic';
  * Free tier: no API key needed for public scans, 10 req/min limit
  * Proxies the urlscan.io public API for domain/IP/URL scanning
  */
-export async function GET(req: NextRequest) {
+async function _GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const domain = searchParams.get('domain');
   const ip = searchParams.get('ip');
@@ -134,3 +135,5 @@ export async function GET(req: NextRequest) {
     );
   }
 }
+
+export const GET = withQueryCache('osint/urlscan', 21600000, _GET);

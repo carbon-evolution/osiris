@@ -1,3 +1,4 @@
+import { withQueryCache } from '@/lib/feeds/serve';
 import { NextResponse } from 'next/server';
 import { isRateLimited, getClientIp } from '@/lib/ssrf-guard';
 import { matchExact, type SanctionEntry } from '@/lib/sanctions';
@@ -5,7 +6,7 @@ import { matchExact, type SanctionEntry } from '@/lib/sanctions';
 // IP Geolocation + Reputation — combines multiple free sources.
 // Cross-checks the ASN owner / ISP / org strings against the OFAC SDN
 // list so an IP routed via a sanctioned operator surfaces a hit.
-export async function GET(req: Request) {
+async function _GET(req: Request) {
   const { searchParams } = new URL(req.url);
   const ip = searchParams.get('ip');
   if (!ip) return NextResponse.json({ error: 'Missing ip parameter' }, { status: 400 });
@@ -82,3 +83,5 @@ export async function GET(req: Request) {
     return NextResponse.json({ error: 'IP lookup failed' }, { status: 500 });
   }
 }
+
+export const GET = withQueryCache('osint/ip', 21600000, _GET);

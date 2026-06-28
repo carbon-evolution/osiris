@@ -1,3 +1,4 @@
+import { withQueryCache } from '@/lib/feeds/serve';
 import { NextResponse } from 'next/server';
 import { PhoneNumberUtil, PhoneNumberFormat } from 'google-libphonenumber';
 
@@ -96,7 +97,7 @@ const NANP_COORDS: Record<string, { lat: number, lng: number }> = {
   '713': { lat: 29.7604, lng: -95.3698 }, // Houston
 };
 
-export async function GET(req: Request) {
+async function _GET(req: Request) {
   const { searchParams } = new URL(req.url);
   const number = searchParams.get('number');
 
@@ -184,3 +185,5 @@ export async function GET(req: Request) {
       });
   }
 }
+
+export const GET = withQueryCache('osint/phone', 86400000, _GET);

@@ -1,3 +1,4 @@
+import { withQueryCache } from '@/lib/feeds/serve';
 import { NextResponse } from 'next/server';
 import { isRateLimited, getClientIp } from '@/lib/ssrf-guard';
 
@@ -42,7 +43,7 @@ async function ismFetch(path: string, params: Record<string, string>): Promise<a
   return res.json();
 }
 
-export async function GET(req: Request) {
+async function _GET(req: Request) {
   const { searchParams } = new URL(req.url);
   const query = searchParams.get('query');
   const enrichment = searchParams.get('enrichment') || 'standard';
@@ -191,3 +192,5 @@ export async function GET(req: Request) {
     }, { status: 502 });
   }
 }
+
+export const GET = withQueryCache('osint/ismalicious', 21600000, _GET);

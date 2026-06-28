@@ -73,3 +73,41 @@ export function withCache(
     }
   };
 }
+
+/**
+ * Per-query cache for on-demand lookups (OSINT, geo, dossiers). The cache key is
+ * `kind?<sorted query params>`, so each distinct target (ip, domain, cve, …) gets
+ * its own cached entry. A request with no query params is not cached (it's usually
+ * a usage/validation error, which `res.ok === false` already routes to fallback).
+ */
+export function withQueryCache(
+  kind: string,
+  ttlMs: number,
+  handler: RouteHandler,
+  opts?: CacheOpts<unknown>,
+): RouteHandler {
+  return async (req: Request): Promise<NextResponse> => {
+    const url = new URL(req.url);
+    const entries = [...url.searchParams.entries()].sort(([a], [b]) => a.localeCompare(b));
+    const qs = entries.map(([k, v]) => `${k}=${v}`).join('&');
+    const key = qs ? `${kind}?${qs}` : kind;
+    try {
+      const r = await cacheFirst(key, ttlMs, async () => {
+        const res = await handler(req);
+        if (!res.ok) throw new Error(`upstream returned ${res.status}`);
+        return (await res.json()) as unknown;
+      }, opts);
+      return NextResponse.json(r.data as Record<string, unknown>, { headers: staleHeaders(r) });
+    } catch {
+      try {
+        const res = await handler(req);
+        return res as NextResponse;
+      } catch {
+        return NextResponse.json(
+          { error: `Failed to fetch ${kind}`, kind },
+          { status: 502, headers: { 'X-OSIRIS-Cache': 'miss', 'X-OSIRIS-Source-Ok': 'false' } },
+        );
+      }
+    }
+  };
+}

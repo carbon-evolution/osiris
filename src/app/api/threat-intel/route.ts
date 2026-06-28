@@ -1,3 +1,4 @@
+import { withQueryCache } from '@/lib/feeds/serve';
 import { NextResponse } from 'next/server';
 import fs from 'fs';
 
@@ -36,7 +37,7 @@ async function batchGeo(ips: string[]): Promise<Map<string, any>> {
   return geoMap;
 }
 
-export async function GET() {
+async function _GET() {
   try {
     const blocklisted: any[] = [];
     let id = 0;
@@ -253,3 +254,5 @@ export async function GET() {
     return NextResponse.json({ threats: [], total: 0, error: 'Threat intel unavailable' }, { status: 500 });
   }
 }
+
+export const GET = withQueryCache('threat-intel', 1800000, _GET);

@@ -1,3 +1,4 @@
+import { withQueryCache } from '@/lib/feeds/serve';
 import { NextRequest, NextResponse } from 'next/server';
 
 export const dynamic = 'force-dynamic';
@@ -30,7 +31,7 @@ async function otxFetch(path: string): Promise<any> {
   return res.json();
 }
 
-export async function GET(req: NextRequest) {
+async function _GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const domain = searchParams.get('domain');
   const ip = searchParams.get('ip');
@@ -182,3 +183,5 @@ export async function GET(req: NextRequest) {
     );
   }
 }
+
+export const GET = withQueryCache('osint/otx', 21600000, _GET);

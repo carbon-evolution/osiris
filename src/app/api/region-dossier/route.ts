@@ -1,3 +1,4 @@
+import { withQueryCache } from '@/lib/feeds/serve';
 import { NextResponse } from 'next/server';
 
 /**
@@ -6,7 +7,7 @@ import { NextResponse } from 'next/server';
  * Fix #115: Steps 2-4 now run in parallel via Promise.allSettled
  */
 
-export async function GET(request: Request) {
+async function _GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const lat = parseFloat(searchParams.get('lat') || '0');
   const lng = parseFloat(searchParams.get('lng') || '0');
@@ -147,3 +148,5 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: 'Failed to fetch region data' }, { status: 500 });
   }
 }
+
+export const GET = withQueryCache('region-dossier', 21600000, _GET);
