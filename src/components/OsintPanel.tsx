@@ -196,7 +196,7 @@ function OsintPanelInner({ isMobile, onSweepVisualize, onScanGeolocate }: OsintP
         case 'bgp': url = `/api/osint/bgp?query=${encodeURIComponent(query)}`; break;
         case 'mac': url = `/api/osint/mac?mac=${encodeURIComponent(query)}`; break;
         case 'phone': url = `/api/osint/phone?number=${encodeURIComponent(query)}`; break;
-        case 'leaks': url = `https://api.xposedornot.com/v1/breach-analytics?email=${encodeURIComponent(query)}`; break;
+        case 'leaks': url = `/api/osint/leaks?email=${encodeURIComponent(query)}`; break;
         case 'crypto': url = `/api/osint/crypto?address=${encodeURIComponent(query)}`; break;
         case 'github': url = `/api/osint/github?user=${encodeURIComponent(query)}`; break;
         case 'scanner': url = `/api/scanner?target=${encodeURIComponent(query)}&type=${scanType}`; break;
@@ -237,7 +237,10 @@ function OsintPanelInner({ isMobile, onSweepVisualize, onScanGeolocate }: OsintP
       const data = await res.json();
       if (res.ok) {
         let parsedData = data;
-        if (activeTab === 'leaks') {
+        // Legacy xposedornot shape parsing — only when that shape is present.
+        // The /api/osint/leaks backend already returns {email,breached,breaches,
+        // data_exposed}, so it passes through unchanged.
+        if (activeTab === 'leaks' && data && data.BreachesSummary) {
            let breachList: string[] = [];
            const dataExposed = new Set<string>();
            if (data.BreachesSummary && data.BreachesSummary.site) {
