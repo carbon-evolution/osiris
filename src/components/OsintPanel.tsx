@@ -37,9 +37,10 @@ const TABS = [
   { id: 'dnsthreat', label: 'DNS THREAT', icon: Network, placeholder: 'IP or domain', color: '#FFD700' },
 ];
 
-interface OsintPanelProps { isOpen?: boolean; onClose?: () => void; isMobile?: boolean; onSweepVisualize?: (data: any) => void; onScanGeolocate?: (target: string, data: any) => void; }
+export interface ReconFinding { id: string; tool: string; label: string; ip: string; malicious: boolean; verdict: string; lat?: number; lng?: number; ts: number; }
+interface OsintPanelProps { isOpen?: boolean; onClose?: () => void; isMobile?: boolean; theme?: any; setTheme?: any; onSweepVisualize?: (data: any) => void; onScanGeolocate?: (target: string, data: any) => void; onReconFinding?: (finding: ReconFinding) => void; }
 
-function OsintPanelInner({ isMobile, onSweepVisualize, onScanGeolocate }: OsintPanelProps) {
+function OsintPanelInner({ isMobile, onSweepVisualize, onScanGeolocate, onReconFinding }: OsintPanelProps) {
   const [activeTab, setActiveTab] = useState('scanner');
   const [isFullScreen, setIsFullScreen] = useState(false);
   const [query, setQuery] = useState('');
@@ -264,22 +265,31 @@ function OsintPanelInner({ isMobile, onSweepVisualize, onScanGeolocate }: OsintP
         setResults(parsedData);
         setHistory(prev => [{ tab: activeTab, query, time: new Date().toLocaleTimeString() }, ...prev.slice(0, 9)]);
         
-        // Geolocate the target in the background
-        if (activeTab === 'phone') {
-          if (data.lat && data.lng && onScanGeolocate) {
-             onScanGeolocate(query, { lat: data.lat, lng: data.lng, type: 'phone', region: data.region });
+        // ── Emit a recon finding → Recon Findings list + map marker ──
+        // Compute a verdict + a geo-locatable IP per tool; geolocate when we can.
+        (async () => {
+          const tab = activeTab;
+          const pd: any = parsedData;
+          let ip = '', verdict = '', malicious = false;
+          let lat: number | undefined, lng: number | undefined;
+          if (tab === 'phone') { lat = data.lat; lng = data.lng; verdict = data.valid ? (data.region || 'valid') : 'invalid'; }
+          else if (tab === 'urlhaus') { ip = String(pd.query || query).replace(/^https?:\/\//, '').split('/')[0].split(':')[0]; malicious = pd.malicious === true; verdict = malicious ? `malware (${pd.total_urls} URLs)` : 'clean'; }
+          else if (tab === 'ismalicious') { ip = query; malicious = pd.malicious === true; verdict = malicious ? 'malicious' : 'clean'; }
+          else if (tab === 'dnsthreat') { ip = (pd.resolved_ips && pd.resolved_ips[0]) || query; malicious = !!(pd.risk_level && pd.risk_level !== 'LOW'); verdict = `risk ${pd.risk_level || '?'}`; }
+          else if (tab === 'shodan') { ip = pd.ip || query; malicious = (pd.vulns?.length || 0) > 0; verdict = `${pd.ports?.length || 0} ports · ${pd.vulns?.length || 0} CVEs`; }
+          else if (tab === 'bgp') { ip = query; verdict = pd.asn?.name || pd.ip?.prefixes?.[0]?.asn?.name || 'ASN route'; }
+          else if (tab === 'threats') { ip = query; malicious = pd.malicious === true || (pd.threat_level && pd.threat_level !== 'low' && pd.threat_level !== 'LOW'); verdict = pd.threat_level || 'threat intel'; }
+          else if (tab === 'ip') { ip = query; malicious = !!(pd.reputation && (pd.reputation.malicious || (pd.reputation.abuse_score || 0) > 50)); verdict = pd.geo?.country || 'IP'; }
+          else { ip = query; }
+          // Geolocate when we have a bare IPv4 and no coords yet.
+          if ((lat == null || lng == null) && /^(\d{1,3}\.){3}\d{1,3}$/.test(ip)) {
+            try {
+              const lr = await fetch(`/api/osint/ip?ip=${encodeURIComponent(ip)}`).then(r => r.json());
+              if (lr?.geo?.lat) { lat = lr.geo.lat; lng = lr.geo.lon; }
+            } catch { /* list-only finding */ }
           }
-        } else if (activeTab !== 'sweep' && activeTab !== 'vuln' && activeTab !== 'crypto' && activeTab !== 'mac' && activeTab !== 'bgp' && activeTab !== 'github' && activeTab !== 'leaks' && activeTab !== 'phone' && activeTab !== 'ismalicious' && activeTab !== 'urlhaus' && activeTab !== 'dnsthreat') {
-          fetch(`/api/osint/ip?ip=${encodeURIComponent(query)}`)
-            .then(r => r.json())
-            .then(locData => {
-              if (locData && locData.geo && locData.geo.lat && locData.geo.lon && onScanGeolocate) {
-                // ip-api returns lat/lon, we pass it up
-                onScanGeolocate(query, { lat: locData.geo.lat, lng: locData.geo.lon, ...locData, type: activeTab });
-              }
-            })
-            .catch(() => {});
-        }
+          onReconFinding?.({ id: query, tool: tab, label: query, ip, malicious, verdict, lat, lng, ts: Date.now() });
+        })();
       } else {
         setError(data.error || 'Lookup failed');
       }

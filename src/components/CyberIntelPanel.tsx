@@ -16,6 +16,8 @@ import {
 
 interface CyberIntelPanelProps {
   data: any;
+  reconFindings?: any[];
+  onLocate?: (lat: number, lng: number) => void;
 }
 
 type IntelTab = 'cves' | 'kev' | 'network' | 'mitre';
@@ -44,7 +46,7 @@ function timeAgo(dateStr: string): string {
   } catch { return ''; }
 }
 
-export default function CyberIntelPanel({ data }: CyberIntelPanelProps) {
+export default function CyberIntelPanel({ data, reconFindings = [], onLocate }: CyberIntelPanelProps) {
   const [expanded, setExpanded] = useState(true);
   const [maximized, setMaximized] = useState(false);
   const [activeTab, setActiveTab] = useState<IntelTab>('kev');
@@ -196,6 +198,35 @@ export default function CyberIntelPanel({ data }: CyberIntelPanelProps) {
             className="overflow-hidden"
           >
             <div className="max-h-[380px] overflow-y-auto styled-scrollbar divide-y divide-[var(--border-secondary)]">
+              {/* ── Recon Findings (from the OSINT toolkit) ── */}
+              {reconFindings.length > 0 && (
+                <div className="px-3 py-2">
+                  <div className="flex items-center gap-1.5 mb-1.5">
+                    <ShieldAlert className="w-3 h-3 text-[#00E5FF]" />
+                    <span className="text-[9px] font-mono font-bold tracking-widest text-[#00E5FF]">RECON FINDINGS</span>
+                    <span className="text-[8px] font-mono text-[var(--text-muted)]">({reconFindings.length})</span>
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    {reconFindings.slice(0, 12).map((f) => (
+                      <button
+                        key={f.id + f.ts}
+                        onClick={() => { if (typeof f.lat === 'number' && onLocate) onLocate(f.lat, f.lng); }}
+                        disabled={typeof f.lat !== 'number'}
+                        className="flex items-center justify-between gap-2 px-2 py-1 rounded text-left transition-colors hover:bg-[var(--hover-accent)] disabled:cursor-default"
+                        style={{ border: `1px solid ${f.malicious ? '#D32F2F' : '#00E5FF'}22` }}
+                        title={typeof f.lat === 'number' ? 'Locate on map' : 'No geolocation'}
+                      >
+                        <span className="flex items-center gap-1.5 min-w-0">
+                          <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: f.malicious ? '#D32F2F' : '#00E5FF' }} />
+                          <span className="text-[9px] font-mono truncate text-[var(--text-primary)]">{f.label}</span>
+                          <span className="text-[7px] font-mono uppercase text-[var(--text-muted)] shrink-0">{f.tool}</span>
+                        </span>
+                        <span className="text-[8px] font-mono shrink-0" style={{ color: f.malicious ? '#D32F2F' : 'var(--text-muted)' }}>{f.verdict}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
               {loading ? (
                 <div className="px-4 py-8 text-center">
                   <div className="w-4 h-4 border-2 border-[#C026D3] border-t-transparent rounded-full animate-spin mx-auto mb-2" />

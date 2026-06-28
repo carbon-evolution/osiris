@@ -217,6 +217,16 @@ export default function Dashboard() {
   const [mapStyle, setMapStyle] = useState<'dark'|'satellite'>('dark');
   const [sweepData, setSweepData] = useState<any>(null);
   const [scanTargets, setScanTargets] = useState<any[]>([]);
+  // Recon/OSINT findings — the investigator's lookup results, surfaced as a
+  // dedicated list (Cyber Intel panel) and plotted on the map (scan-targets).
+  const [reconFindings, setReconFindings] = useState<any[]>([]);
+  const handleReconFinding = useCallback((f: any) => {
+    setReconFindings(prev => [f, ...prev.filter(p => p.id !== f.id)].slice(0, 25));
+    if (typeof f.lat === 'number' && typeof f.lng === 'number') {
+      setScanTargets(prev => [{ id: f.id, timestamp: f.ts, lat: f.lat, lng: f.lng, type: f.tool, malicious: f.malicious, verdict: f.verdict }, ...prev.filter(t => t.id !== f.id)].slice(0, 10));
+      setFlyToLocation({ lat: f.lat, lng: f.lng, ts: Date.now() });
+    }
+  }, []);
   const [entityGraphTarget, setEntityGraphTarget] = useState<{ type: string; id: string; label?: string; properties?: Record<string, any>; seedGraph?: { nodes: any[]; links: any[] } } | null>(null);
   const [demoMode, setDemoMode] = useState(false);
   const [osirisTheme, setOsirisTheme] = useState<'core'|'ghost'>('core');
@@ -1101,7 +1111,7 @@ export default function Dashboard() {
           <AnimatePresence>
             {showIntel && (
               <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 20 }} className="absolute right-12 top-1/2 -translate-y-1/2 w-80">
-                <OsintPanel theme={osirisTheme} setTheme={setOsirisTheme} onSweepVisualize={setSweepData} onScanGeolocate={(target, data) => {
+                <OsintPanel theme={osirisTheme} setTheme={setOsirisTheme} onSweepVisualize={setSweepData} onReconFinding={handleReconFinding} onScanGeolocate={(target, data) => {
                   setScanTargets(prev => {
                     const existing = prev.filter(t => t.id !== target);
                     return [{ id: target, timestamp: Date.now(), ...data }, ...existing].slice(0, 10);
@@ -1122,7 +1132,7 @@ export default function Dashboard() {
           <AnimatePresence>
             {showCyberIntel && (
               <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 20 }} className="absolute right-12 top-1/2 -translate-y-1/2 w-80">
-                <CyberIntelPanel data={data} />
+                <CyberIntelPanel data={data} reconFindings={reconFindings} onLocate={(lat, lng) => setFlyToLocation({ lat, lng, ts: Date.now() })} />
               </motion.div>
             )}
           </AnimatePresence>
