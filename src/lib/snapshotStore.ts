@@ -50,3 +50,19 @@ export async function writeSnapshot(kind: string, data: unknown, sourceOk: boole
 export async function markSourceDown(kind: string): Promise<void> {
   await getPool().query(`UPDATE feed_snapshots SET source_ok = false WHERE kind = $1`, [kind]);
 }
+
+/**
+ * Delete stale per-query snapshots (keys containing '?', i.e. OSINT/geo lookups)
+ * older than `maxAgeMs`. Dashboard feed snapshots (no '?') are always kept — they
+ * are a bounded set and we want them as offline fallback. Returns rows removed.
+ */
+export async function pruneQuerySnapshots(maxAgeMs: number): Promise<number> {
+  await ready();
+  const { rowCount } = await getPool().query(
+    `DELETE FROM feed_snapshots
+       WHERE kind LIKE '%?%'
+         AND fetched_at < now() - ($1::bigint * interval '1 millisecond')`,
+    [maxAgeMs],
+  );
+  return rowCount ?? 0;
+}

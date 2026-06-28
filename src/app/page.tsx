@@ -46,6 +46,7 @@ import GlobalStatusBar from '@/components/GlobalStatusBar';
 import LiveAlerts from '@/components/LiveAlerts';
 import AiAnalyst from '@/components/AiAnalyst';
 import CacheBadges from '@/components/CacheBadges';
+import OfflineBanner from '@/components/OfflineBanner';
 
 const OsirisMap = dynamic(() => import('@/components/OsirisMap'), { ssr: false });
 const LayerPanel = dynamic(() => import('@/components/LayerPanel'));
@@ -1453,6 +1454,9 @@ export default function Dashboard() {
 
       {/* ── LOCAL-CACHE FRESHNESS BADGES (bottom-left) ── */}
       <CacheBadges meta={cacheMeta} />
+
+      {/* ── OFFLINE / CACHED-INTELLIGENCE BANNER (top) ── */}
+      <OfflineBanner meta={cacheMeta} />
 
       {/* Shortcut hint */}
       <div className="desktop-only absolute bottom-[26px] right-5 z-[200] pointer-events-none text-[6px] font-mono text-[var(--text-muted)]/40 tracking-widest">
