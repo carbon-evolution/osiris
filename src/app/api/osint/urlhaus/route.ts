@@ -58,9 +58,10 @@ async function _GET(req: Request) {
 
     // ── Host lookup (IP or domain) ──
     if (host) {
-      const res = await fetch(`${URLHAUS_API}/host/${encodeURIComponent(host)}/`, {
+      const res = await fetch(`${URLHAUS_API}/host/`, {
         method: 'POST',
-        headers: uhHeaders,
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded', ...uhHeaders },
+        body: new URLSearchParams({ host }),
         signal: AbortSignal.timeout(15000),
       });
       if (!res.ok) {
@@ -168,9 +169,11 @@ async function _GET(req: Request) {
 
     // ── Payload (hash) lookup ──
     if (hash) {
-      const res = await fetch(`${URLHAUS_API}/payload/${encodeURIComponent(hash)}/`, {
+      const hashField = hash.length === 32 ? 'md5_hash' : 'sha256_hash';
+      const res = await fetch(`${URLHAUS_API}/payload/`, {
         method: 'POST',
-        headers: uhHeaders,
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded', ...uhHeaders },
+        body: new URLSearchParams({ [hashField]: hash }),
         signal: AbortSignal.timeout(15000),
       });
       if (!res.ok) {

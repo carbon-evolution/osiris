@@ -16,10 +16,12 @@ export const dynamic = 'force-dynamic';
  */
 const ISMALICIOUS_API = 'https://api.ismalicious.com';
 const API_KEY = (typeof process !== 'undefined' && process.env && process.env.ISMALICIOUS_KEY) || '';
+const API_SECRET = (typeof process !== 'undefined' && process.env && process.env.ISMALICIOUS_SECRET) || '';
 
 function buildAuthHeader(): Record<string, string> {
   if (!API_KEY) return {};
-  const encoded = Buffer.from(`${API_KEY}:`).toString('base64');
+  // Auth = base64("key:secret"). Without the secret the API returns 401.
+  const encoded = Buffer.from(`${API_KEY}:${API_SECRET}`).toString('base64');
   return { 'X-API-KEY': encoded };
 }
 
