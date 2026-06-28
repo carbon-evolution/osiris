@@ -1,3 +1,4 @@
+import { withCache } from '@/lib/feeds/serve';
 import { NextResponse } from 'next/server';
 
 /**
@@ -93,7 +94,7 @@ const NUCLEAR_FACILITIES = [
   { id: 'nuc-br-angra', name: 'Angra NPP', city: 'Angra dos Reis', country: 'Brazil', lat: -23.0083, lng: -44.4583, status: 'Operational', reactors: 2, capacityMW: 1884, owner: 'Eletronuclear' },
 ];
 
-export async function GET() {
+async function _GET() {
   let dynamicFacilities = [...NUCLEAR_FACILITIES];
 
   try {
@@ -142,3 +143,5 @@ export async function GET() {
     }
   });
 }
+
+export const GET = withCache('infrastructure', 21600000, _GET);

@@ -1,3 +1,4 @@
+import { withCache } from '@/lib/feeds/serve';
 
 import { NextResponse } from 'next/server';
 
@@ -8,7 +9,7 @@ import { NextResponse } from 'next/server';
  * Data: Kp index (geomagnetic), solar flares, CME alerts
  */
 
-export async function GET() {
+async function _GET() {
   try {
     const [kpRes, alertsRes, flareRes] = await Promise.allSettled([
       fetch('https://services.swpc.noaa.gov/json/planetary_k_index_1m.json', {
@@ -85,3 +86,4 @@ export async function GET() {
   }
 }
 
+export const GET = withCache('space-weather', 900000, _GET);

@@ -1,3 +1,4 @@
+import { withCache } from '@/lib/feeds/serve';
 import { NextResponse } from 'next/server';
 
 export const dynamic = 'force-dynamic';
@@ -54,7 +55,7 @@ interface RansomwareVictim {
   country_code?: string;
 }
 
-export async function GET() {
+async function _GET() {
   try {
     // Fetch victims from data.ransomware.live (range = recent ~150 victims ≈ 1MB)
     const controller = new AbortController();
@@ -151,3 +152,5 @@ export async function GET() {
     }, { status: 500 });
   }
 }
+
+export const GET = withCache('ransomware', 3600000, _GET);

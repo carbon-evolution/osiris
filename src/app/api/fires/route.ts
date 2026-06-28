@@ -1,3 +1,4 @@
+import { withCache } from '@/lib/feeds/serve';
 
 import { NextResponse } from 'next/server';
 
@@ -48,7 +49,7 @@ async function fetchFirms(url: string, label: string): Promise<Fire[]> {
   return parseCSV(text, label);
 }
 
-export async function GET() {
+async function _GET() {
   try {
     const results = await Promise.allSettled(FIRMS_SOURCES.map((s) => fetchFirms(s.url, s.label)));
 
@@ -153,3 +154,5 @@ function parseCSV(csv: string, label: string): Fire[] {
 
   return fires;
 }
+
+export const GET = withCache('fires', 1800000, _GET);

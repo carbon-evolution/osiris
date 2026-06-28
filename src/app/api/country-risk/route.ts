@@ -1,3 +1,4 @@
+import { withCache } from '@/lib/feeds/serve';
 import { NextResponse } from 'next/server';
 
 // Country Intelligence Index — composite risk from earthquakes, conflicts, instability
@@ -57,7 +58,7 @@ function isExchangeOpen(ex: typeof EXCHANGES[0]): boolean {
   } catch { return false; }
 }
 
-export async function GET() {
+async function _GET() {
   try {
     const exchangeStatus = EXCHANGES.map(ex => ({
       name: ex.name, country: ex.country, open: isExchangeOpen(ex),
@@ -101,3 +102,5 @@ export async function GET() {
     return NextResponse.json({ countries: [], exchanges: [], error: 'Failed' }, { status: 500 });
   }
 }
+
+export const GET = withCache('country-risk', 21600000, _GET);
