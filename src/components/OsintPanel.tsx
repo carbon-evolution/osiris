@@ -352,10 +352,12 @@ function OsintPanelInner({ isMobile, onSweepVisualize, onScanGeolocate, onReconF
 
   const PortRow = ({ port, state, service, version }: { port: number; state: string; service?: string; version?: string }) => (
     <div className="flex items-center gap-2 py-1 px-2 rounded hover:bg-[var(--hover-accent)] transition-colors">
-      <span className="text-[11px] font-mono font-bold text-[var(--cyan-primary)] w-[60px]">{port}</span>
+      {/* Explicit light colours — the OSINT panel is dark, so the theme text
+          variables (near-black in light theme) were unreadable here. */}
+      <span className="text-[11px] font-mono font-bold w-[60px]" style={{ color: '#3DD6F5' }}>{port}</span>
       <StatusBadge ok={state === 'open'} label={state.toUpperCase()} />
-      <span className="text-[10px] font-mono text-[var(--text-secondary)] flex-1">{service || 'unknown'}</span>
-      {version && <span className="text-[9px] font-mono text-[var(--text-muted)]">{version}</span>}
+      <span className="text-[10px] font-mono flex-1" style={{ color: '#E8EAED' }}>{service || 'unknown'}</span>
+      {version && <span className="text-[9px] font-mono" style={{ color: '#9AA0A6' }}>{version}</span>}
     </div>
   );
 
@@ -371,8 +373,8 @@ function OsintPanelInner({ isMobile, onSweepVisualize, onScanGeolocate, onReconF
         <div>
           <SectionHeader title="HOST INFO" icon={Server} color="#1A73E8" />
           <ResultRow label="Target" value={host} color="#1A73E8" />
-          <ResultRow label="Scan Type" value={r.scan_type || scanType} />
-          <ResultRow label="Duration" value={r.duration || r.scan_time} />
+          <ResultRow label="Scan Type" value={r.scan_type || scanType} color="#E8EAED" />
+          <ResultRow label="Duration" value={r.duration || r.scan_time} color="#E8EAED" />
           {Array.isArray(ports) && ports.length > 0 && (
             <>
               <SectionHeader title={`OPEN PORTS (${ports.length})`} icon={Wifi} color="#00E676" />
