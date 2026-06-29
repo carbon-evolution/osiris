@@ -774,11 +774,11 @@ map.addSource('mitre-nodes', { type: 'geojson', data: EMPTY_FC });
       // layers, while clean/info lookups stay cyan.
       map.addLayer({ id: 'scan-targets-glow', type: 'circle', source: 'scan-targets', paint: {
         'circle-radius': ['interpolate',['linear'],['zoom'], 1,12, 5,25, 10,40],
-        'circle-color': ['case', ['get','malicious'], '#D32F2F', '#00E5FF'], 'circle-opacity': 0.15, 'circle-blur': 1,
+        'circle-color': ['case', ['==', ['get','malicious'], true], '#D32F2F', '#00E5FF'], 'circle-opacity': 0.15, 'circle-blur': 1,
       }});
       map.addLayer({ id: 'scan-targets-dots', type: 'circle', source: 'scan-targets', paint: {
         'circle-radius': ['interpolate',['linear'],['zoom'], 1,5, 5,8, 10,12],
-        'circle-color': ['case', ['get','malicious'], '#D32F2F', '#00E5FF'], 'circle-opacity': 0.9,
+        'circle-color': ['case', ['==', ['get','malicious'], true], '#D32F2F', '#00E5FF'], 'circle-opacity': 0.9,
         'circle-stroke-width': 1.5, 'circle-stroke-color': '#ECEFF1', 'circle-stroke-opacity': 0.7,
       }});
       map.addLayer({ id: 'scan-targets-label', type: 'symbol', source: 'scan-targets', layout: {
@@ -787,7 +787,7 @@ map.addSource('mitre-nodes', { type: 'geojson', data: EMPTY_FC });
       }, paint: {
         // Brighter text + a DARK halo so the label reads on both the light
         // (cream) and dark map themes — a white halo washed out on the light map.
-        'text-color': ['case', ['get','malicious'], '#FF5252', '#00E5FF'],
+        'text-color': ['case', ['==', ['get','malicious'], true], '#FF5252', '#00E5FF'],
         'text-halo-color': 'rgba(8,10,18,0.95)', 'text-halo-width': 2, 'text-opacity': 1,
       }});
 

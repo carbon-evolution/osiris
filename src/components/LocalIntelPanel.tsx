@@ -52,7 +52,7 @@ export default function LocalIntelPanel() {
   ];
 
   return (
-    <div className="glass-panel rounded-lg overflow-hidden border border-black/10 bg-white/95 backdrop-blur-md shadow-xl"
+    <div className="glass-panel rounded-lg overflow-hidden border border-[var(--border-primary)] shadow-xl"
       style={{ fontFamily: "'JetBrains Mono', monospace" }}>
       {/* Header */}
       <div className="px-3 py-2 border-b border-black/10 flex items-center justify-between">
@@ -78,7 +78,7 @@ export default function LocalIntelPanel() {
         {!loading && tab === 'otcad' && (otcad?.items ?? []).map(it => (
           <div key={it.id} className="mb-1.5 p-2 rounded bg-black/[0.03] border border-black/5">
             <div className="flex justify-between items-start gap-2">
-              <span className="font-bold text-[#E8EAED]">{it.name}</span>
+              <span className="font-bold text-[var(--text-primary)]">{it.name}</span>
               <span className="text-[var(--text-muted)] shrink-0">{it.year}</span>
             </div>
             <div className="text-[9px] text-[var(--text-muted)] mt-0.5">
@@ -96,7 +96,7 @@ export default function LocalIntelPanel() {
         {!loading && tab === 'ics' && (ics?.items ?? []).map(it => (
           <div key={it.id} className="mb-1.5 p-2 rounded bg-black/[0.03] border border-black/5">
             <div className="flex justify-between items-start gap-2">
-              <span className="font-bold text-[#E8EAED]">{it.vendor} {it.product}</span>
+              <span className="font-bold text-[var(--text-primary)]">{it.vendor} {it.product}</span>
               {it.cvss != null && (
                 <span className="shrink-0 px-1 rounded text-[8px] font-bold text-white"
                   style={{ background: SEV_COLOR[it.severity] || '#888' }}>{it.cvss}</span>
@@ -113,7 +113,7 @@ export default function LocalIntelPanel() {
 
         {!loading && tab === 'recon' && (recon?.targets ?? []).map(t => (
           <div key={t.target} className="mb-1.5 p-2 rounded bg-black/[0.03] border border-black/5">
-            <div className="font-bold text-[#E8EAED]">{t.target}</div>
+            <div className="font-bold text-[var(--text-primary)]">{t.target}</div>
             <div className="text-[9px] text-[var(--text-muted)] mt-0.5 flex gap-3">
               <span>subdomains: <span className="text-[#1A73E8]">{t.subdomains_found ?? '—'}</span></span>
               <span>alive: <span className="text-[#00C853]">{t.alive_count ?? '—'}</span></span>
