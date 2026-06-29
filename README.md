@@ -54,6 +54,24 @@ Built on **Next.js 16 (App Router)**, **React 19**, and **MapLibre GL JS** (WebG
 
 *Real-time aviation layer — commercial, private, private-jet, and military traffic — with a per-flight detail card (route, altitude, heading) and FlightAware / track / intel actions.*
 
+### 🛠️ Recon toolkit in action
+
+The 20-tool OSINT/recon toolkit — DNS, WHOIS, certs, port/vuln scans, threat
+lookups (URLhaus, isMalicious, DNS-threat), BGP, GitHub, phone, and more. Each
+geo-locatable result drops a **verdict-coloured marker** on the map (red =
+malicious, cyan = clean) and adds to the **Recon Findings** list in the Cyber
+Intel panel. Results render on a self-contained dark card, readable in both themes.
+
+| | |
+|---|---|
+| ![Recon toolkit](docs/screenshots/recon-01.png) | ![Recon toolkit](docs/screenshots/recon-02.png) |
+| ![Recon toolkit](docs/screenshots/recon-03.png) | ![Recon toolkit](docs/screenshots/recon-04.png) |
+| ![Recon toolkit](docs/screenshots/recon-05.png) | ![Recon toolkit](docs/screenshots/recon-06.png) |
+| ![Recon toolkit](docs/screenshots/recon-07.png) | ![Recon toolkit](docs/screenshots/recon-08.png) |
+| ![Recon toolkit](docs/screenshots/recon-09.png) | ![Recon toolkit](docs/screenshots/recon-10.png) |
+| ![Recon toolkit](docs/screenshots/recon-11.png) | ![Recon toolkit](docs/screenshots/recon-12.png) |
+| ![Recon toolkit](docs/screenshots/recon-13.png) | ![Recon toolkit](docs/screenshots/recon-14.png) |
+
 ---
 
 ## 🆕 Recent Updates
@@ -375,45 +393,58 @@ Run `npm test` for the backend's Vitest suite, and `GET /api/health/local` to ch
 
 ### Frontend
 
+A single Next.js (App Router) client dashboard. `page.tsx` owns the global data
+store (`dataRef`) and feeds every panel + the map; panels are lazy-loaded via
+`next/dynamic`. Two themes (light "core" / dark "ghost") drive all colours through
+CSS variables — panels read `var(--bg-panel)` / `var(--text-*)` so they stay
+readable in both. The map (MapLibre GL) renders ~40 GeoJSON source layers with
+bright-text + dark-halo labels.
+
 ```
 src/
 ├── app/
-│   ├── layout.tsx          # Root layout with global styles
-│   ├── page.tsx            # Main dashboard page
-│   └── api/                # All backend API routes
+│   ├── layout.tsx           # Root layout + global styles
+│   ├── page.tsx             # Dashboard: data store, layer state, panel wiring
+│   ├── globals.css          # Theme tokens (core/ghost), .glass-panel, HUD styles
+│   └── api/                 # 70+ backend API routes (see Backend)
 ├── components/
-│   ├── OsirisMap.tsx       # Core MapLibre GL map component
-│   ├── LayerPanel.tsx      # Left-rail layer toggles
-│   ├── CameraViewer.tsx    # CCTV video popup player
-│   ├── OsintPanel.tsx      # 20-tab OSINT reconnaissance toolkit
-│   ├── AiAnalyst.tsx       # Gemini-powered AI analyst chat
-│   ├── CyberIntelPanel.tsx  # CVE/KEV/MITRE/Network threat intel
+│   ├── OsirisMap.tsx        # Core MapLibre GL map (all geo layers + interactions)
+│   ├── LayerPanel.tsx       # Left-rail layer toggles w/ per-category live counts
+│   ├── OsintPanel.tsx       # 20-tool OSINT/recon toolkit (dark results card)
+│   ├── AiAnalyst.tsx        # Gemini 2.5 Flash analyst chat (web-grounded)
+│   ├── CyberIntelPanel.tsx  # CVE/KEV/MITRE/Network intel + Recon Findings list
 │   ├── EntityGraphPanel.tsx # Force-directed relationship graph
-│   ├── IntelFeed.tsx       # Risk-scored news aggregation
-│   ├── MarketsPanel.tsx    # Financial markets tickers
-│   ├── LiveAlerts.tsx      # 24/7 live news stream viewer
-│   ├── ScmPanel.tsx        # Supply chain risk command panel
-│   ├── SearchBar.tsx       # Geocoding & coordinate search
-│   ├── SharePanel.tsx      # Shareable URL generator
-│   ├── ViewPresets.tsx     # 12 region quick-navigate presets
-│   ├── GlobalStatusBar.tsx # Country risk + exchange ticker
-│   ├── KeyboardShortcuts.tsx # Keyboard navigation
-│   ├── ScaleBar.tsx        # Map scale indicator
-│   ├── ErrorBoundary.tsx   # React error boundary
-│   └── mapMarkers.ts       # Layer-specific marker renderers
-└── lib/
-    ├── ai-engine.ts        # Gemini API client & intelligence engine
-    ├── osint-utils.ts       # Shodan sweep, IP math, device classification
-    ├── acled.ts            # ACLED API client
-    ├── sanctions.ts        # OFAC SDN sanctions matcher
-    ├── ssrf-guard.ts       # SSRF-prevention URL validator
-    ├── stealthFetch.ts     # Resilience-enhanced fetch wrapper
-    ├── bulgaria-sources.ts # Bulgaria CCTV source definitions
-    └── sdk/                # Polybolos SDK (Lattice API adapter)
-        ├── LatticeAdapter.ts
-        ├── PolybolosClient.ts
-        └── types.ts
+│   ├── CacheBadges.tsx      # Per-feed freshness badges (X-OSIRIS-* headers)
+│   ├── OfflineBanner.tsx    # "Serving cached intelligence" banner
+│   ├── LocalIntelPanel.tsx  # Local OTCAD / ICS-CERT / recon datasets
+│   ├── IntelFeed.tsx · MarketsPanel.tsx · LiveAlerts.tsx · ScmPanel.tsx
+│   ├── SearchBar.tsx · SharePanel.tsx · ViewPresets.tsx · GlobalStatusBar.tsx
+│   ├── CameraViewer.tsx · KeyboardShortcuts.tsx · ScaleBar.tsx · ErrorBoundary.tsx
+│   └── mapMarkers.ts        # Layer-specific marker renderers
+├── lib/
+│   ├── cacheFirst.ts        # Cache-first engine (Redis hot + Postgres fallback)
+│   ├── snapshotStore.ts     # Durable feed_snapshots store + pruning
+│   ├── feeds/               # Cache-first feed registry + route helpers
+│   │   ├── registry.ts      #   FeedSpec list (earthquakes/markets/flights…)
+│   │   ├── serve.ts         #   serveFeed / withCache / withQueryCache wrappers
+│   │   └── earthquakes.ts · markets.ts · flights.ts
+│   ├── db/                  # redis.ts · postgres.ts (Postgres+PostGIS schema)
+│   ├── feedStore.ts · iocIndex.ts   # Row-based threat-intel store + OpenSearch
+│   ├── ai-engine.ts         # Gemini client, prompts, Google Search grounding
+│   ├── osint-utils.ts · acled.ts · sanctions.ts
+│   ├── ssrf-guard.ts · rateLimit.ts · guard.ts   # SSRF/rate-limit/abuse guards
+│   └── sdk/                 # Polybolos SDK (Lattice API adapter)
+└── workers/                 # Background collectors + cache refresh (node-cron)
+    ├── scheduler.ts         #   warms feeds + threat-intel, daily snapshot prune
+    └── collectors/          #   kev · epss · cve · threatfox · urlhaus · malwarebazaar
 ```
+
+**Key patterns:** (1) **Cache-first data layer** — 42 routes serve from a local
+Redis+Postgres cache (`cacheFirst`/`withCache`/`withQueryCache`), so page loads
+don't burn upstream quota and stale data still renders offline. (2) **Recon →
+map** — OSINT lookups emit verdict-coloured findings onto the map's `scan-targets`
+layer + a "Recon Findings" list in the Cyber Intel panel. (3) **Theme-driven
+colour** — never hardcode panel text; use the CSS theme variables.
 
 ### Backend (API Routes)
 
