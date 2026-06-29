@@ -64,13 +64,13 @@ Intel panel. Results render on a self-contained dark card, readable in both them
 
 | | |
 |---|---|
-| ![Recon toolkit](docs/screenshots/recon-01.png) | ![Recon toolkit](docs/screenshots/recon-02.png) |
-| ![Recon toolkit](docs/screenshots/recon-03.png) | ![Recon toolkit](docs/screenshots/recon-04.png) |
-| ![Recon toolkit](docs/screenshots/recon-05.png) | ![Recon toolkit](docs/screenshots/recon-06.png) |
-| ![Recon toolkit](docs/screenshots/recon-07.png) | ![Recon toolkit](docs/screenshots/recon-08.png) |
-| ![Recon toolkit](docs/screenshots/recon-09.png) | ![Recon toolkit](docs/screenshots/recon-10.png) |
-| ![Recon toolkit](docs/screenshots/recon-11.png) | ![Recon toolkit](docs/screenshots/recon-12.png) |
-| ![Recon toolkit](docs/screenshots/recon-13.png) | ![Recon toolkit](docs/screenshots/recon-14.png) |
+| ![Recon toolkit](docs/screenshots/recon-01.jpg) | ![Recon toolkit](docs/screenshots/recon-02.jpg) |
+| ![Recon toolkit](docs/screenshots/recon-03.jpg) | ![Recon toolkit](docs/screenshots/recon-04.jpg) |
+| ![Recon toolkit](docs/screenshots/recon-05.jpg) | ![Recon toolkit](docs/screenshots/recon-06.jpg) |
+| ![Recon toolkit](docs/screenshots/recon-07.jpg) | ![Recon toolkit](docs/screenshots/recon-08.jpg) |
+| ![Recon toolkit](docs/screenshots/recon-09.jpg) | ![Recon toolkit](docs/screenshots/recon-10.jpg) |
+| ![Recon toolkit](docs/screenshots/recon-11.jpg) | ![Recon toolkit](docs/screenshots/recon-12.jpg) |
+| ![Recon toolkit](docs/screenshots/recon-13.jpg) | ![Recon toolkit](docs/screenshots/recon-14.jpg) |
 
 ---
 
