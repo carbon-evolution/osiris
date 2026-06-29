@@ -89,9 +89,9 @@ const getLayerGroups = (theme: 'core' | 'ghost') => {
     layers: [
 
       { key: 'malware', label: 'Live Malware', icon: AlertTriangle, color: '#D32F2F', dataKey: 'malware_threats' },
-      { key: 'blocklist', label: 'Blocklisted IPs', icon: AlertTriangle, color: '#FF6D00', dataKey: 'threat_intel' },
-      { key: 'phishing', label: 'Phishing Sites', icon: Target, color: '#AA00FF', dataKey: 'threat_intel' },
-      { key: 'ssl_blacklist', label: 'SSL Blacklist', icon: AlertTriangle, color: '#FF1744', dataKey: 'threat_intel' },
+      { key: 'blocklist', label: 'Blocklisted IPs', icon: AlertTriangle, color: '#FF6D00', dataKey: 'threat_intel', countTypes: ['abuseipdb', 'blocklist_de'] },
+      { key: 'phishing', label: 'Phishing Sites', icon: Target, color: '#AA00FF', dataKey: 'threat_intel', countTypes: ['phishing'] },
+      { key: 'ssl_blacklist', label: 'SSL Blacklist', icon: AlertTriangle, color: '#FF1744', dataKey: 'threat_intel', countTypes: ['ssl_blacklist'] },
     ],
   },
   {
@@ -134,14 +134,19 @@ function LayerPanel({ data, activeLayers, setActiveLayers, isMobile, theme = 'co
 
   const toggle = (key: string) => setActiveLayers((prev: any) => ({ ...prev, [key]: !prev[key] }));
   
-  const getCount = (dk: string): number | null => {
+  const getCount = (layer: any): number | null => {
+    const dk: string = layer?.dataKey;
     if (!dk) return null;
     let total = 0;
     let found = false;
     for (const k of dk.split(',')) {
       if (data[k] && Array.isArray(data[k])) {
-        total += data[k].length;
         found = true;
+        // Layers sharing a dataKey (blocklist/phishing/ssl_blacklist all read
+        // threat_intel) count only the rows matching their own threat_type.
+        total += layer.countTypes
+          ? data[k].filter((t: any) => layer.countTypes.includes(t.threat_type)).length
+          : data[k].length;
       }
     }
     return found ? total : null;
@@ -161,7 +166,7 @@ function LayerPanel({ data, activeLayers, setActiveLayers, isMobile, theme = 'co
             <div className="grid grid-cols-2 gap-2">
               {group.layers.map((layer) => {
                 const isLayerActive = activeLayers[layer.key];
-                const count = getCount(layer.dataKey);
+                const count = getCount(layer);
                 
                 return (
                   <button
@@ -289,7 +294,7 @@ function LayerPanel({ data, activeLayers, setActiveLayers, isMobile, theme = 'co
                     <div className="flex flex-col gap-1.5">
                       {group.layers.map((layer) => {
                         const isLayerActive = activeLayers[layer.key];
-                        const count = getCount(layer.dataKey);
+                        const count = getCount(layer);
                         const Icon = layer.icon || Shield;
                         
                         return (
