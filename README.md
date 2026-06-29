@@ -23,8 +23,8 @@ Built on **Next.js 16 (App Router)**, **React 19**, and **MapLibre GL JS** (WebG
 - **🔓 Keyless-first architecture** — Zero API keys required to start. Every data source that needs a key is fully optional and gracefully degrades when absent
 - **🛡️ Defensively engineered** — Every upstream fetch has an independent timeout and error handler. A failing source never blocks or crashes the rest of the map
 - **🔧 Extensible layer system** — Drop in new country CCTV feeds or entire data domains by following the existing route + component pattern
-- **🧠 Built-in AI analyst** — Ask natural-language questions about current intelligence data, or generate full briefings, powered by Gemini 2.0 Flash (optional local API key)
-- **🔍 Full OSINT toolkit** — 20 reconnaissance tools (port scan, WHOIS, Shodan, DNS, BGP, MAC, phone, data leaks, GitHub recon, URLhaus, sanctions checks, and more) built directly into the UI
+- **🧠 Built-in AI analyst** — Ask natural-language questions about current intelligence data, or generate full briefings, powered by **Gemini 2.5 Flash with live Google Search grounding** (optional local API key)
+- **🔍 Full OSINT toolkit** — 20 reconnaissance tools (port scan, WHOIS, Shodan, DNS, BGP, MAC, phone, data leaks, GitHub recon, URLhaus, sanctions checks, and more) built directly into the UI — geo-locatable results drop verdict-coloured markers on the map and feed a Recon Findings list
 
 ---
 
@@ -75,6 +75,12 @@ Intel panel. Results render on a self-contained dark card, readable in both them
 ---
 
 ## 🆕 Recent Updates
+
+**Recon → map/panel integration + readability (June 2026):**
+
+- **Findings on the map** — geo-locatable OSINT lookups (URLhaus, isMalicious, DNS-threat, BGP, IP, Shodan…) now drop **verdict-coloured markers** (red = malicious, cyan = clean) on the map and populate a **Recon Findings** list in the Cyber Intel panel.
+- **Readable in both themes** — result cards, map labels (bright text + dark halo), and all panels were reworked to read correctly in the light *and* dark themes; panels are now theme-variable-driven instead of hardcoded.
+- **Network panel counts fixed** — Blocklisted IPs / Phishing / SSL Blacklist no longer all show the same total; each counts its own category.
 
 **Recon toolkit hardening (June 2026):**
 
@@ -152,9 +158,9 @@ Layers are organized into intuitive groups in the left-hand rail. Toggle any lay
 | **Spamhaus DROP** | Malicious CIDR blocks | ❌ |
 | **Tor Exit Nodes** | Live node list | ❌ |
 | **MITRE ATT&CK** | STIX tactical groups & techniques | ❌ |
-| **abuse.ch URLhaus** | Malware distribution hosts/URLs | ❌ |
+| **abuse.ch URLhaus** | Malware distribution hosts/URLs | Free Auth-Key (`URLHAUS_KEY`) |
 | **Blocklist.de** | Brute-force attackers | ❌ |
-| **PhishTank** | Active phishing URLs | ❌ |
+| **PhishTank** | Active phishing URLs | ⚠️ now requires registration (feed gated) |
 | **AbuseIPDB** | IP reputation (enrichment) | Optional |
 | **IsMalicious** | Multi-source threat intelligence | Optional |
 | **AlienVault OTX** | Open Threat Exchange pulses | Optional |
@@ -190,24 +196,24 @@ A full-featured intelligence panel built into the dashboard with **20 specialize
 | Tool | Description | Data Source |
 |------|-------------|-------------|
 | **PORT SCAN** | TCP port scanning | `osiris-scanner` sidecar |
-| **VULN SWEEP** | CVE vulnerability assessment | Shodan InternetDB + NVD |
-| **DNS** | Full DNS record enumeration (A, AAAA, MX, NS, TXT, CNAME, SOA) | Direct resolution |
+| **VULN SWEEP** | CVE vulnerability assessment (HTTP+HTTPS fingerprint → CVE lookup) | `osiris-scanner` sidecar + NVD (`NVD_API_KEY` optional) |
+| **DNS** | Full DNS record enumeration (A, AAAA, MX, NS, TXT, CNAME, SOA) | Google DNS-over-HTTPS |
 | **WHOIS** | Domain registration intelligence + OFAC sanctions cross-check | RDAP + WHOIS |
-| **CERTS** | Certificate Transparency log search | crt.sh |
-| **THREATS** | Multi-source threat reputation | VirusTotal + AlienVault |
+| **CERTS** | Certificate Transparency log search | crt.sh → **Cert Spotter** fallback |
+| **THREATS** | Multi-source threat reputation | AlienVault OTX + reputation |
 | **HEADERS** | HTTP security headers audit | `osiris-scanner` sidecar |
 | **SSL/TLS** | SSL certificate & cipher analysis | `osiris-scanner` sidecar |
-| **SUBDOMAINS** | Subdomain enumeration | `osiris-scanner` sidecar |
+| **SUBDOMAINS** | Subdomain enumeration | crt.sh → **Cert Spotter** fallback |
 | **TECH DETECT** | Technology stack fingerprinting | `osiris-scanner` sidecar |
 | **SHODAN IoT** | InternetDB device intelligence | Shodan InternetDB |
-| **BGP ROUTE** | BGP routing lookup (IP prefix + ASN) | BGP.HE.NET |
-| **MAC ADDR** | MAC address vendor lookup | MAC address vendor DB |
-| **PHONE INTEL** | Phone number validation & line type | Free carrier API |
-| **DATA LEAKS** | Email breach discovery | xposedornot.com |
+| **BGP ROUTE** | BGP routing lookup (IP prefix + ASN) | **RIPEstat** (keyless) |
+| **MAC ADDR** | MAC address vendor lookup | `api.macvendors.com` |
+| **PHONE INTEL** | Phone number validation & line type | libphonenumber (local) |
+| **DATA LEAKS** | Email breach discovery | XposedOrNot (via backend) |
 | **GITHUB RECON** | GitHub user/org profiling | GitHub API |
 | **IP SWEEP** | CIDR subnet sweep (Shodan InternetDB batch) | Shodan InternetDB |
-| **ISMALICIOUS** | Unified threat intel + WHOIS + geo + OTX + passive DNS | Aggregated multi-source |
-| **URLHAUS** | Malware URL/payload/hash lookup | abuse.ch URLhaus |
+| **ISMALICIOUS** | Unified threat intel + WHOIS + geo + OTX + passive DNS | ismalicious.com (`ISMALICIOUS_KEY` + `ISMALICIOUS_SECRET`) |
+| **URLHAUS** | Malware URL/payload/hash lookup | abuse.ch URLhaus (`URLHAUS_KEY`) |
 | **DNS THREAT** | Spamhaus + multi-DNSBL check | Spamhaus DROP/DNSBL |
 
 Results are enriched with automatic **IP geolocation** and **OFAC/SDN sanctions cross-checking** where applicable. The **IP Sweep** tool can visualize discovered devices on the map.
@@ -306,12 +312,15 @@ npm run build && npm start
 
 | Variable | Unlocks | Source |
 |----------|---------|--------|
+| `GEMINI_API_KEY_1..8` | AI Intelligence Analyst (Gemini 2.5 Flash + web search) | [Google AI Studio](https://aistudio.google.com/apikey) (free) |
 | `SCANNER_URL`, `SCANNER_KEY` | RECON toolkit (port scan, SSL, DNS, WHOIS, vuln) | Generate a key, match in `osiris-scanner` sidecar |
+| `URLHAUS_KEY` | URLhaus malware lookups | [abuse.ch auth](https://auth.abuse.ch/) (free) |
+| `ISMALICIOUS_KEY`, `ISMALICIOUS_SECRET` | IsMalicious threat lookups (auth = base64 key:secret) | [IsMalicious](https://ismalicious.com/) |
+| `NVD_API_KEY` (scanner) | Faster vuln-scan CVE lookups (50 req/30s vs ~5) | [NVD](https://nvd.nist.gov/developers/request-an-api-key) (free) |
 | `ACLED_EMAIL`, `ACLED_PASSWORD` | ACLED structured conflict events | [ACLED Registration](https://acleddata.com/register/) (free, request API access) |
 | `FIRMS_API_KEY` | Per-area FIRMS API queries | [NASA FIRMS](https://firms.modaps.eosdis.nasa.gov/api/map_key/) |
 | `OPENSKY_CLIENT_ID/SECRET` | Higher aviation rate limits | [OpenSky Network](https://opensky-network.org/) |
 | `AIS_API_KEY` | Live ship positions | [AIS Stream](https://aisstream.io/) |
-| `ISMALICIOUS_KEY` | IP/domain reputation enrichment | [IsMalicious](https://ismalicious.com/) |
 | `SDK_INGEST_KEY` | Polybolos SDK ingestion webhook | Set your own key |
 | `N2YO_API_KEY` | Enriched satellite details | [N2YO](https://www.n2yo.com/) |
 | `ABUSEIPDB_KEY` | IP enrichment data | [AbuseIPDB](https://www.abuseipdb.com/) |
@@ -512,7 +521,7 @@ Every data domain gets its own isolated route under `src/app/api/`:
 
 OSIRIS employs a **military-grade SIGINT aesthetic** with these design choices:
 
-- **Dark, high-contrast palette** — Optimized for extended monitoring sessions in low-light environments
+- **Dual theme** — A Google Maps–style **light** theme (default) and a dark **"Ghost Protocol"** theme, toggled live. All colours flow through CSS theme variables so every panel and map label stays high-contrast and readable in both
 - **Per-type iconography** — Distinct SVG markers for every data category (camera, flame, aircraft, ship, incident, nuclear, satellite, etc.)
 - **Smart clustering** — Thousands of markers intelligently grouped at lower zoom levels to prevent visual overload
 - **Day/Night terminator** — Real-time computed overlay showing global daylight regions
@@ -581,7 +590,7 @@ OSIRIS is built on the open-source [OSIRIS project by simplifaisoul](https://git
 
 ## 🙏 Acknowledgments
 
-- **NASA FIRS** — Fire information for resource management
+- **NASA FIRMS** — Fire information for resource management
 - **USGS & EMSC** — Global earthquake monitoring
 - **NOAA SWPC** — Space weather prediction
 - **OpenSky Network** — Crowdsourced aviation surveillance
@@ -591,6 +600,8 @@ OSIRIS is built on the open-source [OSIRIS project by simplifaisoul](https://git
 - **TeleGeography** — Submarine cable mapping
 - **Georgia Tech IODA** — Internet outage detection
 - **abuse.ch, Spamhaus, Tor Project** — Cyber threat intelligence
+- **RIPEstat & Cert Spotter** — BGP/ASN routing data and Certificate Transparency
+- **Google (Gemini 2.5 Flash + Search grounding)** — AI intelligence analyst
 - **Shodan** — Internet device search (InternetDB)
 - **Government transport authorities** — Public CCTV networks: Taiwan THB, Jasa Marga (Indonesia), ASFINAG (Austria), Caltrans (California), and 20+ more national highway agencies
 - **Polybolos / Anduril** — Lattice SDK integration pattern
