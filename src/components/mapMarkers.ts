@@ -60,15 +60,15 @@ export const MARKER_LAYERS: MarkerLayer[] = [
   { source: 'cctv', icon: 'camera', color: '#9575CD' },
   { source: 'earthquakes', icon: 'activity', color: '#F9A825' },
   { source: 'fires', icon: 'flame', color: '#FF6D00' },
-  { source: 'weather', icon: 'cloud-lightning', color: '#29B6F6' },
+  { source: 'weather', icon: 'cloud-lightning', color: '#7E57C2' },
   { source: 'infrastructure', icon: 'radiation', color: '#26A69A' },
   { source: 'power_plants', icon: 'zap', color: '#FDD835' },
   { source: 'gdelt', icon: 'triangle-alert', color: '#EF5350' },
-  { source: 'ransomware', icon: 'lock', color: '#EC407A' },
+  { source: 'ransomware', icon: 'lock', color: '#D32F2F' },
   { source: 'eurepoc', icon: 'shield-alert', color: '#C2185B' },
-  { source: 'malware-nodes', icon: 'bug', color: '#C0CA33' },
+  { source: 'malware-nodes', icon: 'bug', color: '#D32F2F' },
   { source: 'cve-nodes', icon: 'shield-alert', color: '#00E5FF' },
-  { source: 'drop-nodes', icon: 'globe', color: '#5C6BC0' },
+  { source: 'drop-nodes', icon: 'globe', color: '#FF9100' },
   { source: 'tor-nodes', icon: 'eye', color: '#7C4DFF' },
   { source: 'mitre-nodes', icon: 'crosshair', color: '#00E676' },
   { source: 'live-news', icon: 'tv', color: '#F06292' },
@@ -120,11 +120,13 @@ export function renderMarkerIcon(
   color: string,
   size = 48,
 ): { width: number; height: number; data: Uint8Array } {
+  const DPR = 2; // rasterize at 2× so glyphs stay crisp on Retina/HiDPI (caller adds with matching pixelRatio)
+  const px = size * DPR;
   const canvas = document.createElement('canvas');
-  canvas.width = size;
-  canvas.height = size;
+  canvas.width = px;
+  canvas.height = px;
   const ctx = canvas.getContext('2d')!;
-  const scale = size / 24; // lucide viewBox is 24×24
+  const scale = px / 24; // lucide viewBox is 24×24, scaled up to the HiDPI canvas
   ctx.lineCap = 'round';
   ctx.lineJoin = 'round';
 
@@ -176,11 +178,11 @@ export function renderMarkerIcon(
   els.forEach(strokeEl);
   ctx.restore();
 
-  return { width: size, height: size, data: new Uint8Array(ctx.getImageData(0, 0, size, size).data) };
+  return { width: px, height: px, data: new Uint8Array(ctx.getImageData(0, 0, px, px).data) };
 }
 
 /** Zoom-interpolated icon size (icons are rendered at 48px). */
 export const MARKER_ICON_SIZE: unknown = [
   'interpolate', ['linear'], ['zoom'],
-  1, 0.3, 5, 0.4, 10, 0.5, 14, 0.62,
+  1, 0.28, 5, 0.36, 10, 0.45, 14, 0.55,
 ];

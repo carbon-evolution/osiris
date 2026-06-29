@@ -73,6 +73,11 @@ function splitTrackFeatures(track: [number, number][], color: string): any[] {
     .map(s => ({ type: 'Feature', geometry: { type: 'LineString', coordinates: s }, properties: { color } }));
 }
 
+// Icon sprites are rasterized at this device-pixel ratio and added with a
+// matching pixelRatio so they stay crisp on Retina/HiDPI screens. addImage
+// defaults to pixelRatio 1, which the GPU upscales on a 2× display → blur.
+const ICON_DPR = 2;
+
 function OsirisMap({ data, activeLayers, onEntityClick, onMouseCoords, onRightClick, onViewStateChange, flyToLocation, projection = 'globe', mapStyle = 'dark', sweepData, scanTargets = [], demoMode = false, theme = 'core' }: OsirisMapProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
@@ -111,8 +116,9 @@ function OsirisMap({ data, activeLayers, onEntityClick, onMouseCoords, onRightCl
   const createIcon = useCallback((map: maplibregl.Map, id: string, color: string, size: number) => {
     if (map.hasImage(id)) return;
     const canvas = document.createElement('canvas');
-    canvas.width = size; canvas.height = size;
+    canvas.width = size * ICON_DPR; canvas.height = size * ICON_DPR;
     const ctx = canvas.getContext('2d')!;
+    ctx.scale(ICON_DPR, ICON_DPR);
     const cx = size / 2, cy = size / 2;
     ctx.fillStyle = color;
     ctx.beginPath();
@@ -128,27 +134,29 @@ function OsirisMap({ data, activeLayers, onEntityClick, onMouseCoords, onRightCl
     ctx.lineTo(cx + size * 0.12, cy + size * 0.1);
     ctx.closePath();
     ctx.fill();
-    map.addImage(id, { width: size, height: size, data: new Uint8Array(ctx.getImageData(0, 0, size, size).data) });
+    map.addImage(id, { width: size * ICON_DPR, height: size * ICON_DPR, data: new Uint8Array(ctx.getImageData(0, 0, size * ICON_DPR, size * ICON_DPR).data) }, { pixelRatio: ICON_DPR });
   }, []);
 
   const createDot = useCallback((map: maplibregl.Map, id: string, color: string, size: number) => {
     if (map.hasImage(id)) return;
     const canvas = document.createElement('canvas');
-    canvas.width = size; canvas.height = size;
+    canvas.width = size * ICON_DPR; canvas.height = size * ICON_DPR;
     const ctx = canvas.getContext('2d')!;
+    ctx.scale(ICON_DPR, ICON_DPR);
     ctx.fillStyle = color;
     ctx.beginPath();
     ctx.arc(size/2, size/2, size/2 - 1, 0, Math.PI * 2);
     ctx.fill();
-    map.addImage(id, { width: size, height: size, data: new Uint8Array(ctx.getImageData(0, 0, size, size).data) });
+    map.addImage(id, { width: size * ICON_DPR, height: size * ICON_DPR, data: new Uint8Array(ctx.getImageData(0, 0, size * ICON_DPR, size * ICON_DPR).data) }, { pixelRatio: ICON_DPR });
   }, []);
 
   // Satellite icon (body + solar panels)
   const createSatelliteIcon = useCallback((map: maplibregl.Map, id: string, color: string, size: number) => {
     if (map.hasImage(id)) return;
     const canvas = document.createElement('canvas');
-    canvas.width = size; canvas.height = size;
+    canvas.width = size * ICON_DPR; canvas.height = size * ICON_DPR;
     const ctx = canvas.getContext('2d')!;
+    ctx.scale(ICON_DPR, ICON_DPR);
     const cx = size / 2, cy = size / 2, s = size;
 
     // Solar panel wings
@@ -180,15 +188,16 @@ function OsirisMap({ data, activeLayers, onEntityClick, onMouseCoords, onRightCl
     ctx.arc(cx, by - s * 0.15, s * 0.04, 0, Math.PI * 2);
     ctx.stroke();
 
-    map.addImage(id, { width: size, height: size, data: new Uint8Array(ctx.getImageData(0, 0, size, size).data) });
+    map.addImage(id, { width: size * ICON_DPR, height: size * ICON_DPR, data: new Uint8Array(ctx.getImageData(0, 0, size * ICON_DPR, size * ICON_DPR).data) }, { pixelRatio: ICON_DPR });
   }, []);
 
   // Military icon (stealth/fighter jet silhouette)
   const createMilitaryIcon = useCallback((map: maplibregl.Map, id: string, color: string, size: number) => {
     if (map.hasImage(id)) return;
     const canvas = document.createElement('canvas');
-    canvas.width = size; canvas.height = size;
+    canvas.width = size * ICON_DPR; canvas.height = size * ICON_DPR;
     const ctx = canvas.getContext('2d')!;
+    ctx.scale(ICON_DPR, ICON_DPR);
     const cx = size / 2, cy = size / 2, s = size;
 
     ctx.fillStyle = color;
@@ -209,7 +218,7 @@ function OsirisMap({ data, activeLayers, onEntityClick, onMouseCoords, onRightCl
     ctx.closePath();
     ctx.fill();
 
-    map.addImage(id, { width: size, height: size, data: new Uint8Array(ctx.getImageData(0, 0, size, size).data) });
+    map.addImage(id, { width: size * ICON_DPR, height: size * ICON_DPR, data: new Uint8Array(ctx.getImageData(0, 0, size * ICON_DPR, size * ICON_DPR).data) }, { pixelRatio: ICON_DPR });
   }, []);
 
   useEffect(() => {
@@ -320,8 +329,9 @@ function OsirisMap({ data, activeLayers, onEntityClick, onMouseCoords, onRightCl
       // Track arrow icon (small triangle for flight path direction)
       {
         const s = 12, c = document.createElement('canvas');
-        c.width = s; c.height = s;
+        c.width = s * ICON_DPR; c.height = s * ICON_DPR;
         const ctx = c.getContext('2d')!;
+        ctx.scale(ICON_DPR, ICON_DPR);
         ctx.fillStyle = '#00E676';
         ctx.beginPath();
         ctx.moveTo(1, 1);
@@ -329,7 +339,7 @@ function OsirisMap({ data, activeLayers, onEntityClick, onMouseCoords, onRightCl
         ctx.lineTo(1, s - 1);
         ctx.closePath();
         ctx.fill();
-        map.addImage('track-arrow', { width: s, height: s, data: new Uint8Array(ctx.getImageData(0, 0, s, s).data) });
+        map.addImage('track-arrow', { width: s * ICON_DPR, height: s * ICON_DPR, data: new Uint8Array(ctx.getImageData(0, 0, s * ICON_DPR, s * ICON_DPR).data) }, { pixelRatio: ICON_DPR });
       }
 
       const sources = ['flights','military','jets','private-fl','satellites','orbit','earthquakes','gdelt','gps-jamming','day-night','cctv','fires','weather','infrastructure','maritime','maritime-choke','maritime-ships','live-news','sigint-news','conflict-zones', 'war-alerts-targets', 'war-alerts-lines', 'balloons', 'radiation', 'ip-sweep-devices', 'ip-sweep-pulse', 'ip-sweep-connections', 'scan-targets', 'malware-nodes', 'network-mesh', 'flight-route', 'flight-track', 'ransomware', 'eurepoc', 'power_plants', 'cables'];
@@ -345,8 +355,9 @@ map.addSource('mitre-nodes', { type: 'geojson', data: EMPTY_FC });
       const createWarningIcon = (id: string, color: string) => {
         const s = 20;
         const c = document.createElement('canvas');
-        c.width = s; c.height = s;
+        c.width = s * ICON_DPR; c.height = s * ICON_DPR;
         const ctx = c.getContext('2d')!;
+        ctx.scale(ICON_DPR, ICON_DPR);
         ctx.fillStyle = color;
         ctx.beginPath();
         ctx.moveTo(s/2, 1);
@@ -358,7 +369,7 @@ map.addSource('mitre-nodes', { type: 'geojson', data: EMPTY_FC });
         ctx.font = 'bold 11px sans-serif';
         ctx.textAlign = 'center';
         ctx.fillText('!', s/2, s - 4);
-        map.addImage(id, { width: s, height: s, data: new Uint8Array(ctx.getImageData(0, 0, s, s).data) });
+        map.addImage(id, { width: s * ICON_DPR, height: s * ICON_DPR, data: new Uint8Array(ctx.getImageData(0, 0, s * ICON_DPR, s * ICON_DPR).data) }, { pixelRatio: ICON_DPR });
       };
       createWarningIcon('warn-icon', '#D32F2F');
       createWarningIcon('warn-orange', '#E65100');
@@ -384,7 +395,7 @@ map.addSource('mitre-nodes', { type: 'geojson', data: EMPTY_FC });
 
       // Earthquakes — amber threat spectrum
       map.addLayer({ id: 'eq-circles', type: 'circle', source: 'earthquakes', paint: {
-        'circle-radius': ['interpolate',['linear'],['get','magnitude'], 2.5,4, 5,12, 7,24],
+        'circle-radius': ['interpolate',['linear'],['get','magnitude'], 2.5,3, 5,8, 7,14],
         'circle-color': ['interpolate',['linear'],['get','magnitude'], 2.5,'#F9A825', 4,'#E65100', 6,'#D32F2F'],
         'circle-opacity': 0.55, 'circle-blur': 0.3, 'circle-stroke-width': 1, 'circle-stroke-color': '#F9A825', 'circle-stroke-opacity': 0.25,
       }});
@@ -400,12 +411,12 @@ map.addSource('mitre-nodes', { type: 'geojson', data: EMPTY_FC });
 
       // CCTV — outer glow ring (black/white depending on theme)
       map.addLayer({ id: 'cctv-glow', type: 'circle', source: 'cctv', paint: {
-        'circle-radius': ['interpolate',['linear'],['zoom'], 1,5, 5,8, 10,14, 14,20],
+        'circle-radius': ['interpolate',['linear'],['zoom'], 1,4, 5,6, 10,9, 14,12],
         'circle-color': '#000000', 'circle-opacity': 0.35, 'circle-blur': 1,
       }});
       // CCTV — main dot
       map.addLayer({ id: 'cctv-dots', type: 'circle', source: 'cctv', paint: {
-        'circle-radius': ['interpolate',['linear'],['zoom'], 1,3, 5,5, 10,8, 14,12],
+        'circle-radius': ['interpolate',['linear'],['zoom'], 1,2.5, 5,4, 10,6, 14,8],
         'circle-color': cameraColor, 'circle-opacity': 0.9,
         'circle-stroke-width': 2.5, 'circle-stroke-color': '#000000', 'circle-stroke-opacity': 0.9,
       }});
@@ -595,11 +606,11 @@ map.addSource('mitre-nodes', { type: 'geojson', data: EMPTY_FC });
 
       // Weather Events (NASA EONET) — deep violet
       map.addLayer({ id: 'weather-glow', type: 'circle', source: 'weather', paint: {
-        'circle-radius': ['interpolate',['linear'],['zoom'], 1,12, 5,20, 10,30],
+        'circle-radius': ['interpolate',['linear'],['zoom'], 1,6, 5,11, 10,16],
         'circle-color': '#7E57C2', 'circle-opacity': 0.08, 'circle-blur': 1,
       }});
       map.addLayer({ id: 'weather-dots', type: 'circle', source: 'weather', paint: {
-        'circle-radius': ['interpolate',['linear'],['zoom'], 1,5, 5,8, 10,14],
+        'circle-radius': ['interpolate',['linear'],['zoom'], 1,3, 5,5, 10,8],
         'circle-color': ['match', ['get','icon'], 'cyclone','#7E57C2', 'volcano','#D32F2F', '#7E57C2'],
         'circle-opacity': 0.75,
         'circle-stroke-width': 1.5, 'circle-stroke-color': '#7E57C2', 'circle-stroke-opacity': 0.35,
@@ -653,7 +664,7 @@ map.addSource('mitre-nodes', { type: 'geojson', data: EMPTY_FC });
         'circle-radius': ['interpolate',['linear'],['zoom'], 1,3, 5,6], 'circle-color': ['get','color'], 'circle-opacity': 0.3, 'circle-blur': 1,
       }});
       map.addLayer({ id: 'sat-dots', type: 'symbol', source: 'satellites', layout: {
-        'icon-image': 'satellite-icon', 'icon-size': ['interpolate',['linear'],['zoom'], 1,0.4, 5,0.6, 10,0.8],
+        'icon-image': 'satellite-icon', 'icon-size': ['interpolate',['linear'],['zoom'], 1,0.55, 5,0.8, 10,1.05],
         'icon-allow-overlap': true, 'icon-ignore-placement': true,
       }, paint: {
         'icon-color': ['get','color'],
@@ -800,7 +811,7 @@ map.addSource('mitre-nodes', { type: 'geojson', data: EMPTY_FC });
       ];
       flightLayers.forEach(l => {
         map.addLayer({ id: l.id, type: 'symbol', source: l.src, layout: {
-          'icon-image': l.icon, 'icon-size': ['interpolate',['linear'],['zoom'], 1,0.4, 5,0.7, 10,1],
+          'icon-image': l.icon, 'icon-size': ['interpolate',['linear'],['zoom'], 1,0.55, 5,0.8, 10,1.05],
           'icon-rotate': ['get','heading'], 'icon-rotation-alignment': 'map', 'icon-allow-overlap': true, 'icon-ignore-placement': true,
         }, paint: { 'icon-opacity': 0.85 }});
       });
@@ -850,7 +861,7 @@ map.addSource('mitre-nodes', { type: 'geojson', data: EMPTY_FC });
       map.addLayer({ id: 'rad-label', type: 'symbol', source: 'radiation', minzoom: 5, layout: {
         'text-field': ['concat', ['to-string', ['coalesce', ['get','reading'], 0]], ' nSv/h'], 'text-size': 9, 'text-font': ['Open Sans Bold'],
         'text-offset': [0, 1.5], 'text-allow-overlap': false,
-      }, paint: { 'text-color': ['match', ['get','status'], 'DANGER','#D32F2F', 'WARNING','#E65100', '#7E57C2'], 'text-halo-color': 'rgba(6,8,15,0.9)', 'text-halo-width': 1 }});
+      }, paint: { 'text-color': ['match', ['get','status'], 'DANGER','#D32F2F', 'WARNING','#E65100', '#9CCC65'], 'text-halo-color': 'rgba(6,8,15,0.9)', 'text-halo-width': 1 }});
 
       // ══ SUBMARINE CABLES — standalone layer (all cables, uniform amber) ══
       map.addLayer({ id: 'cables-line', type: 'line', source: 'cables', paint: {
@@ -909,7 +920,7 @@ map.addSource('mitre-nodes', { type: 'geojson', data: EMPTY_FC });
           const imgId = markerImageId(icon, color);
           if (!map.hasImage(imgId)) {
             const img = renderMarkerIcon(MARKER_ICON_SVG[icon], color);
-            map.addImage(imgId, img);
+            map.addImage(imgId, img, { pixelRatio: ICON_DPR });
           }
         }
         const layerId = `${m.source}-marker`;
@@ -1928,8 +1939,9 @@ map.addSource('mitre-nodes', { type: 'geojson', data: EMPTY_FC });
       const updateMapIcon = (id: string, color: string, size: number) => {
         if (!map.hasImage(id)) return;
         const canvas = document.createElement('canvas');
-        canvas.width = size; canvas.height = size;
+        canvas.width = size * ICON_DPR; canvas.height = size * ICON_DPR;
         const ctx = canvas.getContext('2d')!;
+        ctx.scale(ICON_DPR, ICON_DPR);
         const cx = size / 2, cy = size / 2;
         ctx.fillStyle = color;
         ctx.beginPath();
@@ -1945,7 +1957,7 @@ map.addSource('mitre-nodes', { type: 'geojson', data: EMPTY_FC });
         ctx.lineTo(cx + size * 0.12, cy + size * 0.1);
         ctx.closePath();
         ctx.fill();
-        map.updateImage(id, { width: size, height: size, data: new Uint8Array(ctx.getImageData(0, 0, size, size).data) });
+        map.updateImage(id, { width: size * ICON_DPR, height: size * ICON_DPR, data: new Uint8Array(ctx.getImageData(0, 0, size * ICON_DPR, size * ICON_DPR).data) });
       };
 
       updateMapIcon('plane-cyan', flightCom, 24);
