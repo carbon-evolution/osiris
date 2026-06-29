@@ -1365,7 +1365,22 @@ function OsintPanelInner({ isMobile, onSweepVisualize, onScanGeolocate, onReconF
       )}
 
       {results && !(sweepResult && !loading) && (
-        <div className="bg-[var(--bg-primary)]/40 border border-[var(--border-primary)] rounded-lg p-3 max-h-[50vh] overflow-y-auto styled-scrollbar">
+        <div className="bg-[var(--bg-primary)]/40 border border-[var(--border-primary)] rounded-lg p-3 max-h-[50vh] overflow-y-auto styled-scrollbar"
+          style={{
+            // The OSINT panel is always dark, but the renderers use the page
+            // theme's colour variables — which are near-black in the light theme,
+            // making result text unreadable (certs, port scan, sweep…). Override
+            // them here so every result renders readable-on-dark.
+            ['--text-primary' as string]: '#E8EAED',
+            ['--text-secondary' as string]: '#C4C7CC',
+            ['--text-muted' as string]: '#9AA0A6',
+            ['--bg-primary' as string]: 'rgba(8,10,16,0.6)',
+            ['--bg-tertiary' as string]: 'rgba(255,255,255,0.06)',
+            ['--border-primary' as string]: 'rgba(255,255,255,0.10)',
+            ['--border-secondary' as string]: 'rgba(255,255,255,0.10)',
+            ['--cyan-primary' as string]: '#3DD6F5',
+            ['--hover-accent' as string]: 'rgba(255,255,255,0.06)',
+          } as React.CSSProperties}>
           <div className="flex items-center justify-between mb-2">
             <span className="text-[9px] font-mono tracking-widest" style={{ color: currentTab?.color }}>{currentTab?.label} RESULTS</span>
             <span className="text-[8px] font-mono text-[var(--text-muted)] flex items-center gap-1"><Clock className="w-2.5 h-2.5" />{new Date().toLocaleTimeString()}</span>
