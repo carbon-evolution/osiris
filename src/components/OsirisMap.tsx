@@ -784,7 +784,12 @@ map.addSource('mitre-nodes', { type: 'geojson', data: EMPTY_FC });
       map.addLayer({ id: 'scan-targets-label', type: 'symbol', source: 'scan-targets', layout: {
         'text-field': ['get', 'id'], 'text-size': 11, 'text-font': ['Open Sans Bold'],
         'text-offset': [0, 2], 'text-max-width': 14, 'text-allow-overlap': false,
-      }, paint: { 'text-color': ['case', ['get','malicious'], '#D32F2F', '#00E5FF'], 'text-halo-color': '#FFFFFF', 'text-halo-width': 1.5, 'text-opacity': 0.9 }});
+      }, paint: {
+        // Brighter text + a DARK halo so the label reads on both the light
+        // (cream) and dark map themes — a white halo washed out on the light map.
+        'text-color': ['case', ['get','malicious'], '#FF5252', '#00E5FF'],
+        'text-halo-color': 'rgba(8,10,18,0.95)', 'text-halo-width': 2, 'text-opacity': 1,
+      }});
 
       // Flight layers (WebGL symbol — GPU rendered, handles 50K+ smooth)
       const flightLayers = [
