@@ -1157,7 +1157,8 @@ function OsintPanelInner({ isMobile, onSweepVisualize, onScanGeolocate, onReconF
 
       {/* Sweep Results */}
       {sweepResult && !loading && (
-        <div className="bg-[var(--bg-primary)]/40 border border-[var(--border-primary)] rounded-lg overflow-hidden max-h-[55vh] overflow-y-auto styled-scrollbar">
+        <div className="border rounded-lg overflow-hidden max-h-[55vh] overflow-y-auto styled-scrollbar"
+          style={{ background: 'linear-gradient(180deg, rgba(12,14,22,0.98) 0%, rgba(8,10,16,0.98) 100%)', borderColor: 'rgba(255,255,255,0.10)' }}>
           {/* Summary */}
           <div className="p-3 border-b border-[#2A2A28]">
             <div className="flex items-center justify-between mb-3">
@@ -1365,20 +1366,24 @@ function OsintPanelInner({ isMobile, onSweepVisualize, onScanGeolocate, onReconF
       )}
 
       {results && !(sweepResult && !loading) && (
-        <div className="bg-[var(--bg-primary)]/40 border border-[var(--border-primary)] rounded-lg p-3 max-h-[50vh] overflow-y-auto styled-scrollbar"
+        <div className="border rounded-lg p-3 max-h-[50vh] overflow-y-auto styled-scrollbar"
           style={{
-            // The OSINT panel is always dark, but the renderers use the page
-            // theme's colour variables — which are near-black in the light theme,
-            // making result text unreadable (certs, port scan, sweep…). Override
-            // them here so every result renders readable-on-dark.
+            // Self-contained DARK results card for EVERY recon tool. The OSINT
+            // panel can be light or dark (theme-dependent), so we pin a solid
+            // dark background + light text here. That makes results readable in
+            // both themes (previously light-theme text was near-black on dark, or
+            // light text washed out on the light panel).
+            background: 'linear-gradient(180deg, rgba(12,14,22,0.98) 0%, rgba(8,10,16,0.98) 100%)',
+            borderColor: 'rgba(255,255,255,0.10)',
             ['--text-primary' as string]: '#E8EAED',
             ['--text-secondary' as string]: '#C4C7CC',
             ['--text-muted' as string]: '#9AA0A6',
-            ['--bg-primary' as string]: 'rgba(8,10,16,0.6)',
+            ['--bg-primary' as string]: 'rgba(0,0,0,0.3)',
             ['--bg-tertiary' as string]: 'rgba(255,255,255,0.06)',
             ['--border-primary' as string]: 'rgba(255,255,255,0.10)',
-            ['--border-secondary' as string]: 'rgba(255,255,255,0.10)',
+            ['--border-secondary' as string]: 'rgba(255,255,255,0.12)',
             ['--cyan-primary' as string]: '#3DD6F5',
+            ['--gold-primary' as string]: '#E5C158',
             ['--hover-accent' as string]: 'rgba(255,255,255,0.06)',
           } as React.CSSProperties}>
           <div className="flex items-center justify-between mb-2">
