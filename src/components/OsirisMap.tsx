@@ -375,7 +375,7 @@ map.addSource('mitre-nodes', { type: 'geojson', data: EMPTY_FC });
         'text-allow-overlap': false,
       }, paint: {
         'text-color': ['match', ['get','severity'], 'war','#D32F2F', 'high','#E65100', '#F9A825'],
-        'text-halo-color': '#FFFFFF', 'text-halo-width': 1.5, 'text-opacity': 0.9,
+        'text-halo-color': 'rgba(6,8,15,0.9)', 'text-halo-width': 1.5, 'text-opacity': 0.9,
       }});
 
 
@@ -390,7 +390,7 @@ map.addSource('mitre-nodes', { type: 'geojson', data: EMPTY_FC });
       }});
       map.addLayer({ id: 'eq-label', type: 'symbol', source: 'earthquakes', filter: ['>=',['get','magnitude'],4.5], layout: {
         'text-field': ['concat','M',['to-string',['coalesce',['get','magnitude'],0]]], 'text-size': 9, 'text-font': ['Open Sans Regular'], 'text-offset': [0,1.5],
-      }, paint: { 'text-color': '#B26A00', 'text-halo-color': '#FFFFFF', 'text-halo-width': 1 }});
+      }, paint: { 'text-color': '#B26A00', 'text-halo-color': 'rgba(6,8,15,0.9)', 'text-halo-width': 1 }});
 
       // Fires — burnt sienna
       map.addLayer({ id: 'fires-heat', type: 'circle', source: 'fires', paint: {
@@ -413,7 +413,7 @@ map.addSource('mitre-nodes', { type: 'geojson', data: EMPTY_FC });
       map.addLayer({ id: 'cctv-label', type: 'symbol', source: 'cctv', minzoom: 10, layout: {
         'text-field': ['get','name'], 'text-size': 9, 'text-font': ['Open Sans Regular'],
         'text-offset': [0, 1.8], 'text-max-width': 12, 'text-allow-overlap': false,
-      }, paint: { 'text-color': cameraColor, 'text-halo-color': '#FFFFFF', 'text-halo-width': 1.5, 'text-opacity': 0.8 }});
+      }, paint: { 'text-color': cameraColor, 'text-halo-color': 'rgba(6,8,15,0.9)', 'text-halo-width': 1.5, 'text-opacity': 0.8 }});
 
       // GDELT
 
@@ -433,7 +433,7 @@ map.addSource('mitre-nodes', { type: 'geojson', data: EMPTY_FC });
       map.addLayer({ id: 'malware-label', type: 'symbol', source: 'malware-nodes', minzoom: 5, layout: {
         'text-field': ['get','malware'], 'text-size': 8, 'text-font': ['JetBrains Mono Bold', 'Open Sans Bold'],
         'text-offset': [0, 1.5], 'text-max-width': 10, 'text-allow-overlap': false,
-      }, paint: { 'text-color': '#D32F2F', 'text-halo-color': '#FFFFFF', 'text-halo-width': 1.5, 'text-opacity': 0.85 }});
+      }, paint: { 'text-color': '#D32F2F', 'text-halo-color': 'rgba(6,8,15,0.9)', 'text-halo-width': 1.5, 'text-opacity': 0.85 }});
 
       // ══ RANSOMWARE — Ransomware.live victims — crimson threat ══
       map.addLayer({ id: 'ransomware-glow', type: 'circle', source: 'ransomware', paint: {
@@ -449,7 +449,7 @@ map.addSource('mitre-nodes', { type: 'geojson', data: EMPTY_FC });
       map.addLayer({ id: 'ransomware-label', type: 'symbol', source: 'ransomware', minzoom: 5, layout: {
         'text-field': ['get','group_name'], 'text-size': 8, 'text-font': ['JetBrains Mono Bold', 'Open Sans Bold'],
         'text-offset': [0, 1.5], 'text-max-width': 10, 'text-allow-overlap': false,
-      }, paint: { 'text-color': '#D32F2F', 'text-halo-color': '#FFFFFF', 'text-halo-width': 1.5, 'text-opacity': 0.85 }});
+      }, paint: { 'text-color': '#D32F2F', 'text-halo-color': 'rgba(6,8,15,0.9)', 'text-halo-width': 1.5, 'text-opacity': 0.85 }});
 
       // ══ EuRepoC — cyber-incident dataset (local) — type-coloured ══
       map.addLayer({ id: 'eurepoc-glow', type: 'circle', source: 'eurepoc', paint: {
@@ -465,7 +465,7 @@ map.addSource('mitre-nodes', { type: 'geojson', data: EMPTY_FC });
       map.addLayer({ id: 'eurepoc-label', type: 'symbol', source: 'eurepoc', minzoom: 5, layout: {
         'text-field': ['get','name'], 'text-size': 8, 'text-font': ['JetBrains Mono Bold', 'Open Sans Bold'],
         'text-offset': [0, 1.5], 'text-max-width': 12, 'text-allow-overlap': false,
-      }, paint: { 'text-color': '#C2185B', 'text-halo-color': '#FFFFFF', 'text-halo-width': 1.5, 'text-opacity': 0.85 }});
+      }, paint: { 'text-color': '#C2185B', 'text-halo-color': 'rgba(6,8,15,0.9)', 'text-halo-width': 1.5, 'text-opacity': 0.85 }});
 
       // ══ NETWORK INTEL — Threat Intel (Blocklist.de, SSL Blacklist, PhishTank) ══
       map.addLayer({ id: 'threat-intel-glow', type: 'circle', source: 'threat-intel-nodes', paint: {
@@ -492,7 +492,7 @@ map.addSource('mitre-nodes', { type: 'geojson', data: EMPTY_FC });
       map.addLayer({ id: 'threat-intel-label', type: 'symbol', source: 'threat-intel-nodes', minzoom: 5, layout: {
         'text-field': ['get','malware'], 'text-size': 8, 'text-font': ['JetBrains Mono Bold', 'Open Sans Bold'],
         'text-offset': [0, 1.5], 'text-max-width': 10, 'text-allow-overlap': false,
-      }, paint: { 'text-color': '#FF6D00', 'text-halo-color': '#FFFFFF', 'text-halo-width': 1.5, 'text-opacity': 0.85 }});
+      }, paint: { 'text-color': '#FF6D00', 'text-halo-color': 'rgba(6,8,15,0.9)', 'text-halo-width': 1.5, 'text-opacity': 0.85 }});
 
       // ══ CYBER INTEL — Spamhaus DROP (Routing Intelligence) ══
       map.addLayer({ id: 'drop-glow', type: 'circle', source: 'drop-nodes', paint: {
@@ -507,7 +507,7 @@ map.addSource('mitre-nodes', { type: 'geojson', data: EMPTY_FC });
       map.addLayer({ id: 'drop-label', type: 'symbol', source: 'drop-nodes', minzoom: 6, layout: {
         'text-field': ['get','cidr'], 'text-size': 7, 'text-font': ['JetBrains Mono Bold', 'Open Sans Bold'],
         'text-offset': [0, 1.5], 'text-max-width': 14,
-      }, paint: { 'text-color': '#E65100', 'text-halo-color': '#FFFFFF', 'text-halo-width': 1.5, 'text-opacity': 0.8 }});
+      }, paint: { 'text-color': '#E65100', 'text-halo-color': 'rgba(6,8,15,0.9)', 'text-halo-width': 1.5, 'text-opacity': 0.8 }});
 
       // ══ CYBER INTEL — Tor Exit Nodes ══
       map.addLayer({ id: 'tor-glow', type: 'circle', source: 'tor-nodes', paint: {
@@ -522,7 +522,7 @@ map.addSource('mitre-nodes', { type: 'geojson', data: EMPTY_FC });
       map.addLayer({ id: 'tor-label', type: 'symbol', source: 'tor-nodes', minzoom: 7, layout: {
         'text-field': ['get','ip'], 'text-size': 7, 'text-font': ['JetBrains Mono Bold', 'Open Sans Bold'],
         'text-offset': [0, 1.5], 'text-max-width': 14,
-      }, paint: { 'text-color': '#6D28D9', 'text-halo-color': '#FFFFFF', 'text-halo-width': 1.5, 'text-opacity': 0.8 }});
+      }, paint: { 'text-color': '#6D28D9', 'text-halo-color': 'rgba(6,8,15,0.9)', 'text-halo-width': 1.5, 'text-opacity': 0.8 }});
 
       // ══ CYBER INTEL — CVE Feed (Vulnerability Intelligence) ══
       map.addLayer({ id: 'cve-glow', type: 'circle', source: 'cve-nodes', paint: {
@@ -540,7 +540,7 @@ map.addSource('mitre-nodes', { type: 'geojson', data: EMPTY_FC });
         'text-field': ['concat',['get','title'],' ','CVSS:',['to-string',['coalesce',['get','cvss'],0]]],
         'text-size': 7, 'text-font': ['JetBrains Mono Bold', 'Open Sans Bold'],
         'text-offset': [0, 1.5], 'text-max-width': 14,
-      }, paint: { 'text-color': ['case', ['>=', ['get','cvss'], 7], '#FF6D00', '#1A73E8'], 'text-halo-color': '#FFFFFF', 'text-halo-width': 1.5, 'text-opacity': 0.85 }});
+      }, paint: { 'text-color': ['case', ['>=', ['get','cvss'], 7], '#FF6D00', '#1A73E8'], 'text-halo-color': 'rgba(6,8,15,0.9)', 'text-halo-width': 1.5, 'text-opacity': 0.85 }});
 
       // ══ CYBER INTEL — MITRE ATT&CK (APT Group Intelligence) ══
       map.addLayer({ id: 'mitre-glow', type: 'circle', source: 'mitre-nodes', paint: {
@@ -556,7 +556,7 @@ map.addSource('mitre-nodes', { type: 'geojson', data: EMPTY_FC });
         'text-field': ['concat',['get','name'],'\n[',['get','country'],']'],
         'text-size': 8, 'text-font': ['JetBrains Mono Bold', 'Open Sans Bold'],
         'text-offset': [0, 1.8], 'text-max-width': 14,
-      }, paint: { 'text-color': '#1E8E3E', 'text-halo-color': '#FFFFFF', 'text-halo-width': 1.5, 'text-opacity': 0.85 }});
+      }, paint: { 'text-color': '#1E8E3E', 'text-halo-color': 'rgba(6,8,15,0.9)', 'text-halo-width': 1.5, 'text-opacity': 0.85 }});
 
       // ── NETWORK INTEL MESH (SDK STYLE) ──
       map.addLayer({ id: 'network-mesh-atmo', type: 'line', source: 'network-mesh', paint: {
@@ -591,7 +591,7 @@ map.addSource('mitre-nodes', { type: 'geojson', data: EMPTY_FC });
       }});
       map.addLayer({ id: 'jam-label', type: 'symbol', source: 'gps-jamming', layout: {
         'text-field': ['concat',['to-string',['*',['get','ratio'],100]],'%'], 'text-size': 9, 'text-font': ['Open Sans Bold'], 'text-allow-overlap': true,
-      }, paint: { 'text-color': '#202124', 'text-halo-color': '#FFFFFF', 'text-halo-width': 1.5 }});
+      }, paint: { 'text-color': '#E8EAED', 'text-halo-color': 'rgba(6,8,15,0.9)', 'text-halo-width': 1.5 }});
 
       // Weather Events (NASA EONET) — deep violet
       map.addLayer({ id: 'weather-glow', type: 'circle', source: 'weather', paint: {
@@ -607,7 +607,7 @@ map.addSource('mitre-nodes', { type: 'geojson', data: EMPTY_FC });
       map.addLayer({ id: 'weather-label', type: 'symbol', source: 'weather', layout: {
         'text-field': ['get','title'], 'text-size': 9, 'text-font': ['Open Sans Regular'],
         'text-offset': [0, 2], 'text-max-width': 14, 'text-allow-overlap': false,
-      }, paint: { 'text-color': '#7E57C2', 'text-halo-color': '#FFFFFF', 'text-halo-width': 1, 'text-opacity': 0.8 }});
+      }, paint: { 'text-color': '#7E57C2', 'text-halo-color': 'rgba(6,8,15,0.9)', 'text-halo-width': 1, 'text-opacity': 0.8 }});
 
       // Nuclear Infrastructure — teal / amber risk
       map.addLayer({ id: 'infra-glow', type: 'circle', source: 'infrastructure', paint: {
@@ -629,7 +629,7 @@ map.addSource('mitre-nodes', { type: 'geojson', data: EMPTY_FC });
       map.addLayer({ id: 'infra-label', type: 'symbol', source: 'infrastructure', minzoom: 5, layout: {
         'text-field': ['get','name'], 'text-size': 9, 'text-font': ['Open Sans Regular'],
         'text-offset': [0, 2], 'text-max-width': 14, 'text-allow-overlap': false,
-      }, paint: { 'text-color': ['case', ['in', 'SEISMIC RISK', ['get', 'status']], '#E65100', '#26A69A'], 'text-halo-color': '#FFFFFF', 'text-halo-width': 1, 'text-opacity': 0.7 }});
+      }, paint: { 'text-color': ['case', ['in', 'SEISMIC RISK', ['get', 'status']], '#E65100', '#26A69A'], 'text-halo-color': 'rgba(6,8,15,0.9)', 'text-halo-width': 1, 'text-opacity': 0.7 }});
 
       // ══ POWER PLANTS — Global Power Plant Database — teal spectrum ══
       map.addLayer({ id: 'power-plants-glow', type: 'circle', source: 'power_plants', paint: {
@@ -646,7 +646,7 @@ map.addSource('mitre-nodes', { type: 'geojson', data: EMPTY_FC });
       map.addLayer({ id: 'power-plants-label', type: 'symbol', source: 'power_plants', minzoom: 6, layout: {
         'text-field': ['get','name'], 'text-size': 8, 'text-font': ['Open Sans Regular'],
         'text-offset': [0, 1.5], 'text-max-width': 12, 'text-allow-overlap': false,
-      }, paint: { 'text-color': '#0F766E', 'text-halo-color': '#FFFFFF', 'text-halo-width': 1, 'text-opacity': 0.75 }});
+      }, paint: { 'text-color': '#0F766E', 'text-halo-color': 'rgba(6,8,15,0.9)', 'text-halo-width': 1, 'text-opacity': 0.75 }});
 
       // Satellites — symbol layer with satellite icon + orbit ground track
       map.addLayer({ id: 'sat-glow', type: 'circle', source: 'satellites', paint: {
@@ -662,7 +662,7 @@ map.addSource('mitre-nodes', { type: 'geojson', data: EMPTY_FC });
         'text-field': ['get','name'], 'text-size': 8, 'text-font': ['Open Sans Regular'],
         'text-offset': [0, 1.2], 'text-max-width': 10, 'text-allow-overlap': false,
       }, paint: {
-        'text-color': ['get','color'], 'text-halo-color': '#FFFFFF', 'text-halo-width': 1,
+        'text-color': ['get','color'], 'text-halo-color': 'rgba(6,8,15,0.9)', 'text-halo-width': 1,
       }});
 
       // Satellite orbit — native maplibre line so it hugs the globe surface
@@ -694,7 +694,7 @@ map.addSource('mitre-nodes', { type: 'geojson', data: EMPTY_FC });
       map.addLayer({ id: 'maritime-label', type: 'symbol', source: 'maritime', minzoom: 4, layout: {
         'text-field': ['get','name'], 'text-size': 9, 'text-font': ['Open Sans Regular'],
         'text-offset': [0, 1.8], 'text-max-width': 12, 'text-allow-overlap': false,
-      }, paint: { 'text-color': '#0E7490', 'text-halo-color': '#FFFFFF', 'text-halo-width': 1, 'text-opacity': 0.7 }});
+      }, paint: { 'text-color': '#0E7490', 'text-halo-color': 'rgba(6,8,15,0.9)', 'text-halo-width': 1, 'text-opacity': 0.7 }});
 
       // Maritime chokepoints — amber threat spectrum
       map.addLayer({ id: 'choke-glow', type: 'circle', source: 'maritime-choke', paint: {
@@ -710,7 +710,7 @@ map.addSource('mitre-nodes', { type: 'geojson', data: EMPTY_FC });
       map.addLayer({ id: 'choke-label', type: 'symbol', source: 'maritime-choke', minzoom: 3, layout: {
         'text-field': ['get','name'], 'text-size': 10, 'text-font': ['Open Sans Bold'],
         'text-offset': [0, 2], 'text-max-width': 14, 'text-allow-overlap': false,
-      }, paint: { 'text-color': '#E65100', 'text-halo-color': '#FFFFFF', 'text-halo-width': 1, 'text-opacity': 0.9 }});
+      }, paint: { 'text-color': '#E65100', 'text-halo-color': 'rgba(6,8,15,0.9)', 'text-halo-width': 1, 'text-opacity': 0.9 }});
 
       // Live News — muted rose
       map.addLayer({ id: 'news-glow', type: 'circle', source: 'live-news', paint: {
@@ -725,7 +725,7 @@ map.addSource('mitre-nodes', { type: 'geojson', data: EMPTY_FC });
       map.addLayer({ id: 'news-label', type: 'symbol', source: 'live-news', minzoom: 4, layout: {
         'text-field': ['get','name'], 'text-size': 9, 'text-font': ['Open Sans Regular'],
         'text-offset': [0, 1.8], 'text-max-width': 12, 'text-allow-overlap': false,
-      }, paint: { 'text-color': '#EC407A', 'text-halo-color': '#FFFFFF', 'text-halo-width': 1, 'text-opacity': 0.8 }});
+      }, paint: { 'text-color': '#EC407A', 'text-halo-color': 'rgba(6,8,15,0.9)', 'text-halo-width': 1, 'text-opacity': 0.8 }});
 
       // SIGINT RSS news - gold markers
       map.addLayer({ id: 'sigint-news-glow', type: 'circle', source: 'sigint-news', paint: {
@@ -740,7 +740,7 @@ map.addSource('mitre-nodes', { type: 'geojson', data: EMPTY_FC });
       map.addLayer({ id: 'sigint-news-label', type: 'symbol', source: 'sigint-news', minzoom: 5, layout: {
         'text-field': ['get','source'], 'text-size': 9, 'text-font': ['Open Sans Regular'],
         'text-offset': [0, 1.6], 'text-max-width': 10, 'text-allow-overlap': false,
-      }, paint: { 'text-color': '#1A73E8', 'text-halo-color': '#FFFFFF', 'text-halo-width': 1, 'text-opacity': 0.85 }});
+      }, paint: { 'text-color': '#1A73E8', 'text-halo-color': 'rgba(6,8,15,0.9)', 'text-halo-width': 1, 'text-opacity': 0.85 }});
 
       // ══ IP SWEEP — Neighborhood device visualization ══
       map.addLayer({ id: 'sweep-connections', type: 'line', source: 'ip-sweep-connections', paint: {
@@ -765,7 +765,7 @@ map.addSource('mitre-nodes', { type: 'geojson', data: EMPTY_FC });
         'text-size': 9, 'text-font': ['Open Sans Regular'],
         'text-offset': [0, 2.2], 'text-max-width': 12, 'text-allow-overlap': false,
       }, paint: {
-        'text-color': ['get', 'color'], 'text-halo-color': '#FFFFFF', 'text-halo-width': 1.5, 'text-opacity': 0.9,
+        'text-color': ['get', 'color'], 'text-halo-color': 'rgba(6,8,15,0.9)', 'text-halo-width': 1.5, 'text-opacity': 0.9,
       }});
 
       // ══ SCAN TARGETS — Geolocated individual scans ══
@@ -833,7 +833,7 @@ map.addSource('mitre-nodes', { type: 'geojson', data: EMPTY_FC });
       map.addLayer({ id: 'balloon-label', type: 'symbol', source: 'balloons', minzoom: 4, layout: {
         'text-field': ['get','callsign'], 'text-size': 9, 'text-font': ['Open Sans Regular'],
         'text-offset': [0, 1.2], 'text-max-width': 12, 'text-allow-overlap': false,
-      }, paint: { 'text-color': ['get', 'color'], 'text-halo-color': '#FFFFFF', 'text-halo-width': 1 }});
+      }, paint: { 'text-color': ['get', 'color'], 'text-halo-color': 'rgba(6,8,15,0.9)', 'text-halo-width': 1 }});
 
       // Radiation — violet base, threat spectrum for danger/warning
       map.addLayer({ id: 'rad-glow', type: 'circle', source: 'radiation', paint: {
@@ -850,7 +850,7 @@ map.addSource('mitre-nodes', { type: 'geojson', data: EMPTY_FC });
       map.addLayer({ id: 'rad-label', type: 'symbol', source: 'radiation', minzoom: 5, layout: {
         'text-field': ['concat', ['to-string', ['coalesce', ['get','reading'], 0]], ' nSv/h'], 'text-size': 9, 'text-font': ['Open Sans Bold'],
         'text-offset': [0, 1.5], 'text-allow-overlap': false,
-      }, paint: { 'text-color': ['match', ['get','status'], 'DANGER','#D32F2F', 'WARNING','#E65100', '#7E57C2'], 'text-halo-color': '#FFFFFF', 'text-halo-width': 1 }});
+      }, paint: { 'text-color': ['match', ['get','status'], 'DANGER','#D32F2F', 'WARNING','#E65100', '#7E57C2'], 'text-halo-color': 'rgba(6,8,15,0.9)', 'text-halo-width': 1 }});
 
       // ══ SUBMARINE CABLES — standalone layer (all cables, uniform amber) ══
       map.addLayer({ id: 'cables-line', type: 'line', source: 'cables', paint: {
@@ -898,7 +898,7 @@ map.addSource('mitre-nodes', { type: 'geojson', data: EMPTY_FC });
       map.addLayer({ id: 'ship-label', type: 'symbol', source: 'maritime-ships', minzoom: 5, layout: {
         'text-field': ['get','name'], 'text-size': 9, 'text-font': ['Open Sans Regular'],
         'text-offset': [0, 1.2], 'text-allow-overlap': false,
-      }, paint: { 'text-color': ['match', ['get','type'], 'military','#D32F2F', 'tanker','#E65100', 'cargo','#26C6DA', '#B0BEC5'], 'text-halo-color': '#FFFFFF', 'text-halo-width': 1 }});
+      }, paint: { 'text-color': ['match', ['get','type'], 'military','#D32F2F', 'tanker','#E65100', 'cargo','#26C6DA', '#B0BEC5'], 'text-halo-color': 'rgba(6,8,15,0.9)', 'text-halo-width': 1 }});
 
       // ── Per-layer marker icons (tinted lucide glyphs on top of glow halos) ──
       // Icons sit above the existing dots; layers toggle by emptying their
