@@ -40,7 +40,10 @@ icon/circle/symbol layers (markers always stay on top).
 **Responsibility:** produce a cached global temperature grid as GeoJSON plus GIBS
 tile metadata.
 
-- **Grid:** lat −80…80, lon −180…177.5, default step **2.5°** (`GRID_STEP`).
+- **Grid:** lat −80…80, lon −180…175, default step **5°** (`GRID_STEP`, override via
+  `?step=`). 5° (~2,376 points) keeps a full refresh well under Open-Meteo's free
+  ~10k-calls/day budget even with several refreshes; the heatmap interpolates so the
+  coarse grid still looks smooth.
 - **Classify** each grid point land vs ocean using the already-local
   `public/data/land-110m.json` (TopoJSON) + `@turf/turf` `booleanPointInPolygon`.
 - **Fetch:** land points → Open-Meteo Forecast `temperature_2m`; ocean points →
@@ -107,10 +110,10 @@ tile metadata.
 - No per-point click tooltip.
 - No server-side GIBS tile proxy/cache (browser/CDN caching only) — documented follow-up.
 - No unit conversion UI (°C only).
-- No dynamic grid-resolution control (fixed `GRID_STEP = 2.5°`).
+- No dynamic grid-resolution UI control (fixed `GRID_STEP = 5°`, `?step=` query override only).
 
 ## Tunable defaults
 
-- `GRID_STEP = 2.5°`  (smoothness vs Open-Meteo call budget)
+- `GRID_STEP = 5°`    (smoothness vs Open-Meteo free-tier call budget; `?step=` override)
 - `TTL = 6h`          (temperature changes slowly)
 - `BATCH = 100`       (coords per Open-Meteo request)

@@ -350,6 +350,7 @@ map.addSource('tor-nodes', { type: 'geojson', data: EMPTY_FC });
 map.addSource('cve-nodes', { type: 'geojson', data: EMPTY_FC });
 map.addSource('mitre-nodes', { type: 'geojson', data: EMPTY_FC });
       map.addSource('cable-landing-points', { type: 'geojson', data: EMPTY_FC });
+      map.addSource('temperature', { type: 'geojson', data: EMPTY_FC });
 
       // Warning icon generator (parameterized — eliminates 3x copy-paste)
       const createWarningIcon = (id: string, color: string) => {
@@ -374,6 +375,27 @@ map.addSource('mitre-nodes', { type: 'geojson', data: EMPTY_FC });
       createWarningIcon('warn-icon', '#D32F2F');
       createWarningIcon('warn-orange', '#E65100');
       createWarningIcon('warn-yellow', '#F9A825');
+
+      // Temperature heatmap — global ocean SST + land 2m air temp (Open-Meteo).
+      // Added first so it sits at the bottom of the data-layer stack (below all
+      // markers); GIBS raster backdrops are inserted below this on data arrival.
+      // weight: cold (≤ -10°C) → warm (≥ 40°C); color ramp blue→cyan→green→yellow→red.
+      map.addLayer({ id: 'temp-heat', type: 'heatmap', source: 'temperature', layout: { visibility: 'none' }, paint: {
+        'heatmap-weight': ['interpolate', ['linear'], ['get', 'temp'], -10, 0, 40, 1],
+        'heatmap-intensity': ['interpolate', ['linear'], ['zoom'], 0, 0.6, 4, 1.2, 9, 2],
+        'heatmap-color': ['interpolate', ['linear'], ['heatmap-density'],
+          0, 'rgba(0,0,0,0)',
+          0.1, 'rgba(49,54,149,0.55)',   // cold — deep blue
+          0.3, 'rgba(69,180,230,0.65)',  // cool — cyan
+          0.5, 'rgba(120,200,90,0.7)',   // mild — green
+          0.7, 'rgba(254,224,80,0.78)',  // warm — yellow
+          0.9, 'rgba(244,109,67,0.85)',  // hot — orange
+          1, 'rgba(215,25,28,0.9)'],     // very hot — red
+        // Large radius so a coarse 5° grid blends into a smooth field rather than
+        // discrete dots (radius must outgrow grid spacing in screen px at each zoom).
+        'heatmap-radius': ['interpolate', ['linear'], ['zoom'], 0, 28, 2, 40, 4, 70, 6, 110, 9, 160],
+        'heatmap-opacity': ['interpolate', ['linear'], ['zoom'], 0, 0.6, 7, 0.45, 10, 0.3],
+      }});
 
       map.addLayer({ id: 'conflict-icons', type: 'symbol', source: 'conflict-zones', layout: {
         'icon-image': ['match', ['get','severity'], 'war','warn-icon', 'high','warn-orange', 'warn-yellow'],
@@ -1901,6 +1923,34 @@ map.addSource('mitre-nodes', { type: 'geojson', data: EMPTY_FC });
     if (!map) return;
     ids.forEach(id => { if (map.getLayer(id)) map.setLayoutProperty(id, 'visibility', visible ? 'visible' : 'none'); });
   }, []);
+
+  // Temperature — GIBS raster backdrop (lazy) + Open-Meteo heatmap, one toggle.
+  useEffect(() => {
+    if (!mapReady || !mapRef.current) return;
+    const map = mapRef.current;
+    const payload = (data as any).temperature;
+    const on = !!activeLayers.temperature;
+
+    // Lazily add the GIBS SST + LST raster backdrops once the payload (with the
+    // resolved tile date) arrives. Inserted below 'temp-heat' so the data-driven
+    // heatmap sits on top, and both stay below all marker layers.
+    const gibs = payload?.meta?.gibs;
+    if (gibs && !map.getLayer('temp-sst-raster')) {
+      try {
+        // maxzoom 7 = GIBS product native max; maplibre overzooms (scales) beyond it
+        // instead of requesting non-existent deeper tiles.
+        if (!map.getSource('temp-sst')) map.addSource('temp-sst', { type: 'raster', tiles: [gibs.sstUrl], tileSize: 256, maxzoom: 7, attribution: 'NASA GIBS / GHRSST' });
+        if (!map.getSource('temp-lst')) map.addSource('temp-lst', { type: 'raster', tiles: [gibs.lstUrl], tileSize: 256, maxzoom: 7, attribution: 'NASA GIBS / MODIS' });
+        const below = map.getLayer('temp-heat') ? 'temp-heat' : undefined;
+        map.addLayer({ id: 'temp-lst-raster', type: 'raster', source: 'temp-lst', layout: { visibility: 'none' }, paint: { 'raster-opacity': 0.65 } }, below);
+        map.addLayer({ id: 'temp-sst-raster', type: 'raster', source: 'temp-sst', layout: { visibility: 'none' }, paint: { 'raster-opacity': 0.65 } }, below);
+      } catch (e) { console.error('[OSIRIS] GIBS raster init failed:', e); }
+    }
+
+    // Feed the heatmap source only while active (frees GPU memory when off).
+    setGeo('temperature', on && payload?.features ? payload.features : []);
+    setVis(['temp-sst-raster', 'temp-lst-raster', 'temp-heat'], on);
+  }, [mapReady, (data as any).temperature, activeLayers.temperature, setGeo, setVis]);
 
   // Flight data → GeoJSON (GPU rendered)
   useEffect(() => {

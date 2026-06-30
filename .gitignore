@@ -67,3 +67,6 @@ scanner_backend_backup.js
 
 # graphify generated knowledge-graph output
 graphify-out/
+
+# OSIRIS local data caches
+.cache/

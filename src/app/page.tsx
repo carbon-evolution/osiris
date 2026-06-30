@@ -279,6 +279,7 @@ export default function Dashboard() {
     power_plants: false,
     ransomware: false,
     eurepoc: false,
+    temperature: false,
   });
   const [liveFeedUrl, setLiveFeedUrl] = useState<string | null>(null);
   const [liveFeedName, setLiveFeedName] = useState('');
@@ -556,6 +557,11 @@ export default function Dashboard() {
     if (activeLayers.weather && !layerFetchedRef.current.has('weather')) {
       fetchEndpoint('/api/weather', d => ({ weather_events: d.events }));
       layerFetchedRef.current.add('weather');
+    }
+    // Temperature (ocean SST + land 2m air temp; cached grid + GIBS rasters)
+    if (activeLayers.temperature && !layerFetchedRef.current.has('temperature')) {
+      fetchEndpoint('/api/temperature', d => ({ temperature: d }));
+      layerFetchedRef.current.add('temperature');
     }
     // Infrastructure
     if (activeLayers.infrastructure && !layerFetchedRef.current.has('infrastructure')) {
