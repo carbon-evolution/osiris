@@ -67,8 +67,9 @@ const getLayerGroups = (theme: 'core' | 'ghost') => {
       { key: 'earthquakes', label: 'Earthquakes (24h)', icon: Activity, color: '#F9A825', dataKey: 'earthquakes' },
       { key: 'fires', label: 'Active Fires', icon: Flame, color: '#E65100', dataKey: 'fires' },
       { key: 'weather', label: 'Severe Weather', icon: CloudLightning, color: '#7E57C2', dataKey: 'weather_events' },
-      { key: 'temperature_sea', label: 'Sea Surface Temp', icon: Waves, color: '#26C6DA', dataKey: '' },
-      { key: 'temperature_land', label: 'Land Temp', icon: Thermometer, color: '#FF7043', dataKey: '' },
+      { key: 'temperature_sea', label: 'Sea Temp · Open-Meteo', icon: Waves, color: '#26C6DA', dataKey: '' },
+      { key: 'temperature_sea_oisst', label: 'Sea Temp · NOAA OISST', icon: Waves, color: '#0288D1', dataKey: '' },
+      { key: 'temperature_land', label: 'Land Temp · Open-Meteo', icon: Thermometer, color: '#FF7043', dataKey: '' },
     ],
   },
   {

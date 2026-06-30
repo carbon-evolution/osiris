@@ -1925,9 +1925,10 @@ map.addSource('mitre-nodes', { type: 'geojson', data: EMPTY_FC });
       setVis([layerId], on);
     };
 
-    ensureField('temp-ocean-field', 'temp-ocean-src', '/api/temperature/field?domain=ocean', !!activeLayers.temperature_sea);
-    ensureField('temp-land-field', 'temp-land-src', '/api/temperature/field?domain=land', !!activeLayers.temperature_land);
-  }, [mapReady, activeLayers.temperature_sea, activeLayers.temperature_land, setVis]);
+    ensureField('temp-ocean-field', 'temp-ocean-src', '/api/temperature/field?domain=ocean&source=open-meteo', !!activeLayers.temperature_sea);
+    ensureField('temp-ocean-oisst-field', 'temp-ocean-oisst-src', '/api/temperature/field?domain=ocean&source=noaa-oisst', !!activeLayers.temperature_sea_oisst);
+    ensureField('temp-land-field', 'temp-land-src', '/api/temperature/field?domain=land&source=open-meteo', !!activeLayers.temperature_land);
+  }, [mapReady, activeLayers.temperature_sea, activeLayers.temperature_sea_oisst, activeLayers.temperature_land, setVis]);
 
   // Flight data → GeoJSON (GPU rendered)
   useEffect(() => {

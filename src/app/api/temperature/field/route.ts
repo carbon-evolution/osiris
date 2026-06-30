@@ -1,20 +1,21 @@
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
 import sharp from 'sharp';
-import { clampStep, getTemperaturePayload } from '../route';
+import { clampStep } from '../route';
 import { landMask } from './mask';
-import { buildRGBADomain, LAT_BOT, LAT_TOP, type Domain, type FieldPoint } from './render';
+import { buildRGBADomain, LAT_BOT, LAT_TOP, type Domain } from './render';
+import { getDomainPoints, resolveSource } from './sources';
 
 export const dynamic = 'force-dynamic';
 
 /**
- * OSIRIS — Smooth temperature field (PNG), per domain.
+ * OSIRIS — Smooth temperature field (PNG), per domain + source.
  *
- * `?domain=ocean` (sea-surface temp) or `?domain=land` (2 m air temp) renders that
- * field only: IDW-interpolated from its own points, blurred, and clipped to its side
- * of the coastline via the land mask. Two separate toggles draw the two gradients so
- * the sea↔land transition is a clean coastline clip, not an ugly cross-blend.
- * Replaces the grainy GIBS raster + dotted heatmap. Cached to disk per domain+step.
+ * `?domain=ocean|land` selects the field; `?source=<id>` selects the data provider
+ * (see ./sources.ts — e.g. open-meteo, noaa-oisst). The field is IDW-interpolated
+ * from that source's points, blurred, and clipped to its side of the coastline via
+ * the land mask, so sea/land are separate gradients with a clean coastline clip.
+ * Cached to disk per domain+source+step.
  */
 
 const INTERP_W = 360; // interpolation grid (1°)
@@ -24,8 +25,8 @@ const BLUR = 7;
 const TTL_MS = 6 * 60 * 60 * 1000;
 const CACHE_DIR = path.join(process.cwd(), '.cache');
 
-function cacheFile(domain: Domain, step: number): string {
-  return path.join(CACHE_DIR, `temperature-field-${domain}-${step}.png`);
+function cacheFile(domain: Domain, source: string, step: number): string {
+  return path.join(CACHE_DIR, `temperature-field-${domain}-${source}-${step}.png`);
 }
 
 function parseDomain(raw: string | null): Domain {
@@ -42,13 +43,8 @@ async function readFresh(file: string): Promise<Buffer | null> {
   return null;
 }
 
-async function render(domain: Domain, step: number): Promise<Buffer> {
-  const payload = await getTemperaturePayload(step);
-  const wantKind = domain === 'land' ? 'land' : 'ocean';
-  const points: FieldPoint[] = payload.features
-    .filter((f) => f.properties.kind === wantKind)
-    .map((f) => ({ lng: f.geometry.coordinates[0], lat: f.geometry.coordinates[1], temp: f.properties.temp }));
-
+async function render(domain: Domain, source: string, step: number): Promise<Buffer> {
+  const points = await getDomainPoints(domain, source, step);
   const mask = await landMask(INTERP_W, INTERP_H, LAT_TOP, LAT_BOT);
   const rgba = buildRGBADomain(points, INTERP_W, INTERP_H, mask, domain);
   return sharp(Buffer.from(rgba), { raw: { width: INTERP_W, height: INTERP_H, channels: 4 } })
@@ -62,12 +58,13 @@ export async function GET(req: Request) {
   const url = new URL(req.url);
   const step = clampStep(url.searchParams.get('step'));
   const domain = parseDomain(url.searchParams.get('domain'));
-  const file = cacheFile(domain, step);
+  const source = resolveSource(domain, url.searchParams.get('source'));
+  const file = cacheFile(domain, source, step);
 
   try {
     let png = await readFresh(file);
     if (!png) {
-      png = await render(domain, step);
+      png = await render(domain, source, step);
       try {
         await fs.mkdir(CACHE_DIR, { recursive: true });
         await fs.writeFile(file, png);

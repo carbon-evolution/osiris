@@ -280,6 +280,7 @@ export default function Dashboard() {
     ransomware: false,
     eurepoc: false,
     temperature_sea: false,
+    temperature_sea_oisst: false,
     temperature_land: false,
   });
   const [liveFeedUrl, setLiveFeedUrl] = useState<string | null>(null);
