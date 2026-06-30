@@ -25,7 +25,7 @@ const GIBS_SST = 'GHRSST_L4_MUR_Sea_Surface_Temperature'; // used only to probe 
 const CACHE_DIR = path.join(process.cwd(), '.cache');
 const LAND_FILE = path.join(process.cwd(), 'public', 'data', 'land-110m.json');
 
-type TempFeature = {
+export type TempFeature = {
   type: 'Feature';
   geometry: { type: 'Point'; coordinates: [number, number] };
   properties: { temp: number; kind: 'ocean' | 'land' };
@@ -184,32 +184,38 @@ async function build(step: number): Promise<TempPayload> {
   };
 }
 
+export function clampStep(raw: string | null): number {
+  const n = Number(raw);
+  return Number.isFinite(n) && n >= 1 && n <= 20 ? n : GRID_STEP_DEFAULT;
+}
+
+/**
+ * Cache-first temperature grid: serve the fresh local file, otherwise rebuild
+ * from Open-Meteo (falling back to a stale file if the rebuild comes back empty).
+ * Shared by this route and the smooth-field renderer (./field/route.ts).
+ */
+export async function getTemperaturePayload(step: number): Promise<TempPayload> {
+  const cached = await readCache(step);
+  if (cached) return cached;
+
+  const payload = await build(step);
+  if (payload.features.length === 0) {
+    try {
+      const stale = JSON.parse(await fs.readFile(cacheFile(step), 'utf8')) as TempPayload;
+      return { ...stale, meta: { ...stale.meta, cached: true } };
+    } catch {
+      /* no prior cache — return the (empty) payload */
+    }
+  } else {
+    await writeCache(step, payload);
+  }
+  return payload;
+}
+
 export async function GET(req: Request) {
-  const stepParam = Number(new URL(req.url).searchParams.get('step'));
-  const step = Number.isFinite(stepParam) && stepParam >= 1 && stepParam <= 20 ? stepParam : GRID_STEP_DEFAULT;
-
+  const step = clampStep(new URL(req.url).searchParams.get('step'));
   try {
-    const cached = await readCache(step);
-    if (cached) {
-      return NextResponse.json(cached, {
-        headers: { 'Cache-Control': 'public, s-maxage=600, stale-while-revalidate=3600' },
-      });
-    }
-
-    const payload = await build(step);
-
-    // If Open-Meteo produced nothing, fall back to any prior cache (even if stale).
-    if (payload.features.length === 0) {
-      try {
-        const stale = JSON.parse(await fs.readFile(cacheFile(step), 'utf8')) as TempPayload;
-        return NextResponse.json({ ...stale, meta: { ...stale.meta, cached: true } });
-      } catch {
-        /* no prior cache — return the (empty) payload so rasters still render */
-      }
-    } else {
-      await writeCache(step, payload);
-    }
-
+    const payload = await getTemperaturePayload(step);
     return NextResponse.json(payload, {
       headers: { 'Cache-Control': 'public, s-maxage=600, stale-while-revalidate=3600' },
     });

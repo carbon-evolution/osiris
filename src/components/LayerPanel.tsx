@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   Plane, Satellite, Activity, Sun, AlertTriangle, Camera, Flame, Target,
   CloudLightning, Radiation, Tv, Anchor, Ship, Newspaper,
-  Network, Share2, Radio, Mountain, ShieldAlert, Globe, Eye, BookMarked, Thermometer
+  Network, Share2, Radio, Mountain, ShieldAlert, Globe, Eye, BookMarked, Thermometer, Waves
 } from 'lucide-react';
 
 interface LayerPanelProps {
@@ -67,7 +67,8 @@ const getLayerGroups = (theme: 'core' | 'ghost') => {
       { key: 'earthquakes', label: 'Earthquakes (24h)', icon: Activity, color: '#F9A825', dataKey: 'earthquakes' },
       { key: 'fires', label: 'Active Fires', icon: Flame, color: '#E65100', dataKey: 'fires' },
       { key: 'weather', label: 'Severe Weather', icon: CloudLightning, color: '#7E57C2', dataKey: 'weather_events' },
-      { key: 'temperature', label: 'Temperature (Ocean + Land)', icon: Thermometer, color: '#FF7043', dataKey: 'temperature' },
+      { key: 'temperature_sea', label: 'Sea Surface Temp', icon: Waves, color: '#26C6DA', dataKey: '' },
+      { key: 'temperature_land', label: 'Land Temp', icon: Thermometer, color: '#FF7043', dataKey: '' },
     ],
   },
   {

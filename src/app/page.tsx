@@ -279,7 +279,8 @@ export default function Dashboard() {
     power_plants: false,
     ransomware: false,
     eurepoc: false,
-    temperature: false,
+    temperature_sea: false,
+    temperature_land: false,
   });
   const [liveFeedUrl, setLiveFeedUrl] = useState<string | null>(null);
   const [liveFeedName, setLiveFeedName] = useState('');
@@ -558,11 +559,8 @@ export default function Dashboard() {
       fetchEndpoint('/api/weather', d => ({ weather_events: d.events }));
       layerFetchedRef.current.add('weather');
     }
-    // Temperature (ocean SST + land 2m air temp; cached grid + GIBS rasters)
-    if (activeLayers.temperature && !layerFetchedRef.current.has('temperature')) {
-      fetchEndpoint('/api/temperature', d => ({ temperature: d }));
-      layerFetchedRef.current.add('temperature');
-    }
+    // Temperature (Sea/Land) layers self-load their PNG fields via maplibre image
+    // sources in OsirisMap — no data fetch needed here.
     // Infrastructure
     if (activeLayers.infrastructure && !layerFetchedRef.current.has('infrastructure')) {
       fetchEndpoint('/api/infrastructure', d => ({ infrastructure: d.infrastructure }));

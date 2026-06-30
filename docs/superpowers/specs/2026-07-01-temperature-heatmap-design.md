@@ -1,8 +1,34 @@
 # Global Temperature Layer — Design Spec
 
 **Date:** 2026-07-01
-**Status:** Approved
+**Status:** Approved (revised — see Revision 2)
 **Branch:** `feature/temperature-heatmap`
+
+## Revision 2 (2026-07-01) — smooth, domain-split fields
+
+The original hybrid (GIBS raster backdrop + maplibre `heatmap`) shipped but looked
+wrong: the MODIS land raster is grainy swath data and the heatmap rendered the 5°
+grid as visible circles. Replaced with **server-rendered smooth interpolated fields**:
+
+- `GET /api/temperature/field?domain=ocean|land` — IDW-interpolates that domain's
+  points into a colorized image, **upscales + blurs** (sharp) into a continuous
+  gradient, and **clips to the coastline** via a rasterized land mask
+  (`field/mask.ts`, ray-casting on local `land-110m`). Cached per domain+step at
+  `.cache/temperature-field-<domain>-<step>.png`.
+- Two **independent toggles** — "Sea Surface Temp" (ocean) and "Land Temp" (land) —
+  each projected as a maplibre `image` source spanning the world quad (works on the
+  3D globe). Rendering them separately and clipping at the coast avoids blending two
+  different physical quantities (SST vs 2 m air temp), so the sea↔land transition is
+  a clean coastline rather than a smeared cross-blend.
+- Pure helpers in `field/render.ts` (`interpolateField`, `colorRamp`, `buildRGBADomain`)
+  with vitest. The GIBS tile proxy (`tile/route.ts`) and `/api/temperature` grid route
+  remain (the field route reuses the cached grid); the heatmap + GIBS raster map
+  wiring was removed.
+
+The sections below describe the original design for reference.
+
+---
+
 
 ## Goal
 
