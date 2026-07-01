@@ -106,6 +106,14 @@ export function buildRGBA(points: FieldPoint[], w: number, h: number, alpha = 21
 
 export type Domain = 'land' | 'ocean';
 
+/** Single-channel alpha for a domain from a land bitmask (1 = land): `a` in-domain, 0 out. */
+export function domainAlpha(mask: Uint8Array, domain: Domain, a = 235): Uint8Array {
+  const out = new Uint8Array(mask.length);
+  const wantLand = domain === 'land';
+  for (let i = 0; i < mask.length; i++) out[i] = (mask[i] === 1) === wantLand ? a : 0;
+  return out;
+}
+
 /**
  * Render a domain-clipped field: interpolate from `points` (already filtered to the
  * domain) but paint only the matching pixels per `mask` (1 = land). Off-domain pixels

@@ -3,7 +3,7 @@ import path from 'node:path';
 import sharp from 'sharp';
 import { clampStep } from '../route';
 import { landMask } from './mask';
-import { buildRGBADomain, LAT_BOT, LAT_TOP, type Domain } from './render';
+import { buildRGBA, domainAlpha, LAT_BOT, LAT_TOP, type Domain } from './render';
 import { getDomainPoints, resolveSource } from './sources';
 
 export const dynamic = 'force-dynamic';
@@ -20,8 +20,9 @@ export const dynamic = 'force-dynamic';
 
 const INTERP_W = 360; // interpolation grid (1°)
 const INTERP_H = 160;
-const UPSCALE = 5; // → 1800×800 output
-const BLUR = 7;
+const OUT_W = 1440; // output raster (0.25° — matches the coastline-clip mask)
+const OUT_H = 640;
+const BLUR = 6;
 const TTL_MS = 6 * 60 * 60 * 1000;
 const CACHE_DIR = path.join(process.cwd(), '.cache');
 
@@ -67,11 +68,25 @@ async function render(domain: Domain, source: string, step: number): Promise<Buf
   if (source === 'noaa-oisst' && domain === 'ocean') return erddapOisstPng();
 
   const points = await getDomainPoints(domain, source, step);
-  const mask = await landMask(INTERP_W, INTERP_H, LAT_TOP, LAT_BOT);
-  const rgba = buildRGBADomain(points, INTERP_W, INTERP_H, mask, domain);
-  return sharp(Buffer.from(rgba), { raw: { width: INTERP_W, height: INTERP_H, channels: 4 } })
-    .resize(INTERP_W * UPSCALE, INTERP_H * UPSCALE, { kernel: sharp.kernel.cubic })
+
+  // 1. Interpolate + color the WHOLE globe (no masking yet) so the blur mixes only
+  //    valid colors — no black fringe bleeding in from off-domain pixels.
+  const colorRgba = buildRGBA(points, INTERP_W, INTERP_H, 255);
+
+  // 2. Upscale + blur for a smooth gradient, then drop the (now-feathered) alpha.
+  const blurredRgb = await sharp(Buffer.from(colorRgba), { raw: { width: INTERP_W, height: INTERP_H, channels: 4 } })
+    .resize(OUT_W, OUT_H, { kernel: sharp.kernel.cubic })
     .blur(BLUR)
+    .removeAlpha()
+    .raw()
+    .toBuffer();
+
+  // 3. Re-attach a HARD alpha clipped to the fine coastline at full output resolution,
+  //    so the field ends exactly at the map's boundary (no coastal bleed).
+  const hiMask = await landMask(OUT_W, OUT_H, LAT_TOP, LAT_BOT);
+  const alpha = domainAlpha(hiMask, domain, 235);
+  return sharp(blurredRgb, { raw: { width: OUT_W, height: OUT_H, channels: 3 } })
+    .joinChannel(Buffer.from(alpha), { raw: { width: OUT_W, height: OUT_H, channels: 1 } })
     .png()
     .toBuffer();
 }

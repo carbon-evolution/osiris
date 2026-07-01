@@ -13,7 +13,9 @@ import path from 'node:path';
 type Ring = number[][];
 type Poly = { rings: Ring[]; minX: number; minY: number; maxX: number; maxY: number };
 
-const LAND_FILE = path.join(process.cwd(), 'public', 'data', 'land-110m.json');
+// 50m Natural Earth coastline — fine enough to resolve the Mediterranean, Red Sea,
+// Persian Gulf, Black/Caspian etc. so the field clips to the map's real boundaries.
+const LAND_FILE = path.join(process.cwd(), 'public', 'data', 'land-50m.json');
 
 let polysPromise: Promise<Poly[]> | null = null;
 const maskCache = new Map<string, Uint8Array>();
