@@ -25,6 +25,24 @@ const BLUR = 7;
 const TTL_MS = 6 * 60 * 60 * 1000;
 const CACHE_DIR = path.join(process.cwd(), '.cache');
 
+/**
+ * Full-resolution NOAA OISST render, straight from ERDDAP as a colored transparentPng
+ * (native 0.25°, land transparent, BlueWhiteRed diverging palette). This is the same
+ * technique Climate Reanalyzer / earth.nullschool use — a server-rendered raster at
+ * native resolution — so it shows real eddies, currents and fronts, not a smoothed
+ * blob. Clipped to ±LAT_TOP° to match the maplibre image quad.
+ */
+async function erddapOisstPng(): Promise<Buffer> {
+  const q = `sst[(last)][(0.0)][(-${LAT_TOP - 0.125}):(${LAT_TOP - 0.125})][(-179.875):(179.875)]`;
+  const url =
+    `https://coastwatch.pfeg.noaa.gov/erddap/griddap/ncdcOisst21Agg_LonPM180.transparentPng?${encodeURIComponent(q)}` +
+    `&.draw=surface&.vars=${encodeURIComponent('longitude|latitude|sst')}` +
+    `&.colorBar=${encodeURIComponent('BlueWhiteRed|||-2|32|')}`;
+  const res = await fetch(url, { signal: AbortSignal.timeout(25000), headers: { 'User-Agent': 'OSIRIS/4.2' } });
+  if (!res.ok) throw new Error(`ERDDAP transparentPng ${res.status}`);
+  return Buffer.from(await res.arrayBuffer());
+}
+
 function cacheFile(domain: Domain, source: string, step: number): string {
   return path.join(CACHE_DIR, `temperature-field-${domain}-${source}-${step}.png`);
 }
@@ -44,6 +62,10 @@ async function readFresh(file: string): Promise<Buffer | null> {
 }
 
 async function render(domain: Domain, source: string, step: number): Promise<Buffer> {
+  // NOAA OISST ocean: use the native-resolution server-rendered ERDDAP raster
+  // (real eddies/currents) instead of the coarse interpolation pipeline.
+  if (source === 'noaa-oisst' && domain === 'ocean') return erddapOisstPng();
+
   const points = await getDomainPoints(domain, source, step);
   const mask = await landMask(INTERP_W, INTERP_H, LAT_TOP, LAT_BOT);
   const rgba = buildRGBADomain(points, INTERP_W, INTERP_H, mask, domain);
