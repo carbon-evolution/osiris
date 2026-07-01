@@ -34,6 +34,8 @@ const CACHE_DIR = path.join(process.cwd(), '.cache');
  * blob. Clipped to ±LAT_TOP° to match the maplibre image quad.
  */
 async function erddapOisstPng(): Promise<Buffer> {
+  // Grid clipped to ±(LAT_TOP-0.125)° so the 1440×640 image rows line up exactly with
+  // the landMask(OUT_W, OUT_H) cell centers — lets us reuse the same cached mask.
   const q = `sst[(last)][(0.0)][(-${LAT_TOP - 0.125}):(${LAT_TOP - 0.125})][(-179.875):(179.875)]`;
   const url =
     `https://coastwatch.pfeg.noaa.gov/erddap/griddap/ncdcOisst21Agg_LonPM180.transparentPng?${encodeURIComponent(q)}` +
@@ -41,7 +43,16 @@ async function erddapOisstPng(): Promise<Buffer> {
     `&.colorBar=${encodeURIComponent('BlueWhiteRed|||-2|32|')}`;
   const res = await fetch(url, { signal: AbortSignal.timeout(25000), headers: { 'User-Agent': 'OSIRIS/4.2' } });
   if (!res.ok) throw new Error(`ERDDAP transparentPng ${res.status}`);
-  return Buffer.from(await res.arrayBuffer());
+  const png = Buffer.from(await res.arrayBuffer());
+
+  // Re-clip ERDDAP's native 0.25° land cutout to OSIRIS's 50m coastline so the OISST
+  // layer lines up with the Open-Meteo fields and the map basemap (Fix 2).
+  const raw = await sharp(png).ensureAlpha().resize(OUT_W, OUT_H, { fit: 'fill' }).raw().toBuffer();
+  const mask = await landMask(OUT_W, OUT_H, LAT_TOP, LAT_BOT);
+  for (let i = 0; i < mask.length; i++) {
+    if (mask[i] === 1) raw[i * 4 + 3] = 0; // land per 50m mask → transparent
+  }
+  return sharp(raw, { raw: { width: OUT_W, height: OUT_H, channels: 4 } }).png().toBuffer();
 }
 
 function cacheFile(domain: Domain, source: string, step: number): string {
