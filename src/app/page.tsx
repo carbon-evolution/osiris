@@ -50,6 +50,7 @@ import OfflineBanner from '@/components/OfflineBanner';
 
 const OsirisMap = dynamic(() => import('@/components/OsirisMap'), { ssr: false });
 const LayerPanel = dynamic(() => import('@/components/LayerPanel'));
+const TempLegend = dynamic(() => import('@/components/TempLegend'));
 const CameraViewer = dynamic(() => import('@/components/CameraViewer'));
 const OsintPanel = dynamic(() => import('@/components/OsintPanel'));
 const EntityGraphPanel = dynamic(() => import('@/components/EntityGraphPanel'));
@@ -1116,6 +1117,13 @@ export default function Dashboard() {
 
       {/* ── NEW SIDEBAR (Root Level) ── */}
       {showLayers && !isMobile && <LayerPanel data={data} activeLayers={activeLayers} setActiveLayers={setActiveLayers} theme={osirisTheme} setTheme={setOsirisTheme} />}
+
+      {/* ── TEMPERATURE COLORBAR LEGEND (shown while any temp layer is active) ── */}
+      {!isMobile && (
+        <div className="absolute top-16 right-6 z-[200]">
+          <TempLegend active={!!(activeLayers.temperature_sea || activeLayers.temperature_sea_oisst || activeLayers.temperature_land)} />
+        </div>
+      )}
 
 
 

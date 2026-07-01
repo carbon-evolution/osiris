@@ -35,20 +35,27 @@ export function mercatorRowLats(h: number, latMax = LAT_TOP): Float64Array {
   return out;
 }
 
-// Color ramp: temperature °C → RGB. NOAA/NASA-style diverging SST palette
-// (ColorBrewer RdBu, reversed): cold = blue, ~15°C = white, hot = deep red.
+// Color ramp: temperature °C → RGB. NOAA ERDDAP `BlueWhiteRed` palette — the exact
+// gradient the OISST layer is server-rendered with — sampled from the ERDDAP colorbar
+// so the Open-Meteo sea/land fields match the OISST layer. Keyed evenly across −2…60 °C
+// (white midpoint ~19 °C) so warm ocean/land read yellow→gold→orange with red on the
+// hottest spots: navy → blue → cyan → white → yellow → orange → dark red, clamped at ends.
 const RAMP: [number, [number, number, number]][] = [
-  [-30, [5, 48, 97]],
-  [-18, [33, 102, 172]],
-  [-8, [67, 147, 195]],
-  [0, [146, 197, 222]],
-  [8, [209, 229, 240]],
-  [15, [247, 247, 247]],
-  [21, [253, 219, 199]],
-  [26, [244, 165, 130]],
-  [31, [214, 96, 77]],
-  [38, [178, 24, 43]],
-  [45, [103, 0, 31]],
+  [-2, [0, 0, 110]],
+  [1, [0, 0, 137]],
+  [4, [0, 0, 191]],
+  [7, [0, 32, 236]],
+  [10, [0, 111, 255]],
+  [13, [19, 213, 255]],
+  [16, [92, 249, 255]],
+  [19, [209, 255, 255]],
+  [22, [255, 255, 183]],
+  [25, [255, 243, 78]],
+  [28, [255, 203, 0]],
+  [31, [255, 91, 0]],
+  [34, [227, 23, 0]],
+  [37, [181, 0, 0]],
+  [40, [140, 0, 0]],
 ];
 
 /** Map a temperature (°C) to an RGB triple via the ramp (clamped at the ends). */

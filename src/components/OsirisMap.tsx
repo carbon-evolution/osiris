@@ -1924,20 +1924,21 @@ map.addSource('mitre-nodes', { type: 'geojson', data: EMPTY_FC });
   }, []);
 
   // Temperature — two independent, smoothly-interpolated fields (ocean SST + land
-  // 2m air temp), each rendered server-side to a coastline-clipped PNG and projected
-  // as an image overlay. Separate Sea/Land toggles avoid blending the two across the
-  // coastline (different physical quantities), so transitions are a clean clip.
+  // 2m air temp), each rendered server-side to a coastline-clipped field and served as
+  // EPSG:3857 XYZ raster tiles (see /api/temperature/fieldtile). Raster tiles go through
+  // MapLibre's native projection path — the same one NASA GIBS uses — so the fields
+  // register with the basemap on the globe (an `image` source mis-registered ~17° north).
+  // Separate Sea/Land toggles avoid blending the two across the coastline.
   useEffect(() => {
     if (!mapReady || !mapRef.current) return;
     const map = mapRef.current;
-    // World quad (TL, TR, BR, BL); fields span ±80° latitude.
-    const WORLD_QUAD: [[number, number], [number, number], [number, number], [number, number]] =
-      [[-180, 80], [180, 80], [180, -80], [-180, -80]];
 
-    const ensureField = (layerId: string, sourceId: string, url: string, on: boolean) => {
+    const ensureField = (layerId: string, sourceId: string, tilesUrl: string, on: boolean) => {
       if (on && !map.getLayer(layerId)) {
         try {
-          if (!map.getSource(sourceId)) map.addSource(sourceId, { type: 'image', url, coordinates: WORLD_QUAD });
+          if (!map.getSource(sourceId)) {
+            map.addSource(sourceId, { type: 'raster', tiles: [tilesUrl], tileSize: 256, minzoom: 0, maxzoom: 5 });
+          }
           // Insert at the bottom of the data stack so all markers stay on top.
           const below = map.getLayer('conflict-icons') ? 'conflict-icons' : undefined;
           map.addLayer({ id: layerId, type: 'raster', source: sourceId, layout: { visibility: 'none' }, paint: { 'raster-opacity': 0.92, 'raster-fade-duration': 300 } }, below);
@@ -1946,9 +1947,9 @@ map.addSource('mitre-nodes', { type: 'geojson', data: EMPTY_FC });
       setVis([layerId], on);
     };
 
-    ensureField('temp-ocean-field', 'temp-ocean-src', '/api/temperature/field?domain=ocean&source=open-meteo', !!activeLayers.temperature_sea);
-    ensureField('temp-ocean-oisst-field', 'temp-ocean-oisst-src', '/api/temperature/field?domain=ocean&source=noaa-oisst', !!activeLayers.temperature_sea_oisst);
-    ensureField('temp-land-field', 'temp-land-src', '/api/temperature/field?domain=land&source=open-meteo', !!activeLayers.temperature_land);
+    ensureField('temp-ocean-field', 'temp-ocean-src', '/api/temperature/fieldtile?domain=ocean&source=open-meteo&z={z}&x={x}&y={y}', !!activeLayers.temperature_sea);
+    ensureField('temp-ocean-oisst-field', 'temp-ocean-oisst-src', '/api/temperature/fieldtile?domain=ocean&source=noaa-oisst&z={z}&x={x}&y={y}', !!activeLayers.temperature_sea_oisst);
+    ensureField('temp-land-field', 'temp-land-src', '/api/temperature/fieldtile?domain=land&source=open-meteo&z={z}&x={x}&y={y}', !!activeLayers.temperature_land);
   }, [mapReady, activeLayers.temperature_sea, activeLayers.temperature_sea_oisst, activeLayers.temperature_land, setVis]);
 
   // NDBC buoys — in-situ sea/air temperature station markers.

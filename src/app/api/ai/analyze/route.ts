@@ -13,9 +13,59 @@ import {
   rotateApiKey,
   analyzeIntelligence,
   type IntelligenceContext,
+  type TemperatureReading,
+  type TemperatureSummary,
 } from '@/lib/ai-engine';
+import { getTemperaturePayload } from '@/app/api/temperature/route';
 
 export const dynamic = 'force-dynamic';
+
+/**
+ * Build a compact temperature summary from the global grid so the analyst can answer
+ * temperature questions ("warmest sea?", "temp over the Gulf?"). Reads the cached grid
+ * with a short timeout — a cold cache is simply omitted rather than blocking the reply.
+ */
+async function buildTemperatureSummary(): Promise<TemperatureSummary | undefined> {
+  try {
+    const payload = await Promise.race([
+      getTemperaturePayload(5),
+      new Promise<null>((resolve) => setTimeout(() => resolve(null), 3500)),
+    ]);
+    if (!payload || !payload.features?.length) return undefined;
+
+    const readings: TemperatureReading[] = payload.features.map((f) => ({
+      lng: f.geometry.coordinates[0],
+      lat: f.geometry.coordinates[1],
+      temp: f.properties.temp,
+      kind: f.properties.kind,
+    }));
+
+    const extreme = (kind: 'ocean' | 'land', pick: 'max' | 'min') =>
+      readings
+        .filter((r) => r.kind === kind)
+        .reduce<TemperatureReading | undefined>(
+          (best, r) => (!best || (pick === 'max' ? r.temp > best.temp : r.temp < best.temp) ? r : best),
+          undefined
+        );
+
+    // Downsample to ~40 spatially-spread readings to keep the prompt compact.
+    const stride = Math.max(1, Math.ceil(readings.length / 40));
+    const sampled = readings.filter((_, i) => i % stride === 0);
+
+    return {
+      tempMin: payload.meta.tempMin,
+      tempMax: payload.meta.tempMax,
+      warmestOcean: extreme('ocean', 'max'),
+      coldestOcean: extreme('ocean', 'min'),
+      warmestLand: extreme('land', 'max'),
+      coldestLand: extreme('land', 'min'),
+      readings: sampled,
+      generatedAt: payload.meta.generatedAt,
+    };
+  } catch {
+    return undefined;
+  }
+}
 
 /* ─────────────────────────────────────────────────────────────
    Rate Limiter — 5 requests per minute per IP
@@ -172,6 +222,13 @@ export async function POST(
       { error: 'Intelligence context is required.', code: 'MISSING_CONTEXT' },
       { status: 400 }
     );
+  }
+
+  // Enrich the context with the live global temperature field so the analyst can
+  // answer temperature questions grounded in real readings (best-effort).
+  if (!body.context.temperature) {
+    const temperature = await buildTemperatureSummary();
+    if (temperature) body.context = { ...body.context, temperature };
   }
 
   // Call Gemini

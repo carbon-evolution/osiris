@@ -54,6 +54,18 @@ Built on **Next.js 16 (App Router)**, **React 19**, and **MapLibre GL JS** (WebG
 
 *Real-time aviation layer — commercial, private, private-jet, and military traffic — with a per-flight detail card (route, altitude, heading) and FlightAware / track / intel actions.*
 
+### 🌡️ Global temperature field & weather-aware AI
+
+![Global sea-surface temperature gradient on the 3D globe with the OSIRIS Analyst answering an El Niño weather question](docs/screenshots/temperature-ocean-ai-weather.jpg)
+
+*Smooth global temperature field — ocean SST (NOAA OISST / Open-Meteo) and land air-temp — rendered as EPSG:3857 raster tiles that register precisely on the 3D globe, with a NOAA `BlueWhiteRed` gradient and a live °C legend (top-right). The **OSIRIS Analyst** (right) answers weather/climate questions across the globe — here, El Niño 2026 — grounded in the live temperature field plus web search.*
+
+### 🧠 Every layer feeds the AI analyst
+
+![OSIRIS Analyst answering a cross-domain military-aviation question using live dashboard feeds](docs/screenshots/ai-analyst-all-feeds.jpg)
+
+*The analyst now ingests **all** dashboard layers — aviation, maritime, surveillance, hazards, threat, network, cyber intel, markets, and the temperature field — so it can answer cross-domain questions ("any military flights near active conflict zones?") from whatever OSIRIS currently holds, cached or live.*
+
 ### 🛠️ Recon toolkit in action
 
 The 20-tool OSINT/recon toolkit — DNS, WHOIS, certs, port/vuln scans, threat
@@ -75,6 +87,15 @@ Intel panel. Results render on a self-contained dark card, readable in both them
 ---
 
 ## 🆕 Recent Updates
+
+**Global temperature field + weather-aware, all-source AI (July 2026):**
+
+- **Global temperature layers** — ocean sea-surface temperature (**NOAA OISST** via ERDDAP, and **Open-Meteo**) plus land 2 m air temperature, IDW-interpolated into a smooth, coastline-clipped field. Free / no API key.
+- **Globe-accurate projection** — the field is served as **EPSG:3857 XYZ raster tiles** (the same path NASA GIBS uses), so it registers pixel-for-pixel with the basemap on the 3D globe. (An earlier `image`-overlay approach mis-registered the field ~17° north — fixed.)
+- **NOAA `BlueWhiteRed` palette + legend** — all three temperature layers share one gradient and a live **°C colorbar legend** (top-right); the scale is tunable (currently −2…40 °C) so warm ocean/land read yellow→gold→red without over-saturating.
+- **Point readings** — right-click anywhere for a live point temperature (MET Norway → Open-Meteo).
+- **Weather-aware AI** — the analyst is fed a live global temperature summary, so it can answer weather/climate questions across the globe ("where is it hottest?", "El Niño 2026?").
+- **Every layer feeds the AI** — the analyst context now includes **all** dashboard layers (aviation, maritime, surveillance, hazards, threat, network, cyber intel, markets), each compactly summarized and capped, so it can reason across domains from whatever OSIRIS currently holds — cached or live.
 
 **Recon → map/panel integration + readability (June 2026):**
 
@@ -142,6 +163,7 @@ Layers are organized into intuitive groups in the left-hand rail. Toggle any lay
 - **⛈️ Severe Weather** — NASA EONET + NOAA/NWS alerts + GDACS global cyclones/floods/droughts
 - **🌫️ Air Quality** — Real-time AQI measurements
 - **☀️ Space Weather** — NOAA SWPC: Kp index (geomagnetic storms), solar flares, CME alerts
+- **🌡️ Temperature Field** — Global sea-surface + land air-temperature gradient (keyless): **Sea Temp · Open-Meteo**, **Sea Temp · NOAA OISST** (ERDDAP), and **Land Temp · Open-Meteo**, plus in-situ **NOAA NDBC buoy** readings. Rendered server-side as coastline-clipped EPSG:3857 raster tiles (globe-accurate) with a NOAA `BlueWhiteRed` gradient and a live °C legend. Right-click any point for a live reading (MET Norway → Open-Meteo).
 
 #### ⚡ Threats & Conflict
 - **☢️ Nuclear Facilities / Power Plants** — Global static dataset with facility details
@@ -220,7 +242,7 @@ Results are enriched with automatic **IP geolocation** and **OFAC/SDN sanctions 
 
 ### 🧠 AI Intelligence Analyst
 
-A premium chat interface powered by **Gemini 2.5 Flash** that correlates live seismic, OSINT, threat, and cyber data **plus live web search** to deliver concise, actionable intelligence assessments.
+A premium chat interface powered by **Gemini 2.5 Flash** that correlates **every live dashboard layer** — seismic, aviation, maritime, surveillance, hazards, threat, network, cyber, markets, and the global temperature field — **plus live web search** to deliver concise, actionable intelligence assessments.
 
 ![OSIRIS AI Analyst answering a web-grounded query over the live cyber-threat layer](docs/screenshots/ai-analyst-web-grounded.png)
 
@@ -231,7 +253,8 @@ A premium chat interface powered by **Gemini 2.5 Flash** that correlates live se
 - **✂️ Concise by default** — Leads with the direct answer in 1–4 sentences; expands only when you ask for a full briefing
 - **📋 Full intelligence briefing** — One-click generation of structured operational briefings from all current data, now with consistent, low-temperature output (no more contradictory re-runs)
 - **🔑 Optional local API key** — Bring your own Gemini key (stored in localStorage only), or set `GEMINI_API_KEY_1..8` server-side with automatic round-robin rotation
-- **📊 Context-aware** — Automatically builds intelligence context from live dashboard data (earthquakes, news, GDELT events, **and active CVEs**)
+- **📊 All-source context** — Automatically builds intelligence context from **every** live dashboard layer: earthquakes, news, GDELT events, active CVEs, **aviation, maritime, surveillance, hazards, threat-intel, critical infrastructure, cyber intel, markets, and a global temperature summary** — each compactly summarized and capped so it can reason across domains
+- **🌡️ Weather/climate aware** — Fed a live global temperature field (ocean + land), so it answers weather questions across the globe ("where is it hottest?", "El Niño 2026?")
 - **SIGINT-style UI** — Self-contained dark glass panel with readable high-contrast text, scan-line header animations, markdown rendering, and chat history
 
 ### 🔗 Entity Intelligence Graph

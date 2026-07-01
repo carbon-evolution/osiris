@@ -40,7 +40,7 @@ async function erddapOisstPng(proj: Proj): Promise<Buffer> {
   const url =
     `https://coastwatch.pfeg.noaa.gov/erddap/griddap/ncdcOisst21Agg_LonPM180.transparentPng?${encodeURIComponent(q)}` +
     `&.draw=surface&.vars=${encodeURIComponent('longitude|latitude|sst')}` +
-    `&.colorBar=${encodeURIComponent('BlueWhiteRed|||-2|32|')}`;
+    `&.colorBar=${encodeURIComponent('BlueWhiteRed|||-2|40|')}`;
   const res = await fetch(url, { signal: AbortSignal.timeout(25000), headers: { 'User-Agent': 'OSIRIS/4.2' } });
   if (!res.ok) throw new Error(`ERDDAP transparentPng ${res.status}`);
   const png = Buffer.from(await res.arrayBuffer());
@@ -88,6 +88,15 @@ async function readFresh(file: string): Promise<Buffer | null> {
     /* not cached */
   }
   return null;
+}
+
+/**
+ * Equirectangular (geographic) field PNG — the canonical render. The tile endpoint
+ * (`../fieldtile`) reprojects this into a Web-Mercator world raster so the layer
+ * registers correctly on the globe; this route serves it directly for debugging.
+ */
+export function renderFieldGeo(domain: Domain, source: string, step: number): Promise<Buffer> {
+  return render(domain, source, step, 'geo');
 }
 
 async function render(domain: Domain, source: string, step: number, proj: Proj): Promise<Buffer> {
