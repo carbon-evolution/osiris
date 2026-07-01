@@ -71,16 +71,19 @@ function isLand(lng: number, lat: number, polys: Poly[]): boolean {
   return false;
 }
 
-/** Build (or reuse) a W×H land bitmask spanning lng [-180,180), lat [latTop,latBot]. */
-export async function landMask(w: number, h: number, latTop: number, latBot: number): Promise<Uint8Array> {
-  const key = `${w}x${h}@${latTop},${latBot}`;
+/**
+ * Build (or reuse) a W×H land bitmask spanning lng [-180,180), lat [latTop,latBot].
+ * Pass `rowLat` to place rows at explicit latitudes (e.g. mercator-spaced).
+ */
+export async function landMask(w: number, h: number, latTop: number, latBot: number, rowLat?: Float64Array): Promise<Uint8Array> {
+  const key = `${w}x${h}@${latTop},${latBot}${rowLat ? ':merc' : ''}`;
   const cached = maskCache.get(key);
   if (cached) return cached;
 
   const polys = await loadPolys();
   const mask = new Uint8Array(w * h);
   for (let y = 0; y < h; y++) {
-    const lat = latTop - ((y + 0.5) / h) * (latTop - latBot);
+    const lat = rowLat ? rowLat[y] : latTop - ((y + 0.5) / h) * (latTop - latBot);
     for (let x = 0; x < w; x++) {
       const lng = -180 + ((x + 0.5) / w) * 360;
       mask[y * w + x] = isLand(lng, lat, polys) ? 1 : 0;

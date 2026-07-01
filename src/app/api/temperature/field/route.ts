@@ -3,7 +3,7 @@ import path from 'node:path';
 import sharp from 'sharp';
 import { clampStep } from '../route';
 import { landMask } from './mask';
-import { buildRGBA, domainAlpha, LAT_BOT, LAT_TOP, type Domain } from './render';
+import { buildRGBA, domainAlpha, LAT_BOT, LAT_TOP, mercatorRowLats, type Domain } from './render';
 import { getDomainPoints, resolveSource } from './sources';
 
 export const dynamic = 'force-dynamic';
@@ -45,14 +45,28 @@ async function erddapOisstPng(): Promise<Buffer> {
   if (!res.ok) throw new Error(`ERDDAP transparentPng ${res.status}`);
   const png = Buffer.from(await res.arrayBuffer());
 
-  // Re-clip ERDDAP's native 0.25° land cutout to OSIRIS's 50m coastline so the OISST
-  // layer lines up with the Open-Meteo fields and the map basemap (Fix 2).
-  const raw = await sharp(png).ensureAlpha().resize(OUT_W, OUT_H, { fit: 'fill' }).raw().toBuffer();
-  const mask = await landMask(OUT_W, OUT_H, LAT_TOP, LAT_BOT);
-  for (let i = 0; i < mask.length; i++) {
-    if (mask[i] === 1) raw[i * 4 + 3] = 0; // land per 50m mask → transparent
+  // ERDDAP renders equirectangular (linear latitude, north-up). Read it, then vertically
+  // reproject to Web-Mercator rows so it lines up on the globe like the other layers.
+  const src = await sharp(png).ensureAlpha().resize(OUT_W, OUT_H, { fit: 'fill' }).raw().toBuffer();
+  const srcTop = LAT_TOP - 0.125; // ERDDAP grid extent (±79.875°)
+  const span = 2 * srcTop;
+  const rowLatOut = mercatorRowLats(OUT_H, LAT_TOP);
+  const out = Buffer.alloc(OUT_W * OUT_H * 4);
+  for (let y = 0; y < OUT_H; y++) {
+    // nearest equirect source row for this mercator-spaced output latitude
+    let sr = Math.round(((srcTop - rowLatOut[y]) / span) * (OUT_H - 1));
+    if (sr < 0) sr = 0;
+    else if (sr > OUT_H - 1) sr = OUT_H - 1;
+    src.copy(out, y * OUT_W * 4, sr * OUT_W * 4, (sr + 1) * OUT_W * 4);
   }
-  return sharp(raw, { raw: { width: OUT_W, height: OUT_H, channels: 4 } }).png().toBuffer();
+
+  // Re-clip ERDDAP's native 0.25° land cutout to OSIRIS's 50m coastline (mercator mask)
+  // so the OISST layer lines up with the Open-Meteo fields and the map basemap.
+  const mask = await landMask(OUT_W, OUT_H, LAT_TOP, LAT_BOT, rowLatOut);
+  for (let i = 0; i < mask.length; i++) {
+    if (mask[i] === 1) out[i * 4 + 3] = 0; // land per 50m mask → transparent
+  }
+  return sharp(out, { raw: { width: OUT_W, height: OUT_H, channels: 4 } }).png().toBuffer();
 }
 
 function cacheFile(domain: Domain, source: string, step: number): string {
@@ -80,11 +94,17 @@ async function render(domain: Domain, source: string, step: number): Promise<Buf
 
   const points = await getDomainPoints(domain, source, step);
 
+  // Rows are spaced in Web-Mercator (not linear latitude) so the raster lines up with
+  // the mercator basemap when MapLibre projects the image source onto the globe.
+  const rowLatInterp = mercatorRowLats(INTERP_H, LAT_TOP);
+  const rowLatOut = mercatorRowLats(OUT_H, LAT_TOP);
+
   // 1. Interpolate + color the WHOLE globe (no masking yet) so the blur mixes only
   //    valid colors — no black fringe bleeding in from off-domain pixels.
-  const colorRgba = buildRGBA(points, INTERP_W, INTERP_H, 255);
+  const colorRgba = buildRGBA(points, INTERP_W, INTERP_H, 255, 2, rowLatInterp);
 
   // 2. Upscale + blur for a smooth gradient, then drop the (now-feathered) alpha.
+  //    (Both INTERP and OUT are mercator-uniform over ±LAT_TOP, so a linear resize is exact.)
   const blurredRgb = await sharp(Buffer.from(colorRgba), { raw: { width: INTERP_W, height: INTERP_H, channels: 4 } })
     .resize(OUT_W, OUT_H, { kernel: sharp.kernel.cubic })
     .blur(BLUR)
@@ -94,7 +114,7 @@ async function render(domain: Domain, source: string, step: number): Promise<Buf
 
   // 3. Re-attach a HARD alpha clipped to the fine coastline at full output resolution,
   //    so the field ends exactly at the map's boundary (no coastal bleed).
-  const hiMask = await landMask(OUT_W, OUT_H, LAT_TOP, LAT_BOT);
+  const hiMask = await landMask(OUT_W, OUT_H, LAT_TOP, LAT_BOT, rowLatOut);
   const alpha = domainAlpha(hiMask, domain, 235);
   return sharp(blurredRgb, { raw: { width: OUT_W, height: OUT_H, channels: 3 } })
     .joinChannel(Buffer.from(alpha), { raw: { width: OUT_W, height: OUT_H, channels: 1 } })

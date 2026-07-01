@@ -15,6 +15,26 @@ export interface FieldPoint {
 export const LAT_TOP = 80;
 export const LAT_BOT = -80;
 
+// ── Web-Mercator vertical reprojection ──────────────────────────────
+// MapLibre image sources are placed in Web-Mercator space, so field rasters must be
+// spaced uniformly in mercator-Y (not linear latitude) to line up with the globe.
+
+export function mercatorY(latDeg: number): number {
+  const r = (latDeg * Math.PI) / 180;
+  return Math.log(Math.tan(Math.PI / 4 + r / 2));
+}
+export function invMercatorLat(y: number): number {
+  return ((2 * Math.atan(Math.exp(y)) - Math.PI / 2) * 180) / Math.PI;
+}
+/** Latitude of each row when an `h`-row image is spaced uniformly in mercator over ±latMax. */
+export function mercatorRowLats(h: number, latMax = LAT_TOP): Float64Array {
+  const yTop = mercatorY(latMax);
+  const yBot = mercatorY(-latMax);
+  const out = new Float64Array(h);
+  for (let y = 0; y < h; y++) out[y] = invMercatorLat(yTop - ((y + 0.5) / h) * (yTop - yBot));
+  return out;
+}
+
 // Color ramp: temperature °C → RGB. NOAA/NASA-style diverging SST palette
 // (ColorBrewer RdBu, reversed): cold = blue, ~15°C = white, hot = deep red.
 const RAMP: [number, [number, number, number]][] = [
@@ -59,11 +79,11 @@ export function lngDelta(a: number, b: number): number {
  * Interpolate temperatures onto a W×H grid via inverse-distance weighting.
  * Returns row-major temps; row 0 is the north edge (LAT_TOP).
  */
-export function interpolateField(points: FieldPoint[], w: number, h: number, power = 2): Float32Array {
+export function interpolateField(points: FieldPoint[], w: number, h: number, power = 2, rowLat?: Float64Array): Float32Array {
   const out = new Float32Array(w * h);
   const halfPow = power / 2;
   for (let y = 0; y < h; y++) {
-    const lat = LAT_TOP - ((y + 0.5) / h) * (LAT_TOP - LAT_BOT);
+    const lat = rowLat ? rowLat[y] : LAT_TOP - ((y + 0.5) / h) * (LAT_TOP - LAT_BOT);
     const cosLat = Math.cos((lat * Math.PI) / 180);
     for (let x = 0; x < w; x++) {
       const lng = -180 + ((x + 0.5) / w) * 360;
@@ -90,8 +110,8 @@ export function interpolateField(points: FieldPoint[], w: number, h: number, pow
 }
 
 /** Render the interpolated field to an RGBA byte buffer (row-major, row 0 = north). */
-export function buildRGBA(points: FieldPoint[], w: number, h: number, alpha = 215, power = 2): Uint8Array {
-  const temps = interpolateField(points, w, h, power);
+export function buildRGBA(points: FieldPoint[], w: number, h: number, alpha = 215, power = 2, rowLat?: Float64Array): Uint8Array {
+  const temps = interpolateField(points, w, h, power, rowLat);
   const rgba = new Uint8Array(w * h * 4);
   for (let i = 0; i < temps.length; i++) {
     const [r, g, b] = colorRamp(temps[i]);
