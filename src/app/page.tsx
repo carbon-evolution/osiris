@@ -282,6 +282,7 @@ export default function Dashboard() {
     temperature_sea: false,
     temperature_sea_oisst: false,
     temperature_land: false,
+    buoy_temps: false,
   });
   const [liveFeedUrl, setLiveFeedUrl] = useState<string | null>(null);
   const [liveFeedName, setLiveFeedName] = useState('');
@@ -562,6 +563,11 @@ export default function Dashboard() {
     }
     // Temperature (Sea/Land) layers self-load their PNG fields via maplibre image
     // sources in OsirisMap — no data fetch needed here.
+    // NDBC buoy temperatures (in-situ station markers)
+    if (activeLayers.buoy_temps && !layerFetchedRef.current.has('buoy_temps')) {
+      fetchEndpoint('/api/temperature/buoys', d => ({ buoys: d.buoys }));
+      layerFetchedRef.current.add('buoy_temps');
+    }
     // Infrastructure
     if (activeLayers.infrastructure && !layerFetchedRef.current.has('infrastructure')) {
       fetchEndpoint('/api/infrastructure', d => ({ infrastructure: d.infrastructure }));

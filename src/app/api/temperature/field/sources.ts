@@ -99,9 +99,9 @@ export const SOURCES: TempSource[] = [
     domains: ['ocean'],
     kind: 'point',
     requiresKey: false,
-    status: 'planned',
+    status: 'live',
     url: 'https://www.ndbc.noaa.gov/',
-    note: 'Real-time in-situ sea + air temp. Best rendered as station markers, not a field.',
+    note: 'LIVE — ~840 stations of in-situ sea (WTMP) + air (ATMP) temp as markers (/api/temperature/buoys).',
   },
   {
     id: 'dwd-icon',

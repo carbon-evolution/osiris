@@ -70,6 +70,7 @@ const getLayerGroups = (theme: 'core' | 'ghost') => {
       { key: 'temperature_sea', label: 'Sea Temp · Open-Meteo', icon: Waves, color: '#26C6DA', dataKey: '' },
       { key: 'temperature_sea_oisst', label: 'Sea Temp · NOAA OISST', icon: Waves, color: '#0288D1', dataKey: '' },
       { key: 'temperature_land', label: 'Land Temp · Open-Meteo', icon: Thermometer, color: '#FF7043', dataKey: '' },
+      { key: 'buoy_temps', label: 'Buoy Temps · NOAA NDBC', icon: Anchor, color: '#26C6DA', dataKey: 'buoys' },
     ],
   },
   {
