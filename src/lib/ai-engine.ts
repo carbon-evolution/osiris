@@ -61,11 +61,43 @@ export interface CyberAlert {
   source: string;
 }
 
+export interface TemperatureReading {
+  lat: number;
+  lng: number;
+  temp: number;
+  kind: 'ocean' | 'land';
+}
+
+export interface TemperatureSummary {
+  tempMin: number | null;
+  tempMax: number | null;
+  warmestOcean?: TemperatureReading;
+  coldestOcean?: TemperatureReading;
+  warmestLand?: TemperatureReading;
+  coldestLand?: TemperatureReading;
+  readings: TemperatureReading[]; // downsampled grid, for regional questions
+  generatedAt: string;
+}
+
+/**
+ * Generic feed group — lets the dashboard pass ANY layer (aviation, maritime,
+ * surveillance, hazards, network, cyber, …) to the analyst without a bespoke type per
+ * feed. The frontend (which knows each feed's shape) pre-formats compact, already-capped
+ * rows; the serializer just prints them under the label.
+ */
+export interface FeedGroup {
+  label: string; // section header, e.g. "AVIATION — LIVE TRACKS"
+  total: number; // full count before capping (so the analyst knows the true volume)
+  lines: string[]; // pre-formatted compact rows (already capped)
+}
+
 export interface IntelligenceContext {
   earthquakes: EarthquakeEvent[];
   news: NewsItem[];
   threats: ThreatEvent[];
   cyberAlerts: CyberAlert[];
+  temperature?: TemperatureSummary; // global SST + land air-temp field (optional)
+  feeds?: FeedGroup[]; // all other dashboard layers (aviation/maritime/hazard/… )
   timestamp: string;
 }
 
@@ -220,6 +252,31 @@ function serializeContext(context: IntelligenceContext): string {
       sections.push(
         `  ${alert.id} | ${alert.severity} | ${alert.vendor}/${alert.product} | ${alert.name} | Due:${alert.due}`
       );
+    }
+  }
+
+  const temp = context.temperature;
+  if (temp && temp.readings.length > 0) {
+    const fmt = (r?: TemperatureReading) =>
+      r ? `${r.temp.toFixed(1)}°C @ ${r.lat.toFixed(1)},${r.lng.toFixed(1)}` : 'n/a';
+    sections.push(`\n[TEMPERATURE FIELD — global SST + land 2m air temp, ${temp.generatedAt}]`);
+    if (temp.tempMin != null && temp.tempMax != null) {
+      sections.push(`  Range: ${temp.tempMin.toFixed(1)}°C to ${temp.tempMax.toFixed(1)}°C`);
+    }
+    sections.push(`  Warmest sea: ${fmt(temp.warmestOcean)} | Coldest sea: ${fmt(temp.coldestOcean)}`);
+    sections.push(`  Warmest land: ${fmt(temp.warmestLand)} | Coldest land: ${fmt(temp.coldestLand)}`);
+    sections.push(`  [SAMPLED READINGS — lat,lng — °C — surface]`);
+    for (const r of temp.readings.slice(0, 40)) {
+      sections.push(`    ${r.lat.toFixed(1)},${r.lng.toFixed(1)} | ${r.temp.toFixed(1)}°C | ${r.kind}`);
+    }
+  }
+
+  // All other dashboard layers (aviation, maritime, surveillance, hazards, network, cyber).
+  if (context.feeds?.length) {
+    for (const g of context.feeds) {
+      if (!g.lines.length) continue;
+      sections.push(`\n[${g.label} — ${g.total} tracked${g.total > g.lines.length ? `, showing ${g.lines.length}` : ''}]`);
+      for (const line of g.lines) sections.push(`  ${line}`);
     }
   }
 

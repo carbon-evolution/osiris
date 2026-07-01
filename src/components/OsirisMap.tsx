@@ -350,6 +350,7 @@ map.addSource('tor-nodes', { type: 'geojson', data: EMPTY_FC });
 map.addSource('cve-nodes', { type: 'geojson', data: EMPTY_FC });
 map.addSource('mitre-nodes', { type: 'geojson', data: EMPTY_FC });
       map.addSource('cable-landing-points', { type: 'geojson', data: EMPTY_FC });
+      map.addSource('ndbc-buoys', { type: 'geojson', data: EMPTY_FC });
 
       // Warning icon generator (parameterized — eliminates 3x copy-paste)
       const createWarningIcon = (id: string, color: string) => {
@@ -619,6 +620,26 @@ map.addSource('mitre-nodes', { type: 'geojson', data: EMPTY_FC });
         'text-field': ['get','title'], 'text-size': 9, 'text-font': ['Open Sans Regular'],
         'text-offset': [0, 2], 'text-max-width': 14, 'text-allow-overlap': false,
       }, paint: { 'text-color': '#7E57C2', 'text-halo-color': 'rgba(6,8,15,0.9)', 'text-halo-width': 1, 'text-opacity': 0.8 }});
+
+      // NDBC buoys — in-situ sea/air temp, NOAA/NASA diverging RdBu palette
+      // (cold blue → ~15°C white → hot deep red), matching the temperature fields.
+      const tempColor: any = ['interpolate', ['linear'], ['get', 'temp'],
+        -30, '#053061', -18, '#2166ac', -8, '#4393c3', 0, '#92c5de', 8, '#d1e5f0',
+        15, '#f7f7f7', 21, '#fddbc7', 26, '#f4a582', 31, '#d6604d', 38, '#b2182b', 45, '#67001f'];
+      map.addLayer({ id: 'buoy-glow', type: 'circle', source: 'ndbc-buoys', paint: {
+        'circle-radius': ['interpolate',['linear'],['zoom'], 1,5, 5,9, 10,16],
+        'circle-color': tempColor, 'circle-opacity': 0.18, 'circle-blur': 1,
+      }});
+      map.addLayer({ id: 'buoy-dots', type: 'circle', source: 'ndbc-buoys', paint: {
+        'circle-radius': ['interpolate',['linear'],['zoom'], 1,2.2, 5,4, 10,7],
+        'circle-color': tempColor,
+        'circle-stroke-color': 'rgba(6,8,15,0.8)', 'circle-stroke-width': 0.6,
+      }});
+      map.addLayer({ id: 'buoy-label', type: 'symbol', source: 'ndbc-buoys', minzoom: 4, layout: {
+        'text-field': ['concat', ['to-string', ['round', ['get', 'temp']]], '°'],
+        'text-size': ['interpolate',['linear'],['zoom'], 4,9, 8,12], 'text-font': ['Open Sans Bold'],
+        'text-offset': [0, 1], 'text-allow-overlap': false,
+      }, paint: { 'text-color': '#E1F5FE', 'text-halo-color': 'rgba(6,8,15,0.95)', 'text-halo-width': 1.4 }});
 
       // Nuclear Infrastructure — teal / amber risk
       map.addLayer({ id: 'infra-glow', type: 'circle', source: 'infrastructure', paint: {
@@ -1901,6 +1922,48 @@ map.addSource('mitre-nodes', { type: 'geojson', data: EMPTY_FC });
     if (!map) return;
     ids.forEach(id => { if (map.getLayer(id)) map.setLayoutProperty(id, 'visibility', visible ? 'visible' : 'none'); });
   }, []);
+
+  // Temperature — two independent, smoothly-interpolated fields (ocean SST + land
+  // 2m air temp), each rendered server-side to a coastline-clipped field and served as
+  // EPSG:3857 XYZ raster tiles (see /api/temperature/fieldtile). Raster tiles go through
+  // MapLibre's native projection path — the same one NASA GIBS uses — so the fields
+  // register with the basemap on the globe (an `image` source mis-registered ~17° north).
+  // Separate Sea/Land toggles avoid blending the two across the coastline.
+  useEffect(() => {
+    if (!mapReady || !mapRef.current) return;
+    const map = mapRef.current;
+
+    const ensureField = (layerId: string, sourceId: string, tilesUrl: string, on: boolean) => {
+      if (on && !map.getLayer(layerId)) {
+        try {
+          if (!map.getSource(sourceId)) {
+            map.addSource(sourceId, { type: 'raster', tiles: [tilesUrl], tileSize: 256, minzoom: 0, maxzoom: 5 });
+          }
+          // Insert at the bottom of the data stack so all markers stay on top.
+          const below = map.getLayer('conflict-icons') ? 'conflict-icons' : undefined;
+          map.addLayer({ id: layerId, type: 'raster', source: sourceId, layout: { visibility: 'none' }, paint: { 'raster-opacity': 0.92, 'raster-fade-duration': 300 } }, below);
+        } catch (e) { console.error(`[OSIRIS] ${layerId} init failed:`, e); }
+      }
+      setVis([layerId], on);
+    };
+
+    ensureField('temp-ocean-field', 'temp-ocean-src', '/api/temperature/fieldtile?domain=ocean&source=open-meteo&z={z}&x={x}&y={y}', !!activeLayers.temperature_sea);
+    ensureField('temp-ocean-oisst-field', 'temp-ocean-oisst-src', '/api/temperature/fieldtile?domain=ocean&source=noaa-oisst&z={z}&x={x}&y={y}', !!activeLayers.temperature_sea_oisst);
+    ensureField('temp-land-field', 'temp-land-src', '/api/temperature/fieldtile?domain=land&source=open-meteo&z={z}&x={x}&y={y}', !!activeLayers.temperature_land);
+  }, [mapReady, activeLayers.temperature_sea, activeLayers.temperature_sea_oisst, activeLayers.temperature_land, setVis]);
+
+  // NDBC buoys — in-situ sea/air temperature station markers.
+  useEffect(() => {
+    if (!mapReady) return;
+    const on = !!activeLayers.buoy_temps;
+    const buoys = on && (data as any).buoys ? (data as any).buoys : [];
+    setGeo('ndbc-buoys', buoys.map((b: any) => ({
+      type: 'Feature',
+      geometry: { type: 'Point', coordinates: [b.lng, b.lat] },
+      properties: { id: b.id, temp: b.temp, waterTemp: b.waterTemp, airTemp: b.airTemp, time: b.time },
+    })));
+    setVis(['buoy-glow', 'buoy-dots', 'buoy-label'], on);
+  }, [mapReady, (data as any).buoys, activeLayers.buoy_temps, setGeo, setVis]);
 
   // Flight data → GeoJSON (GPU rendered)
   useEffect(() => {

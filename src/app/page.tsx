@@ -50,6 +50,7 @@ import OfflineBanner from '@/components/OfflineBanner';
 
 const OsirisMap = dynamic(() => import('@/components/OsirisMap'), { ssr: false });
 const LayerPanel = dynamic(() => import('@/components/LayerPanel'));
+const TempLegend = dynamic(() => import('@/components/TempLegend'));
 const CameraViewer = dynamic(() => import('@/components/CameraViewer'));
 const OsintPanel = dynamic(() => import('@/components/OsintPanel'));
 const EntityGraphPanel = dynamic(() => import('@/components/EntityGraphPanel'));
@@ -279,6 +280,10 @@ export default function Dashboard() {
     power_plants: false,
     ransomware: false,
     eurepoc: false,
+    temperature_sea: false,
+    temperature_sea_oisst: false,
+    temperature_land: false,
+    buoy_temps: false,
   });
   const [liveFeedUrl, setLiveFeedUrl] = useState<string | null>(null);
   const [liveFeedName, setLiveFeedName] = useState('');
@@ -398,8 +403,15 @@ export default function Dashboard() {
   const handleRightClick = useCallback(async (coords: { lat: number; lng: number }) => {
     setDossierLoading(true); setRegionDossier(null);
     try {
-      const res = await fetch(`/api/region-dossier?lat=${coords.lat}&lng=${coords.lng}`);
-      if (res.ok) setRegionDossier(await res.json());
+      // Dossier + live point temperature (MET Norway / Open-Meteo) in parallel.
+      const [dRes, tRes] = await Promise.allSettled([
+        fetch(`/api/region-dossier?lat=${coords.lat}&lng=${coords.lng}`),
+        fetch(`/api/temperature/point?lat=${coords.lat}&lon=${coords.lng}`),
+      ]);
+      const dossier = dRes.status === 'fulfilled' && dRes.value.ok ? await dRes.value.json() : null;
+      const temperature = tRes.status === 'fulfilled' && tRes.value.ok ? await tRes.value.json() : null;
+      if (dossier) setRegionDossier({ ...dossier, temperature });
+      else if (temperature) setRegionDossier({ coordinates: coords, temperature });
     } catch (e) { console.warn('[OSIRIS] Suppressed error:', e instanceof Error ? e.message : e); } finally { setDossierLoading(false); }
   }, []);
   // Entity click handler (hoisted from JSX to comply with Rules of Hooks - Fixes #113)
@@ -556,6 +568,13 @@ export default function Dashboard() {
     if (activeLayers.weather && !layerFetchedRef.current.has('weather')) {
       fetchEndpoint('/api/weather', d => ({ weather_events: d.events }));
       layerFetchedRef.current.add('weather');
+    }
+    // Temperature (Sea/Land) layers self-load their PNG fields via maplibre image
+    // sources in OsirisMap — no data fetch needed here.
+    // NDBC buoy temperatures (in-situ station markers)
+    if (activeLayers.buoy_temps && !layerFetchedRef.current.has('buoy_temps')) {
+      fetchEndpoint('/api/temperature/buoys', d => ({ buoys: d.buoys }));
+      layerFetchedRef.current.add('buoy_temps');
     }
     // Infrastructure
     if (activeLayers.infrastructure && !layerFetchedRef.current.has('infrastructure')) {
@@ -1099,6 +1118,13 @@ export default function Dashboard() {
       {/* ── NEW SIDEBAR (Root Level) ── */}
       {showLayers && !isMobile && <LayerPanel data={data} activeLayers={activeLayers} setActiveLayers={setActiveLayers} theme={osirisTheme} setTheme={setOsirisTheme} />}
 
+      {/* ── TEMPERATURE COLORBAR LEGEND (shown while any temp layer is active) ── */}
+      {!isMobile && (
+        <div className="absolute top-16 right-6 z-[200]">
+          <TempLegend active={!!(activeLayers.temperature_sea || activeLayers.temperature_sea_oisst || activeLayers.temperature_land)} />
+        </div>
+      )}
+
 
 
       {/* ── RIGHT TOOL STRIP (desktop only — mobile uses bottom nav) ── */}
@@ -1404,6 +1430,9 @@ export default function Dashboard() {
             ) : regionDossier && (
               <div className="space-y-3">
                 <div><div className="hud-label mb-0.5">LOCATION</div><div className="text-xs text-[var(--text-primary)]">{regionDossier.location?.display_name}</div></div>
+                {regionDossier.temperature && (
+                  <div><div className="hud-label mb-0.5">TEMPERATURE</div><div className="text-xs text-[var(--text-primary)]">{regionDossier.temperature.tempC?.toFixed(1)}°C <span className="text-[8px] text-[var(--text-muted)]">· {regionDossier.temperature.source}</span></div></div>
+                )}
                 {regionDossier.country && (
                   <div className="grid grid-cols-2 gap-2">
                     <div><div className="hud-label mb-0.5">COUNTRY</div><div className="text-xs text-[var(--text-primary)]">{regionDossier.country.flag} {regionDossier.country.name}</div></div>

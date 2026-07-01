@@ -18,7 +18,7 @@ import {
   Check,
   Trash2,
 } from 'lucide-react';
-import type { IntelligenceContext } from '@/lib/ai-engine';
+import type { FeedGroup, IntelligenceContext } from '@/lib/ai-engine';
 
 /* ═══════════════════════════════════════════════════════════════
    OSIRIS — AI Intelligence Analyst Panel
@@ -180,8 +180,125 @@ function buildContext(data: DashboardData): IntelligenceContext {
     news,
     threats,
     cyberAlerts,
+    feeds: buildFeeds(data),
     timestamp: new Date().toISOString(),
   };
+}
+
+/* ─────────────────────────────────────────────────────────────
+   Feed groups — feed EVERY other dashboard layer (aviation, maritime,
+   surveillance, hazards, threat, network, cyber intel, markets) to the
+   analyst as compact, capped rows. Cached or live — whatever the dashboard
+   currently holds in `data` is what the analyst sees.
+   ───────────────────────────────────────────────────────────── */
+
+const FEED_CAP = 14; // max rows per group sent to the model (totals still reported)
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const arr = (v: unknown): any[] => (Array.isArray(v) ? v : []);
+const clean = (s: unknown): string => (s == null || s === '' ? '' : String(s));
+const geo = (lat?: number, lng?: number): string =>
+  typeof lat === 'number' && typeof lng === 'number' ? `@${lat.toFixed(1)},${lng.toFixed(1)}` : '';
+const row = (...parts: (string | number | false | null | undefined)[]): string =>
+  parts
+    .filter((p) => p !== '' && p != null && p !== false)
+    .join(' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+function buildFeeds(data: DashboardData): FeedGroup[] {
+  const groups: FeedGroup[] = [];
+  const push = (label: string, lines: string[], total?: number) => {
+    if (lines.length) groups.push({ label, total: total ?? lines.length, lines: lines.slice(0, FEED_CAP) });
+  };
+
+  // AVIATION — all aircraft classes with a class tag
+  const aviation = [
+    ...arr(data.commercial_flights).map((f) => ['CIV', f] as const),
+    ...arr(data.military_flights).map((f) => ['MIL', f] as const),
+    ...arr(data.private_flights).map((f) => ['PVT', f] as const),
+    ...arr(data.private_jets).map((f) => ['JET', f] as const),
+  ];
+  push(
+    'AVIATION — LIVE TRACKS',
+    aviation.map(([tag, f]) =>
+      row(`${tag} ${clean(f.callsign) || clean(f.icao24) || '?'}`, clean(f.model), f.alt && `${f.alt}ft`, f.speed_knots && `${f.speed_knots}kt`, geo(f.lat, f.lng)),
+    ),
+    aviation.length,
+  );
+
+  // MARITIME — vessels
+  push(
+    'MARITIME — VESSELS',
+    arr(data.maritime_ships).map((s) =>
+      row(clean(s.name) || clean(s.mmsi), `[${clean(s.type)}]`, s.flag && `flag:${clean(s.flag)}`, s.destination && `→${clean(s.destination)}`, s.speed && `${s.speed}kt`, geo(s.lat, s.lng)),
+    ),
+  );
+
+  // SURVEILLANCE — CCTV + satellites
+  const cams = arr(data.cameras);
+  const sats = arr(data.satellites);
+  push(
+    'SURVEILLANCE — CCTV & SATELLITES',
+    [
+      ...cams.map((c) => row('CCTV', clean(c.name), `${clean(c.city)},${clean(c.country)}`, c.stream_type && `(${clean(c.stream_type)})`, geo(c.lat, c.lng))),
+      ...sats.map((s) => row('SAT', clean(s.name), clean(s.mission), s.alt && `alt:${s.alt}km`, geo(s.lat, s.lng))),
+    ],
+    cams.length + sats.length,
+  );
+
+  // HAZARD — fires / severe weather / GPS jamming / radiation (earthquakes are in SEISMIC)
+  const hazard = [
+    ...arr(data.fires).map((x) => row('FIRE', x.frp && `frp:${x.frp}`, x.brightness && `bright:${x.brightness}`, x.confidence && `conf:${x.confidence}`, clean(x.satellite), geo(x.lat, x.lng))),
+    ...arr(data.weather_events).map((x) => row('WX', clean(x.severity), clean(x.type), clean(x.title), x.area && `(${clean(x.area)})`, geo(x.lat, x.lng))),
+    ...arr(data.gps_jamming).map((x) => row('GPS-JAM', clean(x.name), `${clean(x.city)},${clean(x.country)}`, geo(x.lat, x.lng))),
+    ...arr(data.radiation).map((x) => row('RAD', x.reading != null && `${x.reading}`, clean(x.name), `${clean(x.city)},${clean(x.country)}`, x.status && `[${clean(x.status)}]`, geo(x.lat, x.lng))),
+  ];
+  push('HAZARD — FIRES / SEVERE WX / GPS JAMMING / RADIATION', hazard, hazard.length);
+
+  // THREAT — geolocated threat-intel nodes (GDELT events are in THREAT EVENTS)
+  push(
+    'THREAT — INTEL NODES',
+    arr(data.threat_intel).map((t) => row(clean(t.ip), clean(t.malware) || clean(t.threat_type), clean(t.country), clean(t.url), geo(t.lat, t.lng))),
+  );
+
+  // NETWORK — critical infrastructure (power/plants/facilities)
+  push(
+    'NETWORK — CRITICAL INFRASTRUCTURE',
+    arr(data.infrastructure).map((i) =>
+      row(clean(i.name), `${clean(i.city)},${clean(i.country)}`, i.capacityMW && `${i.capacityMW}MW`, i.status && `[${clean(i.status)}]`, geo(i.lat, i.lng)),
+    ),
+  );
+
+  // CYBER INTEL — malware / APT groups / TOR / DROP / ransomware (CVEs are in CYBER ALERTS)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const ci = (data.cyber_intel ?? {}) as any;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const ransom = arr((data.ransomware as any)?.features ?? data.ransomware);
+  const cyber = [
+    ...arr(data.malware_threats).map((m) => row('MALWARE', clean(m.ip), clean(m.malware), m.status && `[${clean(m.status)}]`, clean(m.threat_type), clean(m.country))),
+    ...arr(ci.mitre_nodes).map((m) => row('APT', clean(m.name), m.id && `(${clean(m.id)})`, clean(m.country), Array.isArray(m.techniques) && `${m.techniques.length} TTPs`)),
+    ...arr(ci.tor_exit_nodes).map((t) => row('TOR-EXIT', clean(t.ip), clean(t.country))),
+    ...arr(ci.spamhaus_drop).map((d) => row('DROP', clean(d.cidr), clean(d.country))),
+    ...ransom.map((r) => {
+      const p = (r?.properties ?? r) ?? {};
+      return row('RANSOM', clean(p.victim) || clean(p.title) || clean(p.name), p.group && `grp:${clean(p.group)}`, clean(p.country) || clean(p.sector), clean(p.published) || clean(p.date));
+    }),
+  ];
+  push('CYBER INTEL — MALWARE / APT / TOR / RANSOMWARE', cyber, cyber.length);
+
+  // MARKETS — indices + commodities
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const mk = data.markets as any;
+  if (mk) {
+    const market = [
+      ...arr(mk.indices).map((i: Record<string, unknown>) => row('IDX', clean(i.name), clean(i.value), i.changePercent != null && `${Number(i.changePercent) > 0 ? '+' : ''}${i.changePercent}%`)),
+      ...arr(mk.commodities).map((c: Record<string, unknown>) => row('CMD', clean(c.name), clean(c.price), c.change != null && `${Number(c.change) > 0 ? '+' : ''}${c.change}`)),
+    ];
+    push('MARKETS — INDICES & COMMODITIES', market, market.length);
+  }
+
+  return groups;
 }
 
 /** Render markdown-lite: bold, headers, bullet points */
