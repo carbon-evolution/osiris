@@ -3,12 +3,12 @@ import { buildRGBA, colorRamp, interpolateField, lngDelta, type FieldPoint } fro
 
 describe('colorRamp', () => {
   it('clamps below and above the ramp', () => {
-    expect(colorRamp(-100)).toEqual([12, 12, 80]);
-    expect(colorRamp(100)).toEqual([140, 20, 30]);
+    expect(colorRamp(-100)).toEqual([5, 48, 97]); // deep blue (cold)
+    expect(colorRamp(100)).toEqual([103, 0, 31]); // deep red (hot)
   });
   it('interpolates between stops', () => {
-    const c = colorRamp(10); // between 6 and 14
-    expect(c[0]).toBeGreaterThan(170);
+    const c = colorRamp(10); // between 8 and 15 → light blue/white
+    expect(c[0]).toBeGreaterThan(200);
     expect(c.every((v) => v >= 0 && v <= 255)).toBe(true);
   });
 });

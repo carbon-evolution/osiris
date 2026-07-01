@@ -15,20 +15,20 @@ export interface FieldPoint {
 export const LAT_TOP = 80;
 export const LAT_BOT = -80;
 
-// Color ramp stops: temperature °C → RGB. Cold (blue/purple) → hot (red).
+// Color ramp: temperature °C → RGB. NOAA/NASA-style diverging SST palette
+// (ColorBrewer RdBu, reversed): cold = blue, ~15°C = white, hot = deep red.
 const RAMP: [number, [number, number, number]][] = [
-  [-40, [12, 12, 80]],
-  [-25, [49, 54, 149]],
-  [-12, [69, 117, 180]],
-  [-2, [116, 173, 209]],
-  [6, [171, 217, 233]],
-  [14, [224, 243, 248]],
-  [20, [255, 255, 191]],
-  [26, [254, 224, 144]],
-  [32, [253, 174, 97]],
-  [38, [244, 109, 67]],
-  [45, [215, 48, 39]],
-  [52, [140, 20, 30]],
+  [-30, [5, 48, 97]],
+  [-18, [33, 102, 172]],
+  [-8, [67, 147, 195]],
+  [0, [146, 197, 222]],
+  [8, [209, 229, 240]],
+  [15, [247, 247, 247]],
+  [21, [253, 219, 199]],
+  [26, [244, 165, 130]],
+  [31, [214, 96, 77]],
+  [38, [178, 24, 43]],
+  [45, [103, 0, 31]],
 ];
 
 /** Map a temperature (°C) to an RGB triple via the ramp (clamped at the ends). */
@@ -117,7 +117,7 @@ export function buildRGBADomain(
   h: number,
   mask: Uint8Array,
   domain: Domain,
-  alpha = 215,
+  alpha = 235,
   power = 2,
 ): Uint8Array {
   const temps = interpolateField(points, w, h, power);

@@ -621,9 +621,11 @@ map.addSource('mitre-nodes', { type: 'geojson', data: EMPTY_FC });
         'text-offset': [0, 2], 'text-max-width': 14, 'text-allow-overlap': false,
       }, paint: { 'text-color': '#7E57C2', 'text-halo-color': 'rgba(6,8,15,0.9)', 'text-halo-width': 1, 'text-opacity': 0.8 }});
 
-      // NDBC buoys — in-situ sea/air temperature, colored by °C (blue→red ramp)
+      // NDBC buoys — in-situ sea/air temp, NOAA/NASA diverging RdBu palette
+      // (cold blue → ~15°C white → hot deep red), matching the temperature fields.
       const tempColor: any = ['interpolate', ['linear'], ['get', 'temp'],
-        -10, '#3136dc', 0, '#4576e6', 8, '#45b4e6', 16, '#78c85a', 22, '#fee050', 30, '#f46d43', 38, '#d7191c'];
+        -30, '#053061', -18, '#2166ac', -8, '#4393c3', 0, '#92c5de', 8, '#d1e5f0',
+        15, '#f7f7f7', 21, '#fddbc7', 26, '#f4a582', 31, '#d6604d', 38, '#b2182b', 45, '#67001f'];
       map.addLayer({ id: 'buoy-glow', type: 'circle', source: 'ndbc-buoys', paint: {
         'circle-radius': ['interpolate',['linear'],['zoom'], 1,5, 5,9, 10,16],
         'circle-color': tempColor, 'circle-opacity': 0.18, 'circle-blur': 1,
@@ -1938,7 +1940,7 @@ map.addSource('mitre-nodes', { type: 'geojson', data: EMPTY_FC });
           if (!map.getSource(sourceId)) map.addSource(sourceId, { type: 'image', url, coordinates: WORLD_QUAD });
           // Insert at the bottom of the data stack so all markers stay on top.
           const below = map.getLayer('conflict-icons') ? 'conflict-icons' : undefined;
-          map.addLayer({ id: layerId, type: 'raster', source: sourceId, layout: { visibility: 'none' }, paint: { 'raster-opacity': 0.85, 'raster-fade-duration': 300 } }, below);
+          map.addLayer({ id: layerId, type: 'raster', source: sourceId, layout: { visibility: 'none' }, paint: { 'raster-opacity': 0.92, 'raster-fade-duration': 300 } }, below);
         } catch (e) { console.error(`[OSIRIS] ${layerId} init failed:`, e); }
       }
       setVis([layerId], on);
