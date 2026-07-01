@@ -402,8 +402,15 @@ export default function Dashboard() {
   const handleRightClick = useCallback(async (coords: { lat: number; lng: number }) => {
     setDossierLoading(true); setRegionDossier(null);
     try {
-      const res = await fetch(`/api/region-dossier?lat=${coords.lat}&lng=${coords.lng}`);
-      if (res.ok) setRegionDossier(await res.json());
+      // Dossier + live point temperature (MET Norway / Open-Meteo) in parallel.
+      const [dRes, tRes] = await Promise.allSettled([
+        fetch(`/api/region-dossier?lat=${coords.lat}&lng=${coords.lng}`),
+        fetch(`/api/temperature/point?lat=${coords.lat}&lon=${coords.lng}`),
+      ]);
+      const dossier = dRes.status === 'fulfilled' && dRes.value.ok ? await dRes.value.json() : null;
+      const temperature = tRes.status === 'fulfilled' && tRes.value.ok ? await tRes.value.json() : null;
+      if (dossier) setRegionDossier({ ...dossier, temperature });
+      else if (temperature) setRegionDossier({ coordinates: coords, temperature });
     } catch (e) { console.warn('[OSIRIS] Suppressed error:', e instanceof Error ? e.message : e); } finally { setDossierLoading(false); }
   }, []);
   // Entity click handler (hoisted from JSX to comply with Rules of Hooks - Fixes #113)
@@ -1415,6 +1422,9 @@ export default function Dashboard() {
             ) : regionDossier && (
               <div className="space-y-3">
                 <div><div className="hud-label mb-0.5">LOCATION</div><div className="text-xs text-[var(--text-primary)]">{regionDossier.location?.display_name}</div></div>
+                {regionDossier.temperature && (
+                  <div><div className="hud-label mb-0.5">TEMPERATURE</div><div className="text-xs text-[var(--text-primary)]">{regionDossier.temperature.tempC?.toFixed(1)}°C <span className="text-[8px] text-[var(--text-muted)]">· {regionDossier.temperature.source}</span></div></div>
+                )}
                 {regionDossier.country && (
                   <div className="grid grid-cols-2 gap-2">
                     <div><div className="hud-label mb-0.5">COUNTRY</div><div className="text-xs text-[var(--text-primary)]">{regionDossier.country.flag} {regionDossier.country.name}</div></div>

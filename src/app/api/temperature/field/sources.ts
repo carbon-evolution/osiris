@@ -63,9 +63,9 @@ export const SOURCES: TempSource[] = [
     domains: ['land'],
     kind: 'point',
     requiresKey: false,
-    status: 'planned',
+    status: 'live',
     url: 'https://api.met.no/',
-    note: 'Global point forecast (air_temperature). Point-only — TOS discourages global grid scraping.',
+    note: 'LIVE — global point air_temperature (/api/temperature/point, right-click dossier). Point-only per TOS.',
   },
   {
     id: 'nws',
@@ -243,4 +243,51 @@ async function fromOisst(step: number): Promise<FieldPoint[]> {
 export async function getDomainPoints(domain: Domain, source: string, step: number): Promise<FieldPoint[]> {
   if (source === 'noaa-oisst' && domain === 'ocean') return fromOisst(step);
   return fromOpenMeteo(domain, step);
+}
+
+// ── Point lookup (single coordinate) ────────────────────────────────
+
+export interface PointTemp {
+  tempC: number;
+  source: string; // provider label
+  time: string;
+}
+
+/**
+ * Current temperature at one coordinate. MET Norway (government, no key, but a
+ * proper point-forecast API) is primary; Open-Meteo is the fallback. This is the
+ * right way to use MET Norway — a single point, not a scraped global grid.
+ */
+export async function pointTemperature(lat: number, lon: number): Promise<PointTemp | null> {
+  // 1. MET Norway Locationforecast (requires a descriptive User-Agent per their TOS)
+  try {
+    const res = await fetch(
+      `https://api.met.no/weatherapi/locationforecast/2.0/compact?lat=${lat.toFixed(4)}&lon=${lon.toFixed(4)}`,
+      { signal: AbortSignal.timeout(8000), headers: { 'User-Agent': 'OSIRIS/4.2 (github.com/carbon-evolution/osiris)' } },
+    );
+    if (res.ok) {
+      const j = await res.json();
+      const t0 = j?.properties?.timeseries?.[0];
+      const tempC = t0?.data?.instant?.details?.air_temperature;
+      if (typeof tempC === 'number') return { tempC, source: 'MET Norway', time: t0.time };
+    }
+  } catch {
+    /* fall through to Open-Meteo */
+  }
+
+  // 2. Open-Meteo fallback
+  try {
+    const res = await fetch(
+      `https://api.open-meteo.com/v1/forecast?latitude=${lat.toFixed(4)}&longitude=${lon.toFixed(4)}&current=temperature_2m`,
+      { signal: AbortSignal.timeout(8000) },
+    );
+    if (res.ok) {
+      const j = await res.json();
+      const tempC = j?.current?.temperature_2m;
+      if (typeof tempC === 'number') return { tempC, source: 'Open-Meteo', time: j.current.time };
+    }
+  } catch {
+    /* give up */
+  }
+  return null;
 }
