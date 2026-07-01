@@ -33,9 +33,9 @@ const CACHE_DIR = path.join(process.cwd(), '.cache');
  * native resolution — so it shows real eddies, currents and fronts, not a smoothed
  * blob. Clipped to ±LAT_TOP° to match the maplibre image quad.
  */
-async function erddapOisstPng(): Promise<Buffer> {
-  // Grid clipped to ±(LAT_TOP-0.125)° so the 1440×640 image rows line up exactly with
-  // the landMask(OUT_W, OUT_H) cell centers — lets us reuse the same cached mask.
+type Proj = 'geo' | 'merc';
+
+async function erddapOisstPng(proj: Proj): Promise<Buffer> {
   const q = `sst[(last)][(0.0)][(-${LAT_TOP - 0.125}):(${LAT_TOP - 0.125})][(-179.875):(179.875)]`;
   const url =
     `https://coastwatch.pfeg.noaa.gov/erddap/griddap/ncdcOisst21Agg_LonPM180.transparentPng?${encodeURIComponent(q)}` +
@@ -45,32 +45,35 @@ async function erddapOisstPng(): Promise<Buffer> {
   if (!res.ok) throw new Error(`ERDDAP transparentPng ${res.status}`);
   const png = Buffer.from(await res.arrayBuffer());
 
-  // ERDDAP renders equirectangular (linear latitude, north-up). Read it, then vertically
-  // reproject to Web-Mercator rows so it lines up on the globe like the other layers.
   const src = await sharp(png).ensureAlpha().resize(OUT_W, OUT_H, { fit: 'fill' }).raw().toBuffer();
-  const srcTop = LAT_TOP - 0.125; // ERDDAP grid extent (±79.875°)
-  const span = 2 * srcTop;
-  const rowLatOut = mercatorRowLats(OUT_H, LAT_TOP);
-  const out = Buffer.alloc(OUT_W * OUT_H * 4);
-  for (let y = 0; y < OUT_H; y++) {
-    // nearest equirect source row for this mercator-spaced output latitude
-    let sr = Math.round(((srcTop - rowLatOut[y]) / span) * (OUT_H - 1));
-    if (sr < 0) sr = 0;
-    else if (sr > OUT_H - 1) sr = OUT_H - 1;
-    src.copy(out, y * OUT_W * 4, sr * OUT_W * 4, (sr + 1) * OUT_W * 4);
+  const rowLat = proj === 'merc' ? mercatorRowLats(OUT_H, LAT_TOP) : undefined;
+
+  let out: Buffer;
+  if (rowLat) {
+    // ERDDAP is equirectangular (linear lat, north-up); reproject rows to Web-Mercator.
+    const srcTop = LAT_TOP - 0.125;
+    const span = 2 * srcTop;
+    out = Buffer.alloc(OUT_W * OUT_H * 4);
+    for (let y = 0; y < OUT_H; y++) {
+      let sr = Math.round(((srcTop - rowLat[y]) / span) * (OUT_H - 1));
+      if (sr < 0) sr = 0;
+      else if (sr > OUT_H - 1) sr = OUT_H - 1;
+      src.copy(out, y * OUT_W * 4, sr * OUT_W * 4, (sr + 1) * OUT_W * 4);
+    }
+  } else {
+    out = src;
   }
 
-  // Re-clip ERDDAP's native 0.25° land cutout to OSIRIS's 50m coastline (mercator mask)
-  // so the OISST layer lines up with the Open-Meteo fields and the map basemap.
-  const mask = await landMask(OUT_W, OUT_H, LAT_TOP, LAT_BOT, rowLatOut);
+  // Re-clip ERDDAP's native 0.25° land cutout to OSIRIS's 50m coastline.
+  const mask = await landMask(OUT_W, OUT_H, LAT_TOP, LAT_BOT, rowLat);
   for (let i = 0; i < mask.length; i++) {
-    if (mask[i] === 1) out[i * 4 + 3] = 0; // land per 50m mask → transparent
+    if (mask[i] === 1) out[i * 4 + 3] = 0;
   }
   return sharp(out, { raw: { width: OUT_W, height: OUT_H, channels: 4 } }).png().toBuffer();
 }
 
-function cacheFile(domain: Domain, source: string, step: number): string {
-  return path.join(CACHE_DIR, `temperature-field-${domain}-${source}-${step}.png`);
+function cacheFile(domain: Domain, source: string, step: number, proj: Proj): string {
+  return path.join(CACHE_DIR, `temperature-field-${domain}-${source}-${step}-${proj}.png`);
 }
 
 function parseDomain(raw: string | null): Domain {
@@ -87,17 +90,16 @@ async function readFresh(file: string): Promise<Buffer | null> {
   return null;
 }
 
-async function render(domain: Domain, source: string, step: number): Promise<Buffer> {
+async function render(domain: Domain, source: string, step: number, proj: Proj): Promise<Buffer> {
   // NOAA OISST ocean: use the native-resolution server-rendered ERDDAP raster
   // (real eddies/currents) instead of the coarse interpolation pipeline.
-  if (source === 'noaa-oisst' && domain === 'ocean') return erddapOisstPng();
+  if (source === 'noaa-oisst' && domain === 'ocean') return erddapOisstPng(proj);
 
   const points = await getDomainPoints(domain, source, step);
 
-  // Rows are spaced in Web-Mercator (not linear latitude) so the raster lines up with
-  // the mercator basemap when MapLibre projects the image source onto the globe.
-  const rowLatInterp = mercatorRowLats(INTERP_H, LAT_TOP);
-  const rowLatOut = mercatorRowLats(OUT_H, LAT_TOP);
+  // proj=merc spaces rows in Web-Mercator; proj=geo keeps linear latitude (geographic).
+  const rowLatInterp = proj === 'merc' ? mercatorRowLats(INTERP_H, LAT_TOP) : undefined;
+  const rowLatOut = proj === 'merc' ? mercatorRowLats(OUT_H, LAT_TOP) : undefined;
 
   // 1. Interpolate + color the WHOLE globe (no masking yet) so the blur mixes only
   //    valid colors — no black fringe bleeding in from off-domain pixels.
@@ -127,12 +129,13 @@ export async function GET(req: Request) {
   const step = clampStep(url.searchParams.get('step'));
   const domain = parseDomain(url.searchParams.get('domain'));
   const source = resolveSource(domain, url.searchParams.get('source'));
-  const file = cacheFile(domain, source, step);
+  const proj: Proj = url.searchParams.get('proj') === 'merc' ? 'merc' : 'geo';
+  const file = cacheFile(domain, source, step, proj);
 
   try {
     let png = await readFresh(file);
     if (!png) {
-      png = await render(domain, source, step);
+      png = await render(domain, source, step, proj);
       try {
         await fs.mkdir(CACHE_DIR, { recursive: true });
         await fs.writeFile(file, png);
