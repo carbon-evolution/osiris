@@ -56,7 +56,7 @@ Built on **Next.js 16 (App Router)**, **React 19**, and **MapLibre GL JS** (WebG
 
 ### 🚢 Live maritime AIS vessel tracking
 
-![Thousands of live vessels rendered as MarineTraffic-style directional arrows coloured by type, converging on the Turkish Straits](docs/screenshots/maritime-vessels-ais.jpg)
+![Thousands of live vessels rendered as MarineTraffic-style directional arrows over Europe, with a vessel detail card open showing flag, type, navigational status, speed/course and draught](docs/screenshots/maritime-vessels-ais.jpg)
 
 *Real-time AIS layer — tens of thousands of live vessels via `aisstream.io`, each rendered as a **MarineTraffic-style directional arrow** coloured by type (container / cargo / tanker / passenger / military) and rotated to its heading. Click any vessel for a detail card in the MarineTraffic pattern: **flag** (from MMSI), **detailed type**, navigational status, speed / course, true heading, rate of turn, draught, destination, reported ETA, IMO / callsign, and "received X ago (AIS source)". Positions are cached locally (Redis) and accumulate over hours. An optional **Kpler / MarineTraffic** enrichment source adds satellite-AIS global coverage and matched destinations when an API grant is provisioned.*
 
