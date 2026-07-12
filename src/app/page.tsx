@@ -51,6 +51,7 @@ import OfflineBanner from '@/components/OfflineBanner';
 const OsirisMap = dynamic(() => import('@/components/OsirisMap'), { ssr: false });
 const LayerPanel = dynamic(() => import('@/components/LayerPanel'));
 const TempLegend = dynamic(() => import('@/components/TempLegend'));
+const VesselLegend = dynamic(() => import('@/components/VesselLegend'));
 const CameraViewer = dynamic(() => import('@/components/CameraViewer'));
 const OsintPanel = dynamic(() => import('@/components/OsintPanel'));
 const EntityGraphPanel = dynamic(() => import('@/components/EntityGraphPanel'));
@@ -1120,8 +1121,9 @@ export default function Dashboard() {
 
       {/* ── TEMPERATURE COLORBAR LEGEND (shown while any temp layer is active) ── */}
       {!isMobile && (
-        <div className="absolute top-16 right-6 z-[200]">
+        <div className="absolute top-16 right-6 z-[200] flex flex-col gap-2">
           <TempLegend active={!!(activeLayers.temperature_sea || activeLayers.temperature_sea_oisst || activeLayers.temperature_land)} />
+          <VesselLegend active={!!activeLayers.maritime} shipCount={(data.maritime_ships || []).length} />
         </div>
       )}
 
