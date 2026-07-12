@@ -54,6 +54,12 @@ Built on **Next.js 16 (App Router)**, **React 19**, and **MapLibre GL JS** (WebG
 
 *Real-time aviation layer — commercial, private, private-jet, and military traffic — with a per-flight detail card (route, altitude, heading) and FlightAware / track / intel actions.*
 
+### 🚢 Live maritime AIS vessel tracking
+
+![Thousands of live vessels rendered as MarineTraffic-style directional arrows coloured by type, converging on the Turkish Straits](docs/screenshots/maritime-vessels-ais.jpg)
+
+*Real-time AIS layer — tens of thousands of live vessels via `aisstream.io`, each rendered as a **MarineTraffic-style directional arrow** coloured by type (container / cargo / tanker / passenger / military) and rotated to its heading. Click any vessel for a detail card in the MarineTraffic pattern: **flag** (from MMSI), **detailed type**, navigational status, speed / course, true heading, rate of turn, draught, destination, reported ETA, IMO / callsign, and "received X ago (AIS source)". Positions are cached locally (Redis) and accumulate over hours. An optional **Kpler / MarineTraffic** enrichment source adds satellite-AIS global coverage and matched destinations when an API grant is provisioned.*
+
 ### 🌡️ Global temperature field & weather-aware AI
 
 ![Global sea-surface temperature gradient on the 3D globe with the OSIRIS Analyst answering an El Niño weather question](docs/screenshots/temperature-ocean-ai-weather.jpg)
@@ -87,6 +93,13 @@ Intel panel. Results render on a self-contained dark card, readable in both them
 ---
 
 ## 🆕 Recent Updates
+
+**MarineTraffic-style live vessel tracking (July 2026):**
+
+- **Directional vessel arrows** — live AIS ships now render as **arrows coloured by type and rotated to heading** (MarineTraffic-style), instead of plain dots.
+- **Rich vessel detail card** — clicking a vessel shows a MarineTraffic-pattern popup: country **flag** (derived from the MMSI's Maritime Identification Digits), **detailed vessel type** (from the raw AIS ship-type code), navigational status, speed / course, true heading, rate of turn, draught, destination, reported ETA, IMO / callsign, and position age + AIS source.
+- **Local caching + wider coverage** — vessel positions are cached in Redis with a 6-hour retention window, so sparse-region traffic accumulates over time and survives server restarts.
+- **Kpler / MarineTraffic enrichment (optional)** — a fail-soft source that adds satellite-AIS global coverage and matched destinations; authenticates via Kpler's Auth0 client-credentials flow against the Maritime 2.0 GraphQL API and activates automatically once an API grant is provisioned.
 
 **Global temperature field + weather-aware, all-source AI (July 2026):**
 
@@ -145,7 +158,9 @@ Layers are organized into intuitive groups in the left-hand rail. Toggle any lay
 - **3D flight route arcs** — The origin→destination route is drawn as an elevated parabolic arc via **deck.gl** (`ArcLayer`) that bows up off the map in tilted/3D view.
 
 #### 🚢 Maritime
-- **Ports, Ships & Chokepoints** — Static naval intelligence + live AIS positions via `aisstream.io` (free key)
+- **Live AIS vessels** — Tens of thousands of ships streamed via `aisstream.io` (free key), drawn as **MarineTraffic-style directional arrows** coloured by type and rotated to heading. Click a vessel for a MarineTraffic-pattern detail card: country **flag** (derived from the MMSI), **detailed vessel type** (from the raw AIS ship-type code), navigational status, speed / course, true heading, rate of turn, draught, destination, reported ETA, IMO / callsign, and position age + AIS source. Positions are cached locally in Redis (6 h retention) so sparse-region traffic accumulates over time and survives restarts.
+- **Kpler / MarineTraffic enrichment** *(optional)* — A fail-soft enrichment source (`src/lib/maritime/kpler.ts`) that adds satellite-AIS global coverage and matched/normalised destinations. Authenticates via Kpler's Auth0 client-credentials flow and reads the Maritime 2.0 GraphQL API; activates automatically once a Kpler API client-grant is provisioned (set `KPLER_BASIC`).
+- **Ports, Ships & Chokepoints** — Static naval intelligence + live congestion/traffic derived from the AIS stream
 - **🌊 Submarine Cables** — TeleGeography-derived GeoJSON reference overlay
 - **🛰️ Satellites** — Real-time positions via TLE → SGP4 propagation (SatNOGS, keyless). Click a satellite to draw **only its orbit** (ground track, antimeridian-split so it hugs the globe), with **KeepTrack-style orbital metadata from Celestrak SATCAT** (free, no key): COSPAR/intl designator, type, owner, inclination, period, apogee, perigee, RCS, launch date & site — plus SatNOGS operator/status/transmitters.
 

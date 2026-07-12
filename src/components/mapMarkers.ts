@@ -15,7 +15,7 @@ export type IconKey =
   | 'camera' | 'activity' | 'flame' | 'cloud-lightning' | 'radiation' | 'zap'
   | 'triangle-alert' | 'lock' | 'bug' | 'fish' | 'shield-off' | 'ban'
   | 'shield-alert' | 'eye' | 'crosshair' | 'tv' | 'ship' | 'anchor'
-  | 'globe' | 'radio-tower';
+  | 'globe' | 'radio-tower' | 'container' | 'fuel' | 'navigation';
 
 /** Verbatim lucide inner SVG markup, keyed by icon name. */
 export const MARKER_ICON_SVG: Record<IconKey, string> = {
@@ -39,7 +39,34 @@ export const MARKER_ICON_SVG: Record<IconKey, string> = {
   'anchor': '<path d="M12 6v16"/><path d="m19 13 2-1a9 9 0 0 1-18 0l2 1"/><path d="M9 11h6"/><circle cx="12" cy="4" r="2"/>',
   'globe': '<circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/><path d="M2 12h20"/>',
   'radio-tower': '<path d="M4.9 16.1C1 12.2 1 5.8 4.9 1.9"/><path d="M7.8 4.7a6.14 6.14 0 0 0-.8 7.5"/><circle cx="12" cy="9" r="2"/><path d="M16.2 4.8c2 2 2.26 5.11.8 7.47"/><path d="M19.1 1.9a9.96 9.96 0 0 1 0 14.1"/><path d="M9.5 18h5"/><path d="m8 22 4-11 4 11"/>',
+  'container': '<path d="M22 7.7c0-.6-.4-1.2-.8-1.5l-6.3-3.9a1.72 1.72 0 0 0-1.7 0l-10.3 6c-.5.2-.9.8-.9 1.4v6.6c0 .5.4 1.2.8 1.5l6.3 3.9a1.72 1.72 0 0 0 1.7 0l10.3-6c.5-.3.9-1 .9-1.5Z"/><path d="M10 21.9V14L2.1 9.1"/><path d="m10 14 11.9-6.9"/><path d="M14 19.8v-8.1"/><path d="M18 17.5V9.4"/>',
+  'fuel': '<line x1="3" x2="15" y1="22" y2="22"/><line x1="4" x2="14" y1="9" y2="9"/><path d="M14 22V4a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v18"/><path d="M14 13h2a2 2 0 0 1 2 2v2a2 2 0 0 0 2 2a2 2 0 0 0 2-2V9.83a2 2 0 0 0-.59-1.42L18 5"/>',
+  // Up-pointing arrow (tip due north at 0°) for vessel markers rotated by
+  // heading, MarineTraffic-style. Symmetric so rotation reads cleanly.
+  'navigation': '<path d="M12 2 L19 21 L12 16 L5 21 Z"/>',
 };
+
+/**
+ * Vessel type palette — single source of truth shared by the ship marker
+ * icons, the circle/label colours in OsirisMap, the click popup, and the
+ * VesselLegend. "Container" is a size heuristic (cargo ≥ 150 m), see
+ * api/maritime.
+ */
+export const VESSEL_TYPES: { value: string; label: string; icon: IconKey; color: string }[] = [
+  { value: 'container', label: 'Container ship', icon: 'container', color: '#42A5F5' },
+  { value: 'cargo', label: 'Cargo', icon: 'ship', color: '#26C6DA' },
+  { value: 'tanker', label: 'Tanker', icon: 'fuel', color: '#FF9100' },
+  { value: 'passenger', label: 'Passenger', icon: 'ship', color: '#66BB6A' },
+  { value: 'military', label: 'Military', icon: 'ship', color: '#D32F2F' },
+];
+export const VESSEL_FALLBACK: { label: string; icon: IconKey; color: string } = {
+  label: 'Other', icon: 'ship', color: '#B0BEC5',
+};
+
+/** Colour for a vessel type (popup + legend use this). */
+export function vesselColor(type?: string): string {
+  return VESSEL_TYPES.find((v) => v.value === type)?.color ?? VESSEL_FALLBACK.color;
+}
 
 /** A simple one-icon layer, or a data-driven layer that picks icon by property. */
 export type MarkerLayer =
@@ -73,7 +100,15 @@ export const MARKER_LAYERS: MarkerLayer[] = [
   { source: 'mitre-nodes', icon: 'crosshair', color: '#00E676' },
   { source: 'live-news', icon: 'tv', color: '#F06292' },
   { source: 'maritime', icon: 'anchor', color: '#26C6DA' },
-  { source: 'maritime-ships', icon: 'ship', color: '#4FC3F7' },
+  {
+    // Vessels render as directional arrows (rotated by heading in OsirisMap),
+    // coloured by type — MarineTraffic-style. Per-type glyphs are kept in
+    // VESSEL_TYPES for the legend; the map itself uses the 'navigation' arrow.
+    source: 'maritime-ships',
+    property: 'type',
+    cases: VESSEL_TYPES.map(({ value, color }) => ({ value, icon: 'navigation' as IconKey, color })),
+    fallback: { icon: 'navigation', color: VESSEL_FALLBACK.color },
+  },
   { source: 'radiation', icon: 'radiation', color: '#9CCC65' },
   {
     source: 'threat-intel-nodes',

@@ -9,7 +9,16 @@ import {
   MARKER_LAYERS, MARKER_ICON_SVG, MARKER_ICON_SIZE,
   markerImageId, markerImages, markerIconImage,
   renderMarkerIcon,
+  VESSEL_TYPES, VESSEL_FALLBACK, vesselColor,
 } from './mapMarkers';
+import { flagFromMmsi, aisTypeLabel } from '@/lib/maritime/vesselMeta';
+
+// MapLibre `match` expression: vessel type → colour (shared with legend/popup).
+const SHIP_COLOR_MATCH = [
+  'match', ['get', 'type'],
+  ...VESSEL_TYPES.flatMap((v) => [v.value, v.color]),
+  VESSEL_FALLBACK.color,
+];
 
 interface OsirisMapProps {
   data: any;
@@ -921,16 +930,17 @@ map.addSource('mitre-nodes', { type: 'geojson', data: EMPTY_FC });
       }});
 
 
-      // Maritime Ships (moving entities) — ocean teal family
+      // Maritime Ships (moving entities) — coloured by vessel type, matching
+      // the per-type marker icons and the VesselLegend.
       map.addLayer({ id: 'ship-dots', type: 'circle', source: 'maritime-ships', paint: {
         'circle-radius': ['interpolate',['linear'],['zoom'], 1,2, 5,4, 10,6],
-        'circle-color': ['match', ['get','type'], 'military','#D32F2F', 'tanker','#E65100', 'cargo','#26C6DA', '#B0BEC5'],
+        'circle-color': SHIP_COLOR_MATCH as any,
         'circle-opacity': 0.75,
       }});
       map.addLayer({ id: 'ship-label', type: 'symbol', source: 'maritime-ships', minzoom: 5, layout: {
         'text-field': ['get','name'], 'text-size': 9, 'text-font': ['Open Sans Regular'],
         'text-offset': [0, 1.2], 'text-allow-overlap': false,
-      }, paint: { 'text-color': ['match', ['get','type'], 'military','#D32F2F', 'tanker','#E65100', 'cargo','#26C6DA', '#B0BEC5'], 'text-halo-color': 'rgba(6,8,15,0.9)', 'text-halo-width': 1 }});
+      }, paint: { 'text-color': SHIP_COLOR_MATCH as any, 'text-halo-color': 'rgba(6,8,15,0.9)', 'text-halo-width': 1 }});
 
       // ── Per-layer marker icons (tinted lucide glyphs on top of glow halos) ──
       // Icons sit above the existing dots; layers toggle by emptying their
@@ -945,6 +955,8 @@ map.addSource('mitre-nodes', { type: 'geojson', data: EMPTY_FC });
           }
         }
         const layerId = `${m.source}-marker`;
+        // Vessels point in their direction of travel (arrow rotated by heading).
+        const isShips = m.source === 'maritime-ships';
         if (!map.getLayer(layerId)) {
           map.addLayer({
             id: layerId,
@@ -955,6 +967,10 @@ map.addSource('mitre-nodes', { type: 'geojson', data: EMPTY_FC });
               'icon-size': MARKER_ICON_SIZE as any,
               'icon-allow-overlap': true,
               'icon-ignore-placement': true,
+              ...(isShips ? {
+                'icon-rotate': ['get', 'heading'] as any,
+                'icon-rotation-alignment': 'map' as any,
+              } : {}),
             },
           });
         }
@@ -1622,23 +1638,65 @@ map.addSource('mitre-nodes', { type: 'geojson', data: EMPTY_FC });
       if (!e.features?.length) return;
       const p = e.features[0].properties as any;
       const coords = (e.features[0].geometry as any).coordinates;
-      const color = p.type === 'military' ? '#FF1744' : p.type === 'tanker' ? '#FF9500' : '#1A73E8';
-      const icon = p.type === 'military' ? '⚔️' : p.type === 'tanker' ? '🛢️' : '🚢';
-      
-      popup(coords, `<div style="${pStyle}border:1px solid ${color}60;box-shadow:inset 0 0 12px ${color}15;">
-        <div style="display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid ${color}40;padding-bottom:6px;margin-bottom:8px;">
-          <div style="color:${color};font-size:12px;font-weight:700;letter-spacing:0.1em;">${icon} [ ${(p.type||'VESSEL').toUpperCase()} ]</div>
-          <div style="color:#6F8092;font-size:9px;">FLAG: ${p.flag||'UNK'}</div>
+      const color = vesselColor(p.type);
+      const icon = p.type === 'military' ? '⚔️' : p.type === 'tanker' ? '🛢️' : p.type === 'container' ? '📦' : p.type === 'passenger' ? '🛳️' : '🚢';
+
+      // AIS navigational-status enum (ITU-R M.1371) → human text (MarineTraffic wording).
+      const NAV_STATUS: Record<number, string> = {
+        0: 'Underway Using Engine', 1: 'At Anchor', 2: 'Not Under Command',
+        3: 'Restricted Manoeuvrability', 4: 'Constrained by Draught', 5: 'Moored',
+        6: 'Aground', 7: 'Engaged in Fishing', 8: 'Underway Sailing', 14: 'AIS-SART',
+      };
+      const navStatus = (p.navStatus != null && NAV_STATUS[Number(p.navStatus)]) || 'Unknown';
+
+      // Country flag from the MMSI's MID, detailed type from the raw AIS code.
+      const { flag, iso } = flagFromMmsi(p.mmsi);
+      const typeLabel = aisTypeLabel(p.typeCode, p.type);
+
+      // Position age from the last AIS timestamp (ms).
+      const agoMs = p.timestamp ? Date.now() - Number(p.timestamp) : NaN;
+      const received = !isFinite(agoMs) ? '—'
+        : agoMs < 60000 ? 'just now'
+        : agoMs < 3600000 ? `${Math.round(agoMs / 60000)} minute${Math.round(agoMs / 60000) === 1 ? '' : 's'} ago`
+        : `${Math.round(agoMs / 3600000)} hour${Math.round(agoMs / 3600000) === 1 ? '' : 's'} ago`;
+
+      const num = (v: any) => (v != null && isFinite(Number(v)) ? Number(v) : null);
+      const speed = num(p.speed), course = num(p.course), th = num(p.trueHeading), rot = num(p.rot), draught = num(p.draught);
+      const speedCourse = `${speed != null ? speed.toFixed(1) + 'kn' : '—'} / ${course != null ? course.toFixed(0) + '°' : '—'}`;
+      const cell = (label: string, val: string, c = '#1E293B') =>
+        `<div><span style="color:#6F8092;">${label}</span><br/><span style="color:${c};font-family:monospace;">${val}</span></div>`;
+
+      popup(coords, `<div style="${pStyle}border:1px solid ${color}60;box-shadow:inset 0 0 12px ${color}15;min-width:300px;">
+        <div style="display:flex;align-items:center;gap:8px;border-bottom:1px solid ${color}40;padding-bottom:8px;margin-bottom:8px;">
+          <span style="font-size:18px;line-height:1;">${icon}</span>
+          <div style="flex:1;min-width:0;">
+            <div style="display:flex;align-items:center;gap:6px;">
+              <span style="font-size:14px;">${flag}</span>
+              <span style="color:#1E293B;font-size:14px;font-weight:700;letter-spacing:0.02em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${p.name || 'UNIDENTIFIED VESSEL'}</span>
+            </div>
+            <div style="color:${color};font-size:10px;font-weight:600;">${typeLabel}${iso ? ` · ${iso}` : ''}</div>
+          </div>
         </div>
-        <div style="color:#1E293B;font-size:11px;font-weight:bold;margin-bottom:10px;">${p.name || 'UNIDENTIFIED VESSEL'}</div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:9px;margin-bottom:8px;background:rgba(60,64,67,0.06);padding:6px;border-radius:4px;">
-          <div><span style="color:#6F8092;">SPEED</span><br/><span style="color:${color};font-family:monospace;">${Number(p.speed).toFixed(1)} kn</span></div>
-          <div><span style="color:#6F8092;">HEADING</span><br/><span style="color:${color};font-family:monospace;">${Number(p.heading).toFixed(0)}°</span></div>
-          <div><span style="color:#6F8092;">LATITUDE</span><br/><span style="color:#1E293B;font-family:monospace;">${coords[1].toFixed(4)}°</span></div>
-          <div><span style="color:#6F8092;">LONGITUDE</span><br/><span style="color:#1E293B;font-family:monospace;">${coords[0].toFixed(4)}°</span></div>
+        <div style="display:flex;justify-content:space-between;font-size:9px;color:#6F8092;font-family:monospace;margin-bottom:8px;">
+          <span>MMSI: <span style="color:#1E293B;">${p.mmsi || '—'}</span></span>
+          <span>IMO: <span style="color:#1E293B;">${p.imo || '—'}</span></span>
+          <span>CS: <span style="color:#1E293B;">${p.callsign || '—'}</span></span>
         </div>
-        <div><span style="color:#6F8092;font-size:9px;">DESTINATION: </span><span style="color:#1E293B;font-size:9px;">${p.destination || 'UNKNOWN'}</span></div>
-        <a href="https://www.marinetraffic.com/en/ais/details/ships/mmsi:${p.mmsi}" target="_blank" style="${linkStyle}flex:1;text-align:center;color:${color};border:1px solid ${color}40;background:${color}15;display:inline-block;width:100%;box-sizing:border-box;margin-top:4px;">[ OPEN SOURCE ↗ ]</a>
+        <div style="font-size:10px;margin-bottom:8px;background:rgba(60,64,67,0.06);padding:7px;border-radius:4px;">
+          <div style="display:flex;justify-content:space-between;margin-bottom:3px;"><span style="color:#6F8092;">Destination</span><span style="color:${color};font-family:monospace;font-weight:600;">${p.matchedDestination || p.destination || 'UNKNOWN'}</span></div>
+          ${p.matchedDestination && p.destination ? `<div style="display:flex;justify-content:space-between;margin-bottom:3px;"><span style="color:#6F8092;">Reported</span><span style="color:#1E293B;font-family:monospace;">${p.destination}</span></div>` : ''}
+          <div style="display:flex;justify-content:space-between;"><span style="color:#6F8092;">Reported ETA</span><span style="color:#1E293B;font-family:monospace;">${p.eta || '—'}</span></div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;font-size:9px;margin-bottom:6px;">
+          ${cell('Nav. status', navStatus, color)}
+          ${cell('Speed / Course', speedCourse)}
+          ${cell('Draught', draught != null ? draught.toFixed(1) + ' m' : '—')}
+          ${cell('True heading', th != null ? th.toFixed(0) + '°' : '—')}
+          ${cell('Rate of turn', rot != null ? rot + ' °/min' : '—')}
+          ${cell('Position', `${coords[1].toFixed(3)}, ${coords[0].toFixed(3)}`)}
+        </div>
+        <div style="font-size:9px;color:#6F8092;margin-bottom:6px;">Received: <span style="color:#1E293B;font-weight:600;">${received}</span> (AIS source: ${p.source || 'Terrestrial'})</div>
+        <a href="https://www.marinetraffic.com/en/ais/details/ships/mmsi:${p.mmsi}" target="_blank" style="${linkStyle}text-align:center;color:${color};border:1px solid ${color}40;background:${color}15;display:inline-block;width:100%;box-sizing:border-box;">Vessel details ↗</a>
       </div>`);
     });
 
@@ -2154,7 +2212,7 @@ map.addSource('mitre-nodes', { type: 'geojson', data: EMPTY_FC });
     if (!mapReady) return;
     setGeo('maritime', activeLayers.maritime && data.maritime_ports ? data.maritime_ports.map((p: any) => ({ type: 'Feature', geometry: { type: 'Point', coordinates: [p.lng, p.lat] }, properties: { name: p.name, country: p.country, type: p.type, volume: p.volume, fleet: p.fleet, rank: p.rank } })) : []);
     setGeo('maritime-choke', activeLayers.maritime && data.maritime_chokepoints ? data.maritime_chokepoints.map((c: any) => ({ type: 'Feature', geometry: { type: 'Point', coordinates: [c.lng, c.lat] }, properties: { name: c.name, traffic: c.traffic, risk: c.risk } })) : []);
-    setGeo('maritime-ships', activeLayers.maritime && data.maritime_ships ? data.maritime_ships.map((s: any) => ({ type: 'Feature', geometry: { type: 'Point', coordinates: [s.lng, s.lat] }, properties: { name: s.name || s.mmsi?.toString(), type: s.type || 'cargo', speed: s.speed, heading: s.heading, destination: s.destination, flag: s.flag } })) : []);
+    setGeo('maritime-ships', activeLayers.maritime && data.maritime_ships ? data.maritime_ships.map((s: any) => ({ type: 'Feature', geometry: { type: 'Point', coordinates: [s.lng, s.lat] }, properties: { name: s.name || s.mmsi?.toString(), type: s.type || 'cargo', speed: s.speed, heading: s.heading, course: s.course, trueHeading: s.trueHeading, rot: s.rot, navStatus: s.navStatus, source: s.source, destination: s.destination, matchedDestination: s.matchedDestination, mmsi: s.mmsi, eta: s.eta, draught: s.draught, imo: s.imo, callsign: s.callsign, typeCode: s.typeCode, timestamp: s.timestamp } })) : []);
   }, [mapReady, data.maritime_ports, data.maritime_chokepoints, data.maritime_ships, activeLayers.maritime, setGeo]);
 
   useEffect(() => {
