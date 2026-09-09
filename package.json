@@ -29,7 +29,7 @@
     "hls.js": "^1.6.16",
     "ioredis": "^5.11.1",
     "lucide-react": "^1.14.0",
-    "maplibre-gl": "^5.24.0",
+    "maplibre-gl": "^6.8.0",
     "neo4j-driver": "^6.1.0",
     "next": "16.2.6",
     "node-cron": "^4.5.0",
