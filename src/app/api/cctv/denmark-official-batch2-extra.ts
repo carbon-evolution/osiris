@@ -14,6 +14,7 @@ export const DENMARK_BATCH2_EXTRA_REPLACED_IDS = new Set<string>([
   'dk-public-marselisborghavn',
   'dk-public-hellerup-sejlklub',
   'dk-public-bornholm-ronne-tv2',
+  'dk-public-gribskov-osprey',
 ]);
 
 export const DENMARK_OFFICIAL_BATCH2_EXTRA: CctvCamera[] = [
@@ -181,6 +182,21 @@ export const DENMARK_OFFICIAL_BATCH2_EXTRA: CctvCamera[] = [
     country: 'Denmark',
     external_url: 'https://bornholm-cajo.dev.tv2reg.digital/vejret',
     source: 'TV 2/Bornholm',
+  },
+
+  // Naturstyrelsen and Nationalpark Kongernes Nordsjælland publish the osprey
+  // nest livestream in Gribskov. The stream is seasonal (normally spring to
+  // early autumn), so OSIRIS links to the official Naturstyrelsen page rather
+  // than a generic webcam directory or a guessed media endpoint.
+  {
+    id: 'dk-gribskov-osprey-official',
+    lat: 55.998889,
+    lng: 12.285556,
+    name: 'Gribskov — Fiskeørnerede (sæson-live)',
+    city: 'Gribskov',
+    country: 'Denmark',
+    external_url: 'https://naturstyrelsen.dk/find-et-naturomraade/naturguider/hovedstaden-og-nordsjaelland/gribskov/dyr-og-planter/fiskeoern',
+    source: 'Naturstyrelsen',
   },
 
   // Vesterø Havn's official website still labels a link as "Webcam", but its
