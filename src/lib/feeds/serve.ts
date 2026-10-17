@@ -31,7 +31,7 @@ export async function serveFeed(spec: FeedSpec): Promise<NextResponse> {
   }
 }
 
-type RouteHandler = (req: Request) => Promise<Response>;
+type RouteHandler<TReq extends Request = Request> = (req: TReq) => Promise<Response>;
 
 /**
  * Low-touch wrapper: cache a route's own JSON output without extracting its
@@ -45,13 +45,13 @@ type RouteHandler = (req: Request) => Promise<Response>;
  * cached body and refreshes in the background; if the source is down the last
  * good body keeps serving (flagged via headers).
  */
-export function withCache(
+export function withCache<TReq extends Request>(
   kind: string,
   ttlMs: number,
-  handler: RouteHandler,
+  handler: RouteHandler<TReq>,
   opts?: CacheOpts<unknown>,
-): RouteHandler {
-  return async (req: Request): Promise<NextResponse> => {
+): RouteHandler<TReq> {
+  return async (req: TReq): Promise<NextResponse> => {
     try {
       const r = await cacheFirst(kind, ttlMs, async () => {
         const res = await handler(req);
@@ -87,13 +87,13 @@ export function withCache(
  * its own cached entry. A request with no query params is not cached (it's usually
  * a usage/validation error, which `res.ok === false` already routes to fallback).
  */
-export function withQueryCache(
+export function withQueryCache<TReq extends Request>(
   kind: string,
   ttlMs: number,
-  handler: RouteHandler,
+  handler: RouteHandler<TReq>,
   opts?: CacheOpts<unknown>,
-): RouteHandler {
-  return async (req: Request): Promise<NextResponse> => {
+): RouteHandler<TReq> {
+  return async (req: TReq): Promise<NextResponse> => {
     const url = new URL(req.url);
     const entries = [...url.searchParams.entries()].sort(([a], [b]) => a.localeCompare(b));
     const qs = entries.map(([k, v]) => `${k}=${v}`).join('&');
