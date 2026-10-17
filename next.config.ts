@@ -7,10 +7,11 @@ const nextConfig: NextConfig = {
   typescript: {
     ignoreBuildErrors: true,
   },
+  // No component uses next/image, so the /_next/image optimizer is turned off.
+  // It previously allowed any https host, which made it an open fetch proxy
+  // and exposed Next's image-optimizer SSRF/RCE advisories.
   images: {
-    remotePatterns: [
-      { protocol: 'https', hostname: '**' },
-    ],
+    unoptimized: true,
   },
   async headers() {
     return [
