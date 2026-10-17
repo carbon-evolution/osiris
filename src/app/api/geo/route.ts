@@ -43,11 +43,19 @@ export async function GET(request: NextRequest) {
       request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ||
       '';
 
-    // Vercel injects these headers at the edge. This is the fastest and most
-    // reliable production path and avoids external API quotas entirely.
-    const vercelLat = Number(request.headers.get('x-vercel-ip-latitude'));
-    const vercelLon = Number(request.headers.get('x-vercel-ip-longitude'));
-    if (Number.isFinite(vercelLat) && Number.isFinite(vercelLon)) {
+    // Vercel injects these headers at the edge. Require both raw headers before
+    // parsing them: Number(null) is 0, which would otherwise create a false
+    // (0, 0) location when the headers are absent.
+    const vercelLatHeader = request.headers.get('x-vercel-ip-latitude');
+    const vercelLonHeader = request.headers.get('x-vercel-ip-longitude');
+    const vercelLat = vercelLatHeader === null ? Number.NaN : Number(vercelLatHeader);
+    const vercelLon = vercelLonHeader === null ? Number.NaN : Number(vercelLonHeader);
+    if (
+      vercelLatHeader !== null &&
+      vercelLonHeader !== null &&
+      Number.isFinite(vercelLat) &&
+      Number.isFinite(vercelLon)
+    ) {
       return json({
         status: 'success',
         query: clientIp || 'local',
