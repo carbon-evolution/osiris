@@ -4,6 +4,10 @@ import { safeFetch } from '@/lib/ssrf-guard';
 export const dynamic = 'force-dynamic';
 
 const ALLOWED_DOMAINS = [
+  // Denmark — legacy public HTTP snapshot cameras
+  '87.56.55.165',        // Skagen Lystbådehavn
+  'glider.dk',            // Nordsjællands Svæveflyveklub
+  'lemvig.com',           // Lemvig Flyveplads
   // Taiwan — National Freeway (國道) MJPEG hosts
   'cctvn.freeway.gov.tw',
   'cctvc.freeway.gov.tw',
@@ -156,7 +160,7 @@ export async function GET(req: Request) {
       return NextResponse.json({ error: 'no frame' }, { status: 502 });
     }
 
-    return new NextResponse(frame, {
+    return new NextResponse(new Uint8Array(frame), {
       headers: {
         'Content-Type': 'image/jpeg',
         'Cache-Control': 'no-cache, no-store, must-revalidate',
