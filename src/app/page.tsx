@@ -202,7 +202,6 @@ export default function Dashboard() {
   const [showLayers, setShowLayers] = useState(true);
   const [showMarkets, setShowMarkets] = useState(false);
   const [showAlerts, setShowAlerts] = useState(false);
-  const [, setShowScmPanel] = useState(true);
   const [showIntel, setShowIntel] = useState(false);
   const [showCyberIntel, setShowCyberIntel] = useState(false);
   const [showLocalIntel, setShowLocalIntel] = useState(false);
@@ -354,7 +353,6 @@ export default function Dashboard() {
       }
       if (e.key === 'l') setShowLayers(p => !p);
       if (e.key === 'm') setShowMarkets(p => !p);
-      if (e.key === 'c') setShowScmPanel(p => !p);
       if (e.key === 'i') setShowIntel(p => !p);
       if (e.key === 'r') setFlyToLocation({ lat: 20, lng: 0, ts: Date.now() });
       if (e.key === 'g') setMapProjection(p => p === 'globe' ? 'mercator' : 'globe');
