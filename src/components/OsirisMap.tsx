@@ -12,6 +12,7 @@ import {
   VESSEL_TYPES, VESSEL_FALLBACK, vesselColor,
 } from './mapMarkers';
 import { flagFromMmsi, aisTypeLabel } from '@/lib/maritime/vesselMeta';
+import { escDeep, parseEsc, jsArg, safeUrl } from '@/lib/htmlSafety';
 
 // MapLibre `match` expression: vessel type → colour (shared with legend/popup).
 const SHIP_COLOR_MATCH = [
@@ -1006,10 +1007,13 @@ map.addSource('mitre-nodes', { type: 'geojson', data: EMPTY_FC });
     ['fl-commercial','fl-private','fl-jets','fl-military'].forEach(layer => {
       map.on('click', layer, e => {
         if (!e.features?.length) return;
-        const p = e.features[0].properties as any;
+        const raw = e.features[0].properties as any;
+        const p = escDeep(raw);
         const coords = (e.features[0].geometry as any).coordinates;
         const cs = (p.callsign||'').trim();
         const icao24 = (p.icao24||'').trim();
+        const csRaw = (raw.callsign||'').trim();
+        const icaoRaw = (raw.icao24||'').trim();
         const showPopup = (extra: string) => popup(coords, `<div style="${pStyle}border:1px solid rgba(26,115,232,0.3);">
           <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
             <span style="color:#1A73E8;font-size:16px;font-weight:700;letter-spacing:0.1em;">${cs}</span>
@@ -1030,8 +1034,8 @@ map.addSource('mitre-nodes', { type: 'geojson', data: EMPTY_FC });
             <a href="https://www.radarbox.com/data/flights/${cs}" target="_blank" style="${linkStyle}color:#FF69B4;border:1px solid rgba(255,105,180,0.4);background:rgba(255,105,180,0.1);">📍 RADARBOX</a>
           </div>
           <div style="margin-top:8px;display:flex;gap:6px;">
-            <button onclick="window.openOsirisIntel({ callsign: '${cs}', icao24: '${icao24}', model: '${p.model||''}', registration: '${p.registration||''}' })" style="flex:1;padding:6px 12px;background:rgba(26,115,232,0.15);border:1px solid rgba(26,115,232,0.5);color:#1A73E8;font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:bold;letter-spacing:0.1em;border-radius:4px;cursor:pointer;">[ INTEL ]</button>
-            <button onclick="window.showFlightTrack('${icao24}', '${cs}')" style="flex:1;padding:6px 12px;background:rgba(0,230,118,0.15);border:1px solid rgba(0,230,118,0.5);color:#00E676;font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:bold;letter-spacing:0.1em;border-radius:4px;cursor:pointer;">[ TRACK ]</button>
+            <button onclick="window.openOsirisIntel(${jsArg({ callsign: csRaw, icao24: icaoRaw, model: raw.model || '', registration: raw.registration || '' })})" style="flex:1;padding:6px 12px;background:rgba(26,115,232,0.15);border:1px solid rgba(26,115,232,0.5);color:#1A73E8;font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:bold;letter-spacing:0.1em;border-radius:4px;cursor:pointer;">[ INTEL ]</button>
+            <button onclick="window.showFlightTrack(${jsArg(icaoRaw)}, ${jsArg(csRaw)})" style="flex:1;padding:6px 12px;background:rgba(0,230,118,0.15);border:1px solid rgba(0,230,118,0.5);color:#00E676;font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:bold;letter-spacing:0.1em;border-radius:4px;cursor:pointer;">[ TRACK ]</button>
           </div>
         </div>`);
 
@@ -1042,20 +1046,21 @@ map.addSource('mitre-nodes', { type: 'geojson', data: EMPTY_FC });
         </div>`);
 
         // ── Enrichment fetch ──
-        const cacheKey = `${cs}|${icao24}`;
+        const cacheKey = `${csRaw}|${icaoRaw}`;
         const cached = enrichmentCache.get(cacheKey);
         const enrichmentPromise = cached
           ? Promise.resolve(cached)
-          : fetch(`/api/flight/enrich?callsign=${encodeURIComponent(cs)}&icao24=${icao24}`, { cache: 'no-store' })
+          : fetch(`/api/flight/enrich?callsign=${encodeURIComponent(csRaw)}&icao24=${encodeURIComponent(icaoRaw)}`, { cache: 'no-store' })
               .then(r => r.ok ? r.json() : null)
               .catch(() => null);
 
-        enrichmentPromise.then(data => {
-          if (!data) {
+        enrichmentPromise.then(rawData => {
+          if (!rawData) {
             showPopup(`<div style="font-size:9px;color:#6F8092;margin-bottom:6px;">ROUTE: NOT FOUND</div>`);
             return;
           }
-          enrichmentCache.set(cacheKey, data);
+          enrichmentCache.set(cacheKey, rawData);
+          const data = escDeep(rawData);
 
           const r = data.route;
           const ac = data.aircraft;
@@ -1134,7 +1139,8 @@ map.addSource('mitre-nodes', { type: 'geojson', data: EMPTY_FC });
     // ── CCTV (metadata popup + opens CameraViewer panel) ──
     map.on('click', 'cctv-dots', e => {
       if (!e.features?.length) return;
-      const p = e.features[0].properties as any;
+      const raw = e.features[0].properties as any;
+      const p = escDeep(raw);
       const coords = (e.features[0].geometry as any).coordinates;
       const dotColor = '#7E57C2';
       const streamType = p.stream_type || 'jpg';
@@ -1152,7 +1158,7 @@ map.addSource('mitre-nodes', { type: 'geojson', data: EMPTY_FC });
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:10px;background:rgba(60,64,67,0.06);padding:6px;border-radius:4px;">
           ${camMeta}
         </div>
-        <button onclick="window.openOsirisIntel({ type: 'cctv', id: '${p.id}', name: '${p.name?.replace(/'/g, '\\\'') || ''}', city: '${p.city || ''}', country: '${p.country || ''}', source: '${p.source || ''}', feed_url: '${p.feed_url || ''}', stream_url: '${p.stream_url || ''}', stream_type: '${p.stream_type || ''}', external_url: '${p.external_url || ''}', lat: ${coords[1]}, lng: ${coords[0]} })" style="width:100%;padding:7px 12px;background:linear-gradient(90deg,${dotColor}15 0%,${dotColor}25 100%);border:1px solid ${dotColor}80;color:${dotColor};font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:bold;letter-spacing:0.15em;border-radius:4px;cursor:pointer;">OPEN FEED</button>
+        <button onclick="window.openOsirisIntel(${jsArg({ type: 'cctv', id: String(raw.id), name: raw.name || '', city: raw.city || '', country: raw.country || '', source: raw.source || '', feed_url: raw.feed_url || '', stream_url: raw.stream_url || '', stream_type: raw.stream_type || '', external_url: raw.external_url || '', lat: coords[1], lng: coords[0] })})" style="width:100%;padding:7px 12px;background:linear-gradient(90deg,${dotColor}15 0%,${dotColor}25 100%);border:1px solid ${dotColor}80;color:${dotColor};font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:bold;letter-spacing:0.15em;border-radius:4px;cursor:pointer;">OPEN FEED</button>
       </div>`);
       map.flyTo({ center: coords, zoom: Math.max(map.getZoom(), 13), duration: 1000 });
     });
@@ -1160,7 +1166,8 @@ map.addSource('mitre-nodes', { type: 'geojson', data: EMPTY_FC });
     // ── Earthquakes (with USGS link) ──
     map.on('click', 'eq-circles', e => {
       if (!e.features?.length) return;
-      const p = e.features[0].properties as any;
+      const raw = e.features[0].properties as any;
+      const p = escDeep(raw);
       const coords = (e.features[0].geometry as any).coordinates;
       popup(coords, `<div style="${pStyle}border:1px solid rgba(255,149,0,0.3);">
         <div style="color:#FF9500;font-size:14px;font-weight:700;margin-bottom:4px;">M${p.magnitude} EARTHQUAKE</div>
@@ -1170,7 +1177,7 @@ map.addSource('mitre-nodes', { type: 'geojson', data: EMPTY_FC });
           <div><span style="color:#6F8092;">COORDS</span><br/><span style="color:#1E293B;">${coords[1].toFixed(3)}, ${coords[0].toFixed(3)}</span></div>
           <div><span style="color:#6F8092;">SOURCE</span><br/><span style="color:#FFB74D;">${p.source||'USGS'}</span></div>
         </div>
-        ${p.url ? `<a href="${p.url}" target="_blank" style="${linkStyle}color:#FF9500;border:1px solid rgba(255,149,0,0.4);background:rgba(255,149,0,0.1);">📊 ${p.source||'USGS'} DETAILS</a>` : ''}
+        ${p.url ? `<a href="${safeUrl(raw.url)}" target="_blank" style="${linkStyle}color:#FF9500;border:1px solid rgba(255,149,0,0.4);background:rgba(255,149,0,0.1);">📊 ${p.source||'USGS'} DETAILS</a>` : ''}
       </div>`);
     });
 
@@ -1178,7 +1185,8 @@ map.addSource('mitre-nodes', { type: 'geojson', data: EMPTY_FC });
     const enrichCache = new Map<string, any>();
     map.on('click', 'sat-dots', e => {
       if (!e.features?.length) return;
-      const p = e.features[0].properties as any;
+      const raw = e.features[0].properties as any;
+      const p = escDeep(raw);
       const coords = (e.features[0].geometry as any).coordinates;
       const noradId = p.noradId || '';
       const satName = p.name || 'Unknown';
@@ -1218,13 +1226,14 @@ map.addSource('mitre-nodes', { type: 'geojson', data: EMPTY_FC });
             .then(r => r.ok ? r.json() : null)
             .catch(() => null);
 
-      promise.then(data => {
-        if (!data) {
+      promise.then(rawData => {
+        if (!rawData) {
           showPopup(`<div style="color:#1A73E8;font-size:13px;font-weight:700;letter-spacing:0.1em;margin-bottom:6px;">🛰️ ${satName}${noradId ? ' <span style="color:#6F8092;font-size:9px;font-weight:400;">NORAD: '+noradId+'</span>' : ''}</div>
             <div style="font-size:9px;color:#6F8092;margin-bottom:6px;">ENRICHMENT NOT FOUND</div>`);
           return;
         }
-        enrichCache.set(noradId, data);
+        enrichCache.set(noradId, rawData);
+        const data = escDeep(rawData);
 
         const sat = data.satellite;
         const txs: any[] = data.transmitters || [];
@@ -1304,7 +1313,7 @@ map.addSource('mitre-nodes', { type: 'geojson', data: EMPTY_FC });
 
         // Website link
         const webHtml = sat?.website
-          ? `<a href="${sat.website}" target="_blank" style="display:inline-block;margin-top:6px;padding:3px 8px;font-size:8px;color:#1A73E8;border:1px solid rgba(26,115,232,0.4);background:rgba(26,115,232,0.1);border-radius:4px;text-decoration:none;font-family:'JetBrains Mono',monospace;">🌐 OFFICIAL SITE</a>`
+          ? `<a href="${safeUrl(rawData.satellite?.website)}" target="_blank" style="display:inline-block;margin-top:6px;padding:3px 8px;font-size:8px;color:#1A73E8;border:1px solid rgba(26,115,232,0.4);background:rgba(26,115,232,0.1);border-radius:4px;text-decoration:none;font-family:'JetBrains Mono',monospace;">🌐 OFFICIAL SITE</a>`
           : '';
 
         showPopup(headerHtml + metaHtml + orbitalHtml + txHtml + webHtml);
@@ -1314,7 +1323,8 @@ map.addSource('mitre-nodes', { type: 'geojson', data: EMPTY_FC });
     // ── Fires (with NASA FIRMS link) ──
     map.on('click', 'fires-heat', e => {
       if (!e.features?.length) return;
-      const p = e.features[0].properties as any;
+      const raw = e.features[0].properties as any;
+      const p = escDeep(raw);
       const coords = (e.features[0].geometry as any).coordinates;
       const isVolcano = p.type === 'volcano';
       popup(coords, `<div style="${pStyle}border:1px solid rgba(255,107,0,0.3);">
@@ -1333,7 +1343,8 @@ map.addSource('mitre-nodes', { type: 'geojson', data: EMPTY_FC });
     // ── Malware Threats (Abuse.ch) ──
     map.on('click', 'malware-dots', e => {
       if (!e.features?.length) return;
-      const p = e.features[0].properties as any;
+      const raw = e.features[0].properties as any;
+      const p = escDeep(raw);
       const coords = (e.features[0].geometry as any).coordinates;
       const tType = (p.threat_type || 'MALWARE').toUpperCase();
       const statusColor = p.status === 'online' ? '#39FF14' : '#FF1744';
@@ -1351,14 +1362,15 @@ map.addSource('mitre-nodes', { type: 'geojson', data: EMPTY_FC });
         <div style="display:flex;gap:6px;">
           <a href="https://feodotracker.abuse.ch/browse/" target="_blank" style="${linkStyle}flex:1;text-align:center;color:#1E293B;border:1px solid rgba(255,255,255,0.2);background:rgba(255,255,255,0.05);">THREAT INTEL ↗</a>
         </div>
-        <button onclick="window.openOsirisIntel({ type: 'ip', ip: '${p.ip}', threat_type: '${p.malware || p.threat_type || ''}', status: '${p.status || ''}' })" style="width:100%;margin-top:8px;padding:8px 12px;background:linear-gradient(90deg, rgba(255,23,68,0.1) 0%, rgba(255,23,68,0.2) 100%);border:1px solid rgba(255,23,68,0.6);color:#FF1744;font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:bold;letter-spacing:0.15em;border-radius:4px;cursor:pointer;transition:all 0.2s;">DEEP DIVE ANALYTICS</button>
+        <button onclick="window.openOsirisIntel(${jsArg({ type: 'ip', ip: String(raw.ip), threat_type: raw.malware || raw.threat_type || '', status: raw.status || '' })})" style="width:100%;margin-top:8px;padding:8px 12px;background:linear-gradient(90deg, rgba(255,23,68,0.1) 0%, rgba(255,23,68,0.2) 100%);border:1px solid rgba(255,23,68,0.6);color:#FF1744;font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:bold;letter-spacing:0.15em;border-radius:4px;cursor:pointer;transition:all 0.2s;">DEEP DIVE ANALYTICS</button>
       </div>`);
     });
 
     // ── Threat Intel (Blocklist.de, SSL Blacklist, PhishTank) ──
     map.on('click', 'threat-intel-dots', e => {
       if (!e.features?.length) return;
-      const p = e.features[0].properties as any;
+      const raw = e.features[0].properties as any;
+      const p = escDeep(raw);
       const coords = (e.features[0].geometry as any).coordinates;
       const tType = (p.threat_type || 'THREAT').toUpperCase();
       const dotColor = tType.includes('BLOCKLIST') ? '#FF6D00' : tType.includes('SSL') ? '#FF1744' : '#AA00FF';
@@ -1373,14 +1385,15 @@ map.addSource('mitre-nodes', { type: 'geojson', data: EMPTY_FC });
           <div><span style="color:#6F8092;">STATUS</span><br/><span style="color:#39FF14;">ACTIVE</span></div>
         </div>
         ${p.url ? `<div style="font-size:9px;margin-bottom:8px;word-break:break-all;"><span style="color:#6F8092;">URL</span><br/><span style="color:#1E293B;">${p.url}</span></div>` : ''}
-        <button onclick="window.openOsirisIntel({ type: 'ip', ip: '${p.ip}', threat_type: '${p.threat_type || ''}', status: 'active' })" style="width:100%;margin-top:8px;padding:8px 12px;background:linear-gradient(90deg, ${dotColor}15 0%, ${dotColor}25 100%);border:1px solid ${dotColor}80;color:${dotColor};font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:bold;letter-spacing:0.15em;border-radius:4px;cursor:pointer;transition:all 0.2s;">DEEP DIVE ANALYTICS</button>
+        <button onclick="window.openOsirisIntel(${jsArg({ type: 'ip', ip: String(raw.ip), threat_type: raw.threat_type || '', status: 'active' })})" style="width:100%;margin-top:8px;padding:8px 12px;background:linear-gradient(90deg, ${dotColor}15 0%, ${dotColor}25 100%);border:1px solid ${dotColor}80;color:${dotColor};font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:bold;letter-spacing:0.15em;border-radius:4px;cursor:pointer;transition:all 0.2s;">DEEP DIVE ANALYTICS</button>
       </div>`);
     });
 
     // ── Cyber Intel — Spamhaus DROP (Routing Intelligence) ──
     map.on('click', 'drop-dots', e => {
       if (!e.features?.length) return;
-      const p = e.features[0].properties as any;
+      const raw = e.features[0].properties as any;
+      const p = escDeep(raw);
       const coords = (e.features[0].geometry as any).coordinates;
       popup(coords, `<div style="${pStyle}border:1px solid #FF910040;box-shadow:inset 0 0 12px #FF910015;">
         <div style="display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid #FF910040;padding-bottom:6px;margin-bottom:8px;">
@@ -1392,14 +1405,15 @@ map.addSource('mitre-nodes', { type: 'geojson', data: EMPTY_FC });
           <div><span style="color:#6F8092;">SAMPLE IP</span><br/><span style="color:#39FF14;font-family:monospace;">${p.ip}</span></div>
         </div>
         <div style="font-size:9px;color:#6F8092;">Hostile network block tracked by Spamhaus DROP project</div>
-        <button onclick="window.openOsirisIntel({ type: 'ip', ip: '${p.ip}', threat_type: 'bgp_route', status: 'blocked' })" style="width:100%;margin-top:8px;padding:8px 12px;background:linear-gradient(90deg,#FF910015 0%,#FF910025 100%);border:1px solid #FF910080;color:#FF9100;font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:bold;letter-spacing:0.15em;border-radius:4px;cursor:pointer;transition:all 0.2s;">DEEP DIVE ANALYTICS</button>
+        <button onclick="window.openOsirisIntel(${jsArg({ type: 'ip', ip: String(raw.ip), threat_type: 'bgp_route', status: 'blocked' })})" style="width:100%;margin-top:8px;padding:8px 12px;background:linear-gradient(90deg,#FF910015 0%,#FF910025 100%);border:1px solid #FF910080;color:#FF9100;font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:bold;letter-spacing:0.15em;border-radius:4px;cursor:pointer;transition:all 0.2s;">DEEP DIVE ANALYTICS</button>
       </div>`);
     });
 
     // ── Cyber Intel — Tor Exit Nodes ──
     map.on('click', 'tor-dots', e => {
       if (!e.features?.length) return;
-      const p = e.features[0].properties as any;
+      const raw = e.features[0].properties as any;
+      const p = escDeep(raw);
       const coords = (e.features[0].geometry as any).coordinates;
       popup(coords, `<div style="${pStyle}border:1px solid #6D28D940;box-shadow:inset 0 0 12px #6D28D915;">
         <div style="display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid #6D28D940;padding-bottom:6px;margin-bottom:8px;">
@@ -1411,14 +1425,15 @@ map.addSource('mitre-nodes', { type: 'geojson', data: EMPTY_FC });
           <div><span style="color:#6F8092;">NETWORK</span><br/><span style="color:#39FF14;font-family:monospace;">TOR</span></div>
         </div>
         <div style="font-size:9px;color:#6F8092;">This IP is a known Tor exit relay — traffic originates from the Tor anonymity network</div>
-        <button onclick="window.openOsirisIntel({ type: 'ip', ip: '${p.ip}', threat_type: 'tor_exit', status: 'active' })" style="width:100%;margin-top:8px;padding:8px 12px;background:linear-gradient(90deg,#6D28D915 0%,#6D28D925 100%);border:1px solid #6D28D980;color:#6D28D9;font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:bold;letter-spacing:0.15em;border-radius:4px;cursor:pointer;transition:all 0.2s;">DEEP DIVE ANALYTICS</button>
+        <button onclick="window.openOsirisIntel(${jsArg({ type: 'ip', ip: String(raw.ip), threat_type: 'tor_exit', status: 'active' })})" style="width:100%;margin-top:8px;padding:8px 12px;background:linear-gradient(90deg,#6D28D915 0%,#6D28D925 100%);border:1px solid #6D28D980;color:#6D28D9;font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:bold;letter-spacing:0.15em;border-radius:4px;cursor:pointer;transition:all 0.2s;">DEEP DIVE ANALYTICS</button>
       </div>`);
     });
 
     // ── Cyber Intel — Active CVE Threats ──
     map.on('click', 'cve-dots', e => {
       if (!e.features?.length) return;
-      const p = e.features[0].properties as any;
+      const raw = e.features[0].properties as any;
+      const p = escDeep(raw);
       const coords = (e.features[0].geometry as any).coordinates;
       const cveColor = p.cvss >= 9 ? '#FF1744' : p.cvss >= 7 ? '#FF6D00' : p.cvss >= 4 ? '#FF9100' : '#1A73E8';
       popup(coords, `<div style="${pStyle}border:1px solid ${cveColor}40;box-shadow:inset 0 0 12px ${cveColor}15;">
@@ -1431,14 +1446,15 @@ map.addSource('mitre-nodes', { type: 'geojson', data: EMPTY_FC });
           <div><span style="color:#6F8092;">SEVERITY</span><br/><span style="color:${cveColor};font-weight:bold;">${p.severity}</span></div>
           <div><span style="color:#6F8092;">VENDORS</span><br/><span style="color:#39FF14;">${p.vendors || 'N/A'}</span></div>
         </div>
-        <button onclick="window.openOsirisIntel({ type: 'cve', id: '${p.title}', cvss: ${p.cvss}, severity: '${p.severity}' })" style="width:100%;margin-top:8px;padding:8px 12px;background:linear-gradient(90deg,${cveColor}15 0%,${cveColor}25 100%);border:1px solid ${cveColor}80;color:${cveColor};font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:bold;letter-spacing:0.15em;border-radius:4px;cursor:pointer;transition:all 0.2s;">DEEP DIVE ANALYTICS</button>
+        <button onclick="window.openOsirisIntel(${jsArg({ type: 'cve', id: String(raw.title), cvss: raw.cvss, severity: String(raw.severity) })})" style="width:100%;margin-top:8px;padding:8px 12px;background:linear-gradient(90deg,${cveColor}15 0%,${cveColor}25 100%);border:1px solid ${cveColor}80;color:${cveColor};font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:bold;letter-spacing:0.15em;border-radius:4px;cursor:pointer;transition:all 0.2s;">DEEP DIVE ANALYTICS</button>
       </div>`);
     });
 
     // ── Cyber Intel — MITRE ATT&CK (APT Groups) ──
     map.on('click', 'mitre-dots', e => {
       if (!e.features?.length) return;
-      const p = e.features[0].properties as any;
+      const raw = e.features[0].properties as any;
+      const p = escDeep(raw);
       const coords = (e.features[0].geometry as any).coordinates;
       const techIds = p.techniques?.length ? p.techniques.split(',') : [];
       const techNames = p.technique_names?.length ? p.technique_names.split('|') : [];
@@ -1466,7 +1482,7 @@ map.addSource('mitre-nodes', { type: 'geojson', data: EMPTY_FC });
         <div style="font-size:8px;color:#6F8092;text-transform:uppercase;letter-spacing:0.12em;margin-bottom:4px;">TECHNIQUES (${techIds.length})</div>
         ${techRows}
         <div style="border-top:1px solid #00E67620;margin-top:8px;padding-top:6px;">
-          <button onclick="window.openOsirisIntel({ type: 'apt', group: '${p.name}', group_id: '${p.group_id}', country: '${p.country}', techniques: '${p.techniques || ''}' })" style="width:100%;padding:7px 12px;background:linear-gradient(90deg,#00E67615 0%,#00E67625 100%);border:1px solid #00E67680;color:#00E676;font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:bold;letter-spacing:0.15em;border-radius:4px;cursor:pointer;">DEEP DIVE ANALYTICS</button>
+          <button onclick="window.openOsirisIntel(${jsArg({ type: 'apt', group: String(raw.name), group_id: String(raw.group_id), country: String(raw.country), techniques: raw.techniques || '' })})" style="width:100%;padding:7px 12px;background:linear-gradient(90deg,#00E67615 0%,#00E67625 100%);border:1px solid #00E67680;color:#00E676;font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:bold;letter-spacing:0.15em;border-radius:4px;cursor:pointer;">DEEP DIVE ANALYTICS</button>
         </div>
       </div>`);
     });
@@ -1474,11 +1490,12 @@ map.addSource('mitre-nodes', { type: 'geojson', data: EMPTY_FC });
     // ── GDELT Conflicts (with source article) ──
     map.on('click', 'gdelt-dots', e => {
       if (!e.features?.length) return;
-      const p = e.features[0].properties as any;
+      const raw = e.features[0].properties as any;
+      const p = escDeep(raw);
       const coords = (e.features[0].geometry as any).coordinates;
       
       // Map coordinates to Liveuamap regions
-      let sourceUrl = p.url || '';
+      let sourceUrl = raw.url || '';
       if (!sourceUrl || sourceUrl.includes('google.com')) {
         const [lng, lat] = coords;
         if (lat > 44 && lat < 53 && lng > 22 && lng < 40) sourceUrl = 'https://liveuamap.com/'; // Ukraine
@@ -1507,14 +1524,15 @@ map.addSource('mitre-nodes', { type: 'geojson', data: EMPTY_FC });
             : `<div><span style="color:#6F8092;">REPORTS</span><br/><span style="color:#FF8A80;">${p.count||1}</span></div>
                <div><span style="color:#6F8092;">COORDS</span><br/><span style="color:#1E293B;">${coords[1].toFixed(2)}°, ${coords[0].toFixed(2)}°</span></div>`}
         </div>
-        <a href="${sourceUrl}" target="_blank" style="${linkStyle}flex:1;text-align:center;color:#FF3D3D;border:1px solid rgba(255,61,61,0.4);background:rgba(255,61,61,0.15);display:inline-block;width:100%;box-sizing:border-box;margin-top:4px;">[ ${p.source === 'ACLED' ? 'ACLED RECORD' : isLiveua ? 'LIVEUAMAP' : 'OPEN SOURCE'} ↗ ]</a>
+        <a href="${safeUrl(sourceUrl)}" target="_blank" style="${linkStyle}flex:1;text-align:center;color:#FF3D3D;border:1px solid rgba(255,61,61,0.4);background:rgba(255,61,61,0.15);display:inline-block;width:100%;box-sizing:border-box;margin-top:4px;">[ ${p.source === 'ACLED' ? 'ACLED RECORD' : isLiveua ? 'LIVEUAMAP' : 'OPEN SOURCE'} ↗ ]</a>
       </div>`);
     });
 
     // ── Global Event / Conflict Markers ──
     map.on('click', 'conflict-icons', e => {
       if (!e.features?.length) return;
-      const p = e.features[0].properties as any;
+      const raw = e.features[0].properties as any;
+      const p = escDeep(raw);
       const coords = (e.features[0].geometry as any).coordinates;
       const color = p.severity === 'war' ? '#FF1744' : p.severity === 'high' ? '#FF9500' : '#FFD500';
       popup(coords, `<div style="${pStyle}border:1px solid ${color}40;">
@@ -1524,7 +1542,7 @@ map.addSource('mitre-nodes', { type: 'geojson', data: EMPTY_FC });
           <div><span style="color:#6F8092;">SEVERITY</span><br/><span style="color:${color};">${(p.severity||'unknown').toUpperCase()}</span></div>
           <div><span style="color:#6F8092;">COORDS</span><br/><span style="color:#1E293B;">${coords[1].toFixed(3)}°, ${coords[0].toFixed(3)}°</span></div>
         </div>
-        ${p.sourceUrl ? `<a href="${p.sourceUrl}" target="_blank" style="${linkStyle}flex:1;text-align:center;color:${color};border:1px solid ${color}40;background:${color}15;display:inline-block;width:100%;box-sizing:border-box;margin-top:4px;">[ OPEN SOURCE ↗ ]</a>` : ''}
+        ${p.sourceUrl ? `<a href="${safeUrl(raw.sourceUrl)}" target="_blank" style="${linkStyle}flex:1;text-align:center;color:${color};border:1px solid ${color}40;background:${color}15;display:inline-block;width:100%;box-sizing:border-box;margin-top:4px;">[ OPEN SOURCE ↗ ]</a>` : ''}
       </div>`);
     });
 
@@ -1537,7 +1555,8 @@ map.addSource('mitre-nodes', { type: 'geojson', data: EMPTY_FC });
 
     // ── Scan Targets click ──
     map.on('click', 'scan-targets-dots', (e: any) => {
-      const p = e.features?.[0]?.properties;
+      const raw = e.features?.[0]?.properties;
+      const p = raw && escDeep(raw);
       if (!p) return;
       const coords = e.features[0].geometry.coordinates.slice();
       popup(coords, `<div style="${pStyle}border:1px solid rgba(255,61,61,0.5);">
@@ -1547,17 +1566,18 @@ map.addSource('mitre-nodes', { type: 'geojson', data: EMPTY_FC });
           <div><span style="color:#6F8092;">TYPE</span><br/><span style="color:#1A73E8;">${(p.type || 'UNKNOWN').toUpperCase()}</span></div>
           <div><span style="color:#6F8092;">COORDS</span><br/><span style="color:#1E293B;">${coords[1].toFixed(3)}°, ${coords[0].toFixed(3)}°</span></div>
         </div>
-        <button onclick="window.openOsirisIntel({ type: 'ip', ip: '${p.id}' })" style="width:100%;margin-top:8px;padding:6px 12px;background:rgba(255,109,0,0.15);border:1px solid rgba(255,109,0,0.5);color:#FF6D00;font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:bold;letter-spacing:0.1em;border-radius:4px;cursor:pointer;">[ IP INTEL DEEP DIVE ]</button>
+        <button onclick="window.openOsirisIntel(${jsArg({ type: 'ip', ip: String(raw.id) })})" style="width:100%;margin-top:8px;padding:6px 12px;background:rgba(255,109,0,0.15);border:1px solid rgba(255,109,0,0.5);color:#FF6D00;font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:bold;letter-spacing:0.1em;border-radius:4px;cursor:pointer;">[ IP INTEL DEEP DIVE ]</button>
       </div>`);
     });
 
     // ── SCM Suppliers ──
     map.on('click', 'scm-dots', e => {
       if (!e.features?.length) return;
-      const p = e.features[0].properties as any;
+      const raw = e.features[0].properties as any;
+      const p = escDeep(raw);
       const coords = (e.features[0].geometry as any).coordinates;
       const color = p.risk_level === 'CRITICAL' ? '#FF1744' : p.risk_level === 'HIGH' ? '#FF9500' : '#00BCD4';
-      const activeThreats = p.active_threats ? JSON.parse(p.active_threats) : [];
+      const activeThreats = p.active_threats ? parseEsc<string[]>(raw.active_threats) : [];
       
       let threatsHtml = '';
       if (activeThreats.length > 0) {
@@ -1578,12 +1598,13 @@ map.addSource('mitre-nodes', { type: 'geojson', data: EMPTY_FC });
 
     // ── IP Sweep device click ──
     map.on('click', 'sweep-device-dots', (e: any) => {
-      const p = e.features?.[0]?.properties;
+      const raw = e.features?.[0]?.properties;
+      const p = raw && escDeep(raw);
       if (!p) return;
       const coords = e.features[0].geometry.coordinates.slice();
-      const ports = JSON.parse(p.ports || '[]');
-      const vulns = JSON.parse(p.vulns || '[]');
-      const hostnames = JSON.parse(p.hostnames || '[]');
+      const ports = parseEsc<number[]>(raw.ports || '[]');
+      const vulns = parseEsc<string[]>(raw.vulns || '[]');
+      const hostnames = parseEsc<string[]>(raw.hostnames || '[]');
       const riskColors: Record<string, string> = { CRITICAL: '#FF3D3D', HIGH: '#FF6B00', MEDIUM: '#FFD700', LOW: '#76FF03', INFO: '#6F8092' };
       popup(coords, `<div style="font-family:monospace;font-size:11px;color:#1E293B;">
         <div style="font-size:13px;font-weight:bold;margin-bottom:6px;color:${p.color};">${p.device_type}</div>
@@ -1595,14 +1616,15 @@ map.addSource('mitre-nodes', { type: 'geojson', data: EMPTY_FC });
         </div>
         <div style="font-size:9px;color:#8A8880;margin-bottom:6px;">Open: ${ports.slice(0, 12).join(', ')}${ports.length > 12 ? ' ...' : ''}</div>
         ${vulns.length > 0 ? `<div style="font-size:9px;color:#FF3D3D;margin-bottom:6px;">⚠ CVEs: ${vulns.slice(0, 5).join(', ')}${vulns.length > 5 ? ` +${vulns.length - 5} more` : ''}</div>` : ''}
-        <button onclick="window.openOsirisIntel({ type: 'ip', ip: '${p.ip}' })" style="width:100%;margin-top:6px;padding:6px 12px;background:rgba(255,109,0,0.15);border:1px solid rgba(255,109,0,0.5);color:#FF6D00;font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:bold;letter-spacing:0.1em;border-radius:4px;cursor:pointer;">[ IP INTEL DEEP DIVE ]</button>
+        <button onclick="window.openOsirisIntel(${jsArg({ type: 'ip', ip: String(raw.ip) })})" style="width:100%;margin-top:6px;padding:6px 12px;background:rgba(255,109,0,0.15);border:1px solid rgba(255,109,0,0.5);color:#FF6D00;font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:bold;letter-spacing:0.1em;border-radius:4px;cursor:pointer;">[ IP INTEL DEEP DIVE ]</button>
       </div>`);
     });
 
     // ── Balloons / Sondes ──
     map.on('click', 'balloon-dots', e => {
       if (!e.features?.length) return;
-      const p = e.features[0].properties as any;
+      const raw = e.features[0].properties as any;
+      const p = escDeep(raw);
       const coords = (e.features[0].geometry as any).coordinates;
       popup(coords, `<div style="${pStyle}border:1px solid ${p.color}40;">
         <div style="color:${p.color};font-size:12px;font-weight:700;letter-spacing:0.1em;margin-bottom:4px;">🎈 ${p.callsign}</div>
@@ -1619,7 +1641,8 @@ map.addSource('mitre-nodes', { type: 'geojson', data: EMPTY_FC });
     // ── Radiation ──
     map.on('click', 'rad-dots', e => {
       if (!e.features?.length) return;
-      const p = e.features[0].properties as any;
+      const raw = e.features[0].properties as any;
+      const p = escDeep(raw);
       const coords = (e.features[0].geometry as any).coordinates;
       const color = p.status === 'DANGER' ? '#FF1744' : p.status === 'WARNING' ? '#FF9500' : '#AB47BC';
       popup(coords, `<div style="${pStyle}border:1px solid ${color}40;">
@@ -1636,7 +1659,8 @@ map.addSource('mitre-nodes', { type: 'geojson', data: EMPTY_FC });
     // ── Maritime Ships ──
     map.on('click', 'ship-dots', e => {
       if (!e.features?.length) return;
-      const p = e.features[0].properties as any;
+      const raw = e.features[0].properties as any;
+      const p = escDeep(raw);
       const coords = (e.features[0].geometry as any).coordinates;
       const color = vesselColor(p.type);
       const icon = p.type === 'military' ? '⚔️' : p.type === 'tanker' ? '🛢️' : p.type === 'container' ? '📦' : p.type === 'passenger' ? '🛳️' : '🚢';
@@ -1703,7 +1727,8 @@ map.addSource('mitre-nodes', { type: 'geojson', data: EMPTY_FC });
     // ── Weather Events (NASA EONET) ──
     map.on('click', 'weather-dots', e => {
       if (!e.features?.length) return;
-      const p = e.features[0].properties as any;
+      const raw = e.features[0].properties as any;
+      const p = escDeep(raw);
       const coords = (e.features[0].geometry as any).coordinates;
       const iconEmoji = p.icon === 'cyclone' ? '🌀' : p.icon === 'volcano' ? '🌋' : p.icon === 'flood' ? '🌊' : p.icon === 'drought' ? '🏜️' : p.icon === 'tsunami' ? '🌊' : '⚡';
       const sevColor = p.severity === 'high' ? '#FF1744' : p.severity === 'medium' ? '#FF9500' : '#FFD700';
@@ -1717,14 +1742,15 @@ map.addSource('mitre-nodes', { type: 'geojson', data: EMPTY_FC });
           <div><span style="color:#6F8092;">SEVERITY</span><br/><span style="color:${sevColor};">${(p.severity||'low').toUpperCase()}</span></div>
           ${p.area ? `<div><span style="color:#6F8092;">AREA</span><br/><span style="color:#1E293B;">${p.area}</span></div>` : `<div><span style="color:#6F8092;">COORDS</span><br/><span style="color:#1E293B;">${coords[1].toFixed(2)}°, ${coords[0].toFixed(2)}°</span></div>`}
         </div>
-        ${p.source ? `<a href="${p.source}" target="_blank" style="${linkStyle}color:#C026D3;border:1px solid rgba(224,64,251,0.4);background:rgba(224,64,251,0.1);display:inline-block;width:100%;box-sizing:border-box;text-align:center;">📡 ${p.provider || 'SOURCE'} ↗</a>` : ''}
+        ${p.source ? `<a href="${safeUrl(raw.source)}" target="_blank" style="${linkStyle}color:#C026D3;border:1px solid rgba(224,64,251,0.4);background:rgba(224,64,251,0.1);display:inline-block;width:100%;box-sizing:border-box;text-align:center;">📡 ${p.provider || 'SOURCE'} ↗</a>` : ''}
       </div>`);
     });
 
     // ── Nuclear Infrastructure ──
     map.on('click', 'infra-dots', e => {
       if (!e.features?.length) return;
-      const p = e.features[0].properties as any;
+      const raw = e.features[0].properties as any;
+      const p = escDeep(raw);
       const coords = (e.features[0].geometry as any).coordinates;
       const statusColor = p.status.includes('SEISMIC RISK') ? '#FF9500' : p.status === 'Active Conflict Zone' ? '#FF1744' : p.status === 'Operational' ? '#76FF03' : '#757575';
       popup(coords, `<div style="${pStyle}border:1px solid rgba(118,255,3,0.3);">
@@ -1743,7 +1769,8 @@ map.addSource('mitre-nodes', { type: 'geojson', data: EMPTY_FC });
 
     // ── Maritime Ports & Naval Bases ──
     map.on('click', 'maritime-dots', e => {
-      const p = e.features?.[0]?.properties;
+      const raw = e.features?.[0]?.properties;
+      const p = raw && escDeep(raw);
       if (!p) return;
       const coords = (e.features![0].geometry as any).coordinates;
       const typeColor = p.type === 'naval' ? '#FF3D3D' : p.type === 'energy' ? '#FF9500' : '#00BCD4';
@@ -1769,7 +1796,8 @@ map.addSource('mitre-nodes', { type: 'geojson', data: EMPTY_FC });
 
     // ── Maritime Chokepoints ──
     map.on('click', 'choke-dots', e => {
-      const p = e.features?.[0]?.properties;
+      const raw = e.features?.[0]?.properties;
+      const p = raw && escDeep(raw);
       if (!p) return;
       const coords = (e.features![0].geometry as any).coordinates;
       const riskCol = p.risk === 'CRITICAL' ? '#FF1744' : p.risk === 'HIGH' ? '#FF9500' : p.risk === 'ELEVATED' ? '#FFD700' : '#00E676';
@@ -1798,7 +1826,8 @@ map.addSource('mitre-nodes', { type: 'geojson', data: EMPTY_FC });
     // ── Ransomware Victims (Ransomware.live) ──
     map.on('click', 'ransomware-dots', e => {
       if (!e.features?.length) return;
-      const p = e.features[0].properties as any;
+      const raw = e.features[0].properties as any;
+      const p = escDeep(raw);
       const coords = (e.features[0].geometry as any).coordinates;
       popup(coords, `<div style="${pStyle}border:1px solid rgba(255,23,68,0.4);box-shadow:inset 0 0 12px rgba(255,23,68,0.1);">
         <div style="display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid rgba(255,23,68,0.3);padding-bottom:6px;margin-bottom:8px;">
@@ -1814,15 +1843,16 @@ map.addSource('mitre-nodes', { type: 'geojson', data: EMPTY_FC });
         </div>
         ${p.revenue ? `<div style="font-size:9px;color:#6F8092;margin-bottom:4px;">Revenue: <span style="color:#1A73E8;">$${Number(p.revenue).toLocaleString()}</span></div>` : ''}
         ${p.employees ? `<div style="font-size:9px;color:#6F8092;margin-bottom:4px;">Employees: <span style="color:#1E293B;">${Number(p.employees).toLocaleString()}</span></div>` : ''}
-        ${p.website ? `<a href="${p.website}" target="_blank" style="${linkStyle}color:#FF1744;border:1px solid rgba(255,23,68,0.4);background:rgba(255,23,68,0.1);">LEAK SITE ↗</a>` : ''}
-        <button onclick="window.openOsirisIntel({ type: 'ip', ip: '${p.group_name || ''}', threat_type: 'ransomware', status: 'active' })" style="width:100%;margin-top:8px;padding:8px 12px;background:linear-gradient(90deg, rgba(255,23,68,0.1) 0%, rgba(255,23,68,0.2) 100%);border:1px solid rgba(255,23,68,0.6);color:#FF1744;font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:bold;letter-spacing:0.15em;border-radius:4px;cursor:pointer;transition:all 0.2s;">DEEP DIVE ANALYTICS</button>
+        ${p.website ? `<a href="${safeUrl(raw.website)}" target="_blank" style="${linkStyle}color:#FF1744;border:1px solid rgba(255,23,68,0.4);background:rgba(255,23,68,0.1);">LEAK SITE ↗</a>` : ''}
+        <button onclick="window.openOsirisIntel(${jsArg({ type: 'ip', ip: raw.group_name || '', threat_type: 'ransomware', status: 'active' })})" style="width:100%;margin-top:8px;padding:8px 12px;background:linear-gradient(90deg, rgba(255,23,68,0.1) 0%, rgba(255,23,68,0.2) 100%);border:1px solid rgba(255,23,68,0.6);color:#FF1744;font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:bold;letter-spacing:0.15em;border-radius:4px;cursor:pointer;transition:all 0.2s;">DEEP DIVE ANALYTICS</button>
       </div>`);
     });
 
     // ── EuRepoC Cyber Incidents (local dataset) ──
     map.on('click', 'eurepoc-dots', e => {
       if (!e.features?.length) return;
-      const p = e.features[0].properties as any;
+      const raw = e.features[0].properties as any;
+      const p = escDeep(raw);
       const coords = (e.features[0].geometry as any).coordinates;
       popup(coords, `<div style="${pStyle}border:1px solid rgba(194,24,91,0.4);box-shadow:inset 0 0 12px rgba(194,24,91,0.1);">
         <div style="display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid rgba(194,24,91,0.3);padding-bottom:6px;margin-bottom:8px;">
@@ -1845,7 +1875,8 @@ map.addSource('mitre-nodes', { type: 'geojson', data: EMPTY_FC });
     // ── Power Plants (WRI Global Database) ──
     map.on('click', 'power-plants-dots', e => {
       if (!e.features?.length) return;
-      const p = e.features[0].properties as any;
+      const raw = e.features[0].properties as any;
+      const p = escDeep(raw);
       const coords = (e.features[0].geometry as any).coordinates;
       const fuelColor = p.fuel_type === 'Solar' ? '#F9A825' : p.fuel_type === 'Wind' ? '#4FC3F7' : p.fuel_type === 'Hydro' ? '#1565C0' : p.fuel_type === 'Nuclear' ? '#D32F2F' : p.fuel_type === 'Coal' ? '#424242' : '#26A69A';
       popup(coords, `<div style="${pStyle}border:1px solid ${fuelColor}40;">
@@ -1871,14 +1902,15 @@ map.addSource('mitre-nodes', { type: 'geojson', data: EMPTY_FC });
 
     map.on('click', 'cables-line', e => {
       if (!e.features?.length) return;
-      const p = e.features[0].properties as any;
+      const raw = e.features[0].properties as any;
+      const p = escDeep(raw);
       const coords = e.lngLat;
       const cableColor = p.color || '#FF6D00';
       const cableUrl = p.id ? `https://www.submarinecablemap.com/cable/${p.id}` : 'https://www.submarinecablemap.com/';
 
       // Set cable highlight
       if (map.getLayer('cable-highlight') && p.feature_id) {
-        map.setFilter('cable-highlight', ['==', ['get', 'feature_id'], p.feature_id]);
+        map.setFilter('cable-highlight', ['==', ['get', 'feature_id'], raw.feature_id]);
         map.setLayoutProperty('cable-highlight', 'visibility', 'visible');
       }
 
@@ -1903,7 +1935,8 @@ map.addSource('mitre-nodes', { type: 'geojson', data: EMPTY_FC });
 
     map.on('click', 'cable-landing-points-dots', e => {
       if (!e.features?.length) return;
-      const p = e.features[0].properties as any;
+      const raw = e.features[0].properties as any;
+      const p = escDeep(raw);
       const coords = (e.features[0].geometry as any).coordinates;
       const lpUrl = p.id ? `https://www.submarinecablemap.com/landing-point/${p.id}` : 'https://www.submarinecablemap.com/';
       popup(coords, `<div style="${pStyle}border:1px solid rgba(255,109,0,0.4);">
