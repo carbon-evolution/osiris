@@ -17,6 +17,10 @@ import {
   DENMARK_BATCH2_SPORT_REPLACED_IDS,
   DENMARK_OFFICIAL_BATCH2_SPORTS,
 } from './denmark-official-batch2-sports';
+import {
+  DENMARK_BATCH2_HARBOUR_EXTRA_REPLACED_IDS,
+  DENMARK_OFFICIAL_BATCH2_HARBOURS_EXTRA,
+} from './denmark-official-batch2-harbours-extra';
 
 /**
  * Denmark camera catalogue with official-source upgrades layered over the
@@ -32,12 +36,14 @@ export async function fetchDenmarkCameras(): Promise<CctvCamera[]> {
         !DENMARK_BATCH2_EXTRA_REPLACED_IDS.has(camera.id) &&
         !DENMARK_BATCH2_AIRFIELD_REPLACED_IDS.has(camera.id) &&
         !DENMARK_BATCH2_ATTRACTION_REPLACED_IDS.has(camera.id) &&
-        !DENMARK_BATCH2_SPORT_REPLACED_IDS.has(camera.id),
+        !DENMARK_BATCH2_SPORT_REPLACED_IDS.has(camera.id) &&
+        !DENMARK_BATCH2_HARBOUR_EXTRA_REPLACED_IDS.has(camera.id),
     ),
     ...DENMARK_OFFICIAL_BATCH2,
     ...DENMARK_OFFICIAL_BATCH2_EXTRA,
     ...DENMARK_OFFICIAL_BATCH2_AIRFIELDS,
     ...DENMARK_OFFICIAL_BATCH2_ATTRACTIONS,
     ...DENMARK_OFFICIAL_BATCH2_SPORTS,
+    ...DENMARK_OFFICIAL_BATCH2_HARBOURS_EXTRA,
   ];
 }
