@@ -5,6 +5,7 @@ import type { CctvCamera } from './types';
 export const DENMARK_BATCH2_REPLACED_IDS = new Set<string>([
   'dk-public-kalundborg-flyveplads',
   'dk-public-juelsminde-marina',
+  'dk-public-svendborg-golf',
 ]);
 
 export const DENMARK_OFFICIAL_BATCH2: CctvCamera[] = [
@@ -174,5 +175,20 @@ export const DENMARK_OFFICIAL_BATCH2: CctvCamera[] = [
     stream_type: 'jpg',
     external_url: 'https://juelsmindehavn.dk/webcams/webcam-8-sandbjerg-marina.aspx',
     source: 'Juelsminde Havn & Marina',
+  },
+
+  // Svendborg Golfklub — official IPCamLive embed published on the club's
+  // homepage. Use the stable player alias rather than transient stream tokens.
+  {
+    id: 'dk-svendborg-golf-official',
+    lat: 55.088611,
+    lng: 10.553611,
+    name: 'Svendborg Golfklub — Live webcam',
+    city: 'Svendborg',
+    country: 'Denmark',
+    stream_url: 'https://g0.ipcamlive.com/player/player.php?alias=672333bb1e92c&skin=white&autoplay=1&mute=1&disableautofullscreen=1&disablezoombutton=1&disableframecapture=1&disabletimelapseplayer=1&disablestorageplayer=1&disabledownloadbutton=1&disableplaybackspeedbutton=1&disablenavigation=1&disableuserpause=1',
+    stream_type: 'iframe',
+    external_url: 'https://svendborggolfklub.dk/',
+    source: 'Svendborg Golfklub',
   },
 ];
