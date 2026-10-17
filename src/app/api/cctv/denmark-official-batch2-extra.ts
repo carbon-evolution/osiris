@@ -11,6 +11,7 @@ export const DENMARK_BATCH2_EXTRA_REPLACED_IDS = new Set<string>([
   'dk-public-hvide-sande-sportsfisker',
   'dk-public-hvide-sande-kabelpark',
   'dk-public-hvide-sande-lyngvig-fyr',
+  'dk-public-marselisborghavn',
 ]);
 
 export const DENMARK_OFFICIAL_BATCH2_EXTRA: CctvCamera[] = [
@@ -136,6 +137,20 @@ export const DENMARK_OFFICIAL_BATCH2_EXTRA: CctvCamera[] = [
     country: 'Denmark',
     external_url: 'https://ringkobingfjordmuseer.dk/museer/lyngvig-fyr/',
     source: 'Ringkøbing Fjord Museer',
+  },
+
+  // Marselisborg Havn publishes its own official Live Cam page. The page does
+  // not expose a stable direct media URL to the verifier, so OSIRIS links to
+  // the operator's live page instead of relying on the generic directory.
+  {
+    id: 'dk-marselisborg-havn-official',
+    lat: 56.138611,
+    lng: 10.214444,
+    name: 'Marselisborg Havn — Live Cam',
+    city: 'Aarhus',
+    country: 'Denmark',
+    external_url: 'https://www.marselisborghavn.dk/en/livestream/',
+    source: 'Marselisborg Havn',
   },
 
   // Vesterø Havn's official website still labels a link as "Webcam", but its
