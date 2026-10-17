@@ -4,6 +4,7 @@ import type { CctvCamera } from './types';
 export const DENMARK_BATCH2_AIRFIELD_REPLACED_IDS = new Set<string>([
   'dk-public-skive-flyveklub',
   'dk-public-ronnede-flyveklub',
+  'dk-public-randers-airport',
 ]);
 
 export const DENMARK_OFFICIAL_BATCH2_AIRFIELDS: CctvCamera[] = [
@@ -68,5 +69,19 @@ export const DENMARK_OFFICIAL_BATCH2_AIRFIELDS: CctvCamera[] = [
     stream_type: 'jpg',
     external_url: 'https://flyveklubben.dk/webcam/',
     source: 'Øst-Sjællands Flyveklub',
+  },
+
+  // Randers Flyveklub publishes an official EKRD webcam page on its own domain.
+  // Replace the generic Randers Airport directory listing with the operator's
+  // public webcam page instead of relying on a third-party index.
+  {
+    id: 'dk-randers-airport-official',
+    lat: 56.506111,
+    lng: 10.036389,
+    name: 'Randers Flyveplads (EKRD) — Webcam',
+    city: 'Randers',
+    country: 'Denmark',
+    external_url: 'https://www.randersflyveklub.dk/pi-cam/',
+    source: 'Randers Flyveklub',
   },
 ];
