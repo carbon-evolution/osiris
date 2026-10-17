@@ -20,6 +20,10 @@ COPY --from=builder /app/public ./public
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 
+# /app is root-owned, so the temperature routes can't create their disk cache
+# as nextjs; pre-create it with the right owner.
+RUN mkdir -p .cache && chown nextjs:nodejs .cache
+
 USER nextjs
 EXPOSE 3000
 ENV PORT=3000

@@ -4,6 +4,9 @@ node_modules
 out
 build
 
+# Runtime disk cache (temperature tiles/fields) — regenerated in the container
+.cache
+
 # Local env / secrets
 .env
 .env.local
