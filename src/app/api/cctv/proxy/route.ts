@@ -27,6 +27,9 @@ const ALLOWED_DOMAINS = [
   'its.binamarga.pu.go.id',
   // Lithuania — eismoinfo.lt image endpoint 403s without a same-origin Referer.
   'eismoinfo.lt',
+  // Kentucky — TRIMARC snapshots listed as plain http:// by OpenTrafficCamMap;
+  // CameraViewer routes http:// snapshots through this proxy.
+  'www.trimarc.org',
 ];
 
 // Hosts that require a Referer header to serve their images.
