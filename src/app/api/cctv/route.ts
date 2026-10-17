@@ -35,6 +35,7 @@ import { fetchNewZealandCameras } from './new-zealand';
 import { fetchEstoniaCameras } from './estonia';
 import { fetchNetherlandsCameras } from './netherlands';
 import { fetchIndonesiaCameras } from './indonesia';
+import { fetchDenmarkCameras } from './denmark';
 
 
 /**
@@ -415,6 +416,7 @@ const REGION_FETCHERS: Record<string, () => Promise<any[]>> = {
   'indonesia': fetchIndonesiaCameras,
   'singapore': fetchSingaporeCameras,
   'south-korea': fetchSouthKoreaCameras,
+  'denmark': fetchDenmarkCameras,
   'sweden': fetchSwedenCameras,
   'ireland': fetchIrelandCameras,
   'iceland': fetchIcelandCameras,
@@ -490,6 +492,8 @@ function getRegionsForBounds(lat: number, lng: number, radius: number): string[]
   if (inPoland) regions.push('poland');
   if (inEstonia) regions.push('estonia');
   if (inNetherlands) regions.push('netherlands');
+  // Denmark — curated public webcams (harbours, airfields, sports and terminals)
+  if (lat > 54.4 && lat < 57.9 && lng > 7.5 && lng < 15.3) regions.push('denmark');
   // Sweden — Trafikverket traffic cameras (free key TRAFIKVERKET_KEY)
   if (lat > 55.2 && lat < 69.1 && lng > 10.9 && lng < 24.2) regions.push('sweden');
   // Ireland — TII motorway/national-road cameras (keyless GraphQL, ~240 cams)

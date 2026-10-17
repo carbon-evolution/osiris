@@ -9,7 +9,7 @@ const GEOJSON_URL = 'https://raw.githubusercontent.com/willytop8/Live-Environmen
 const COUNTRY_NAMES: Record<string, string> = {
   AL: 'Albania', AT: 'Austria', AU: 'Australia', BG: 'Bulgaria',
   BR: 'Brazil', CA: 'Canada', CH: 'Switzerland', CZ: 'Czechia',
-  DE: 'Germany', EE: 'Estonia', ES: 'Spain', FI: 'Finland',
+  DE: 'Germany', DK: 'Denmark', EE: 'Estonia', ES: 'Spain', FI: 'Finland',
   FR: 'France', GB: 'United Kingdom', GR: 'Greece', HR: 'Croatia',
   HU: 'Hungary', ID: 'Indonesia', IE: 'Ireland', IL: 'Israel',
   IT: 'Italy', JP: 'Japan', KG: 'Kyrgyzstan', KR: 'South Korea',
@@ -105,6 +105,8 @@ const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
 /**
  * Fetch publicly accessible webcams from Live-Environment-Streams GeoJSON.
  * No API key required. Caches results for 5 minutes.
+ * Denmark's curated camera set is loaded by the dedicated `denmark` region
+ * fetcher, avoiding duplicate Denmark markers and unnecessary global payload.
  */
 export async function fetchOpenWebcams(): Promise<CctvCamera[]> {
   // Return cache if fresh
@@ -120,7 +122,7 @@ export async function fetchOpenWebcams(): Promise<CctvCamera[]> {
     });
 
     if (!res.ok) {
-      // Fall back to cache if stale
+      // Fall back to cache if stale; otherwise return no global webcam records.
       if (cachedCameras) return cachedCameras;
       return [];
     }
@@ -150,7 +152,7 @@ export async function fetchOpenWebcams(): Promise<CctvCamera[]> {
     return cameras;
   } catch (err) {
     console.error('open-webcams fetch error:', err);
-    // Fall back to cache
+    // Fall back to cache if possible.
     if (cachedCameras) return cachedCameras;
     return [];
   }
