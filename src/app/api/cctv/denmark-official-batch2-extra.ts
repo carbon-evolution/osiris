@@ -12,6 +12,8 @@ export const DENMARK_BATCH2_EXTRA_REPLACED_IDS = new Set<string>([
   'dk-public-hvide-sande-kabelpark',
   'dk-public-hvide-sande-lyngvig-fyr',
   'dk-public-marselisborghavn',
+  'dk-public-hellerup-sejlklub',
+  'dk-public-bornholm-ronne-tv2',
 ]);
 
 export const DENMARK_OFFICIAL_BATCH2_EXTRA: CctvCamera[] = [
@@ -151,6 +153,34 @@ export const DENMARK_OFFICIAL_BATCH2_EXTRA: CctvCamera[] = [
     country: 'Denmark',
     external_url: 'https://www.marselisborghavn.dk/en/livestream/',
     source: 'Marselisborg Havn',
+  },
+
+  // Hellerup Sejlklub publishes an official weather-and-webcam page with its
+  // own public webcam. Use the club page instead of the generic directory.
+  {
+    id: 'dk-hellerup-sejlklub-official',
+    lat: 55.731389,
+    lng: 12.581111,
+    name: 'Hellerup Sejlklub — Webcam',
+    city: 'Hellerup',
+    country: 'Denmark',
+    external_url: 'https://hellerupsejlklub.dk/vejr-webcam/',
+    source: 'Hellerup Sejlklub',
+  },
+
+  // TV 2/Bornholm publishes an official Rønne webcam on its weather page. The
+  // page describes the view across Zahrtmannsvej, Rønne Havn and the old town.
+  // Keep the separate generic Rønne Havn marker for now because it may refer to
+  // a different camera; only the TV2-labelled listing is replaced here.
+  {
+    id: 'dk-ronne-tv2-bornholm-official',
+    lat: 55.100556,
+    lng: 14.695833,
+    name: 'Rønne — TV 2/Bornholm webcam',
+    city: 'Rønne',
+    country: 'Denmark',
+    external_url: 'https://bornholm-cajo.dev.tv2reg.digital/vejret',
+    source: 'TV 2/Bornholm',
   },
 
   // Vesterø Havn's official website still labels a link as "Webcam", but its
