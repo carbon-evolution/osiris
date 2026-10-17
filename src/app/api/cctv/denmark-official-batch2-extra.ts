@@ -15,6 +15,7 @@ export const DENMARK_BATCH2_EXTRA_REPLACED_IDS = new Set<string>([
   'dk-public-hellerup-sejlklub',
   'dk-public-bornholm-ronne-tv2',
   'dk-public-gribskov-osprey',
+  'dk-public-lynetteholm',
 ]);
 
 export const DENMARK_OFFICIAL_BATCH2_EXTRA: CctvCamera[] = [
@@ -45,6 +46,20 @@ export const DENMARK_OFFICIAL_BATCH2_EXTRA: CctvCamera[] = [
     country: 'Denmark',
     external_url: 'https://www.koegemarina.dk/cms/?cmsid=589&pageid=19447',
     source: 'Køge Marina',
+  },
+
+  // By & Havn publishes a live construction-site view on Lynetteholm's
+  // official project page. Keep the existing catalogue position and replace
+  // the generic webcam-directory link with the project operator's page.
+  {
+    id: 'dk-lynetteholm-official',
+    lat: 55.688333,
+    lng: 12.626389,
+    name: 'Lynetteholm — Live fra byggepladsen',
+    city: 'Copenhagen',
+    country: 'Denmark',
+    external_url: 'https://byoghavn.dk/lynetteholm/anlaegsarbejdet/',
+    source: 'By & Havn',
   },
 
   // Port of Hirtshals publishes two public JPEG webcam views on its official
