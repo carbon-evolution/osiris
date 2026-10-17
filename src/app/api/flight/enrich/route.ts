@@ -40,7 +40,10 @@ function setCache(key: string, data: any) {
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
   const callsignRaw = (searchParams.get('callsign') || '').toUpperCase().trim();
-  const icao24 = (searchParams.get('icao24') || '').toLowerCase().trim();
+  const icao24Raw = (searchParams.get('icao24') || '').toLowerCase().trim();
+  // Both values are spliced into adsbdb URL paths (and the callsign is a cache
+  // key), so only accept their real shapes: 24-bit hex address, alphanumeric callsign.
+  const icao24 = /^[0-9a-f]{6}$/.test(icao24Raw) ? icao24Raw : '';
 
   if (!callsignRaw && !icao24) {
     return NextResponse.json(
@@ -55,7 +58,7 @@ export async function GET(req: Request) {
   if (callsignRaw) {
     // Strip leading numeric noise and trailing operators like /AAL → strip everything after /
     const cleanCs = callsignRaw.replace(/\/.*$/, '');
-    if (cleanCs.length >= 3) {
+    if (/^[A-Z0-9]{3,8}$/.test(cleanCs)) {
       const cached = getCached(cleanCs);
       if (cached) {
         result.route = cached;

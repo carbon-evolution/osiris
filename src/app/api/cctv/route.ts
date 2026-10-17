@@ -536,7 +536,7 @@ export async function GET(request: Request) {
     if (region === 'all') {
       regionsToFetch = Object.keys(REGION_FETCHERS);
     } else if (region) {
-      regionsToFetch = region.split(',').filter(r => r in REGION_FETCHERS);
+      regionsToFetch = region.split(',').filter(r => Object.hasOwn(REGION_FETCHERS, r)); // own keys only: `in` also matches constructor, toString, __proto__
     } else if (lat !== 0 || lng !== 0) {
       regionsToFetch = getRegionsForBounds(lat, lng, radius);
     } else {
