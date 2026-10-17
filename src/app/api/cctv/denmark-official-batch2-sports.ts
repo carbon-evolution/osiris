@@ -3,6 +3,7 @@ import type { CctvCamera } from './types';
 // Official sports/recreation webcam replacements for Denmark batch 2.
 export const DENMARK_BATCH2_SPORT_REPLACED_IDS = new Set<string>([
   'dk-public-gilleleje-golf',
+  'dk-public-koge-golf',
 ]);
 
 export const DENMARK_OFFICIAL_BATCH2_SPORTS: CctvCamera[] = [
@@ -19,5 +20,19 @@ export const DENMARK_OFFICIAL_BATCH2_SPORTS: CctvCamera[] = [
     country: 'Denmark',
     external_url: 'https://www.ggk.dk/baner/banestatus/',
     source: 'Gilleleje Golfklub',
+  },
+
+  // Køge Golf Klub publishes a current livestream from 1. tee on its own site
+  // and identifies the camera as looking toward the starter house. Use the
+  // official club page instead of the generic webcam directory.
+  {
+    id: 'dk-koge-golf-official',
+    lat: 55.427222,
+    lng: 12.175278,
+    name: 'Køge Golf Klub — Livestream fra 1. tee',
+    city: 'Køge',
+    country: 'Denmark',
+    external_url: 'https://www.koegegolf.dk/',
+    source: 'Køge Golf Klub',
   },
 ];
