@@ -13,7 +13,6 @@ export function escapeHtml(s: string): string {
 }
 
 /** Deep copy with every string HTML-escaped; numbers, booleans and null are untouched. */
-
 export function escDeep<T>(v: T): T {
   if (typeof v === 'string') return escapeHtml(v) as T;
   if (Array.isArray(v)) return v.map(escDeep) as T;
@@ -21,20 +20,20 @@ export function escDeep<T>(v: T): T {
   return v;
 }
 
-/** Parse a JSON-string feature property, then escape the result. */
-
-export function parseEsc<T>(s: string): T {
-  return escDeep(JSON.parse(s) as T);
+/**
+ * Decode a nested feature property, then escape the result. maplibre ≤5
+ * stringified array/object properties; maplibre ≥6 passes them through decoded.
+ */
+export function parseEsc<T>(v: unknown): T {
+  return escDeep((typeof v === 'string' ? JSON.parse(v) : v) as T);
 }
 
 /** Encode a value as a JS literal that is safe inside an HTML onclick="" attribute. */
-
 export function jsArg(v: unknown): string {
   return escapeHtml(JSON.stringify(v ?? null));
 }
 
 /** Allow only http(s) URLs in href; returns the escaped URL, or '#'. */
-
 export function safeUrl(u: unknown): string {
   if (typeof u !== 'string') return '#';
   try {

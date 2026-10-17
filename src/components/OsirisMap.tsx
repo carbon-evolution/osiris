@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState, useCallback, memo } from 'react';
-import maplibregl from 'maplibre-gl';
+import * as maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import { MapboxOverlay } from '@deck.gl/mapbox';
 import { ArcLayer } from '@deck.gl/layers';
@@ -13,6 +13,10 @@ import {
 } from './mapMarkers';
 import { flagFromMmsi, aisTypeLabel } from '@/lib/maritime/vesselMeta';
 import { escDeep, parseEsc, jsArg, safeUrl } from '@/lib/htmlSafety';
+
+// maplibre 6 is ESM-only and needs its worker URL set once per bundle; Next emits
+// the worker as a hashed asset (see maplibre docs, Installation > Turbopack).
+maplibregl.setWorkerUrl(new URL('maplibre-gl/dist/maplibre-gl-worker.mjs', import.meta.url).toString());
 
 // MapLibre `match` expression: vessel type → colour (shared with legend/popup).
 const SHIP_COLOR_MATCH = [
