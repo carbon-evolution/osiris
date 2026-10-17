@@ -6,6 +6,9 @@ export const DENMARK_BATCH2_REPLACED_IDS = new Set<string>([
   'dk-public-kalundborg-flyveplads',
   'dk-public-juelsminde-marina',
   'dk-public-svendborg-golf',
+  'dk-public-egernsund-marina-minde',
+  'dk-public-nivaa-harbour',
+  'dk-public-frederikshavn-harbour',
 ]);
 
 export const DENMARK_OFFICIAL_BATCH2: CctvCamera[] = [
@@ -191,4 +194,74 @@ export const DENMARK_OFFICIAL_BATCH2: CctvCamera[] = [
     external_url: 'https://svendborggolfklub.dk/',
     source: 'Svendborg Golfklub',
   },
+
+  // Marina Minde — the official marina page publishes four direct JPEG views.
+  // The embedded carousel loaded all four image endpoints on 2026-10-17.
+  {
+    id: 'dk-marina-minde-1',
+    lat: 54.89702,
+    lng: 9.61796,
+    name: 'Marina Minde — Kamera 1',
+    city: 'Egernsund',
+    country: 'Denmark',
+    feed_url: 'https://mhds.dk/marinaminde/webcam/kamera1.jpeg',
+    stream_type: 'jpg',
+    external_url: 'https://marinaminde.dk/webcams-x-4/',
+    source: 'Marina Minde',
+  },
+  {
+    id: 'dk-marina-minde-2',
+    lat: 54.89702,
+    lng: 9.61815,
+    name: 'Marina Minde — Kamera 2',
+    city: 'Egernsund',
+    country: 'Denmark',
+    feed_url: 'https://mhds.dk/marinaminde/webcam/kamera2.jpeg',
+    stream_type: 'jpg',
+    external_url: 'https://marinaminde.dk/webcams-x-4/',
+    source: 'Marina Minde',
+  },
+  {
+    id: 'dk-marina-minde-3',
+    lat: 54.89687,
+    lng: 9.61815,
+    name: 'Marina Minde — Kamera 3',
+    city: 'Egernsund',
+    country: 'Denmark',
+    feed_url: 'https://mhds.dk/marinaminde/webcam/kamera3.jpeg',
+    stream_type: 'jpg',
+    external_url: 'https://marinaminde.dk/webcams-x-4/',
+    source: 'Marina Minde',
+  },
+  {
+    id: 'dk-marina-minde-4',
+    lat: 54.89687,
+    lng: 9.61796,
+    name: 'Marina Minde — Kamera 4',
+    city: 'Egernsund',
+    country: 'Denmark',
+    feed_url: 'https://mhds.dk/marinaminde/webcam/kamera4.jpeg',
+    stream_type: 'jpg',
+    external_url: 'https://marinaminde.dk/webcams-x-4/',
+    source: 'Marina Minde',
+  },
+
+  // Nivå Havn og Strandpark links to a public IPCamLive camera from its
+  // official municipal webcam page. The current IPCamLive plan does not allow
+  // third-party embedding without a transient token, so OSIRIS opens the
+  // official webcam page instead of presenting a broken iframe.
+  {
+    id: 'dk-nivaa-havn-official',
+    lat: 55.938889,
+    lng: 12.528611,
+    name: 'Nivå Havn — Livecam',
+    city: 'Nivå',
+    country: 'Denmark',
+    external_url: 'https://nivaahavn.fredensborg.dk/havnekontor/webcam',
+    source: 'Nivå Havn og Strandpark',
+  },
+
+  // Frederikshavn Havn intentionally removed its public webcam in 2026 for
+  // security reasons. Its stale third-party listing is filtered above and is
+  // deliberately not replaced here.
 ];
