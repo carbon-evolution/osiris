@@ -13,7 +13,6 @@ import {
   type PolybolosEntity,
   type PolybolosClientConfig,
   type SDKStatus,
-  type LatticeConnectionStatus,
   Domain,
   EntityType,
   ThreatLevel,
@@ -347,9 +346,7 @@ export class PolybolosClient {
     // Count OSIRIS feeds that have data
     const feeds = ['commercial_flights', 'private_flights', 'military_flights', 'maritime_ships',
       'satellites', 'earthquakes', 'fires', 'cameras', 'radiation'];
-    for (const feed of feeds) {
-      if (this.entityStore.size > 0) count++; // Simplified: if store has data, feeds are active
-    }
+    if (this.entityStore.size > 0) count += feeds.length; // Simplified: if store has data, feeds are active
     if (this.latticeAdapter && this.latticeAdapter.getEntityCount() > 0) count++;
     return Math.min(count, feeds.length);
   }

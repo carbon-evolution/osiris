@@ -188,7 +188,7 @@ async function sparql(query) {
 }
 
 // Search Wikidata for an entity by name, returns QID or null
-async function wdSearch(query, type = 'item') {
+async function wdSearch(query) {
   const url = `https://www.wikidata.org/w/api.php?action=wbsearchentities&search=${encodeURIComponent(query)}&language=en&limit=1&format=json`;
   const parsed = new URL(url);
   if (!ALLOWED_DOMAINS.has(parsed.hostname)) return null;

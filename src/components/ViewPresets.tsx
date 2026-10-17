@@ -1,7 +1,7 @@
 'use client';
 
 import { motion } from 'framer-motion';
-import { Globe, MapPin } from 'lucide-react';
+import { Globe } from 'lucide-react';
 
 interface ViewPresetsProps {
   onNavigate: (lat: number, lng: number, zoom: number) => void;

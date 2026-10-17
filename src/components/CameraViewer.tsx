@@ -41,6 +41,7 @@ export default function CameraViewer({ camera, onClose, onLocate }: CameraViewer
 
   useEffect(() => {
     if (!camera) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- resets the player when the camera changes; same effect also tears down/creates the HLS instance
     setLoading(true);
     setError(false);
     setImageUrl(null);
@@ -214,7 +215,7 @@ export default function CameraViewer({ camera, onClose, onLocate }: CameraViewer
               <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/90 z-30 backdrop-blur-sm p-4 text-center">
                 <ExternalLink className="w-6 h-6 mb-3 opacity-50" style={{ color: 'var(--gold-primary)' }} />
                 <p className="text-[10px] font-mono uppercase tracking-widest" style={{ color: 'var(--gold-primary)' }}>PUBLIC WEBCAM PAGE</p>
-                <p className="text-[8px] font-mono text-[var(--text-muted)] mt-2 max-w-[80%] uppercase">Open the publisher's website to view this public camera</p>
+                <p className="text-[8px] font-mono text-[var(--text-muted)] mt-2 max-w-[80%] uppercase">Open the publisher&apos;s website to view this public camera</p>
                 <a 
                   href={externalFeedUrl} 
                   target="_blank" 

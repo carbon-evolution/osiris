@@ -341,6 +341,7 @@ export default function AiAnalyst({ data }: AiAnalystProps) {
   useEffect(() => {
     const saved = localStorage.getItem('osiris-gemini-key');
     if (saved) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- reads the saved key from localStorage after mount; unavailable during server render
       setApiKeyInput(saved);
       setKeySaved(true);
     }

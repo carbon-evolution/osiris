@@ -235,6 +235,12 @@ function OsirisMap({ data, activeLayers, onEntityClick, onMouseCoords, onRightCl
     map.addImage(id, { width: size * ICON_DPR, height: size * ICON_DPR, data: new Uint8Array(ctx.getImageData(0, 0, size * ICON_DPR, size * ICON_DPR).data) }, { pixelRatio: ICON_DPR });
   }, []);
 
+  // Helper to set GeoJSON
+  const setGeo = useCallback((source: string, features: any[]) => {
+    const src = mapRef.current?.getSource(source) as any;
+    if (src) src.setData({ type: 'FeatureCollection', features });
+  }, []);
+
   useEffect(() => {
     if (!mapRef.current) return;
     const map = mapRef.current;
@@ -318,7 +324,6 @@ function OsirisMap({ data, activeLayers, onEntityClick, onMouseCoords, onRightCl
       // Theme colors
       const isGhost = theme === 'ghost';
       const phantomPurple = '#B388FF';
-      const phantomDark = '#1A0040';
       const cameraColor = isGhost ? '#B388FF' : '#00E676';
       const flightCom = isGhost ? phantomPurple : '#1A73E8';
       const flightPriv = isGhost ? phantomPurple : '#FFD700';
@@ -1117,28 +1122,6 @@ map.addSource('mitre-nodes', { type: 'geojson', data: EMPTY_FC });
       map.on('mouseleave', layer, () => { map.getCanvas().style.cursor = ''; });
     });
 
-    // ── Great-circle arc helper ──
-    function greatCircleArc(lng1: number, lat1: number, lng2: number, lat2: number, steps: number = 32): [number, number][] {
-      const toRad = (d: number) => d * Math.PI / 180;
-      const toDeg = (r: number) => r * 180 / Math.PI;
-      const pts: [number, number][] = [];
-      const dLng = toRad(lng2 - lng1);
-      const lat1r = toRad(lat1);
-      const lat2r = toRad(lat2);
-      const lng1r = toRad(lng1);
-      for (let i = 0; i <= steps; i++) {
-        const f = i / steps;
-        const A = Math.sin((1 - f) * Math.PI / 2) / Math.sin(Math.PI / 2);
-        const B = Math.sin(f * Math.PI / 2) / Math.sin(Math.PI / 2);
-        const x = A * Math.cos(lat1r) * Math.cos(lng1r) + B * Math.cos(lat2r) * Math.cos(lng1r + dLng);
-        const y = A * Math.cos(lat1r) * Math.sin(lng1r) + B * Math.cos(lat2r) * Math.sin(lng1r + dLng);
-        const z = A * Math.sin(lat1r) + B * Math.sin(lat2r);
-        const lat = toDeg(Math.atan2(z, Math.sqrt(x * x + y * y)));
-        const lng = toDeg(Math.atan2(y, x));
-        pts.push([lng, lat]);
-      }
-      return pts;
-    }
 
     // ── CCTV (metadata popup + opens CameraViewer panel) ──
     map.on('click', 'cctv-dots', e => {
@@ -1243,7 +1226,7 @@ map.addSource('mitre-nodes', { type: 'geojson', data: EMPTY_FC });
         const txs: any[] = data.transmitters || [];
 
         // Build header
-        let headerHtml = `<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
+        const headerHtml = `<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
           <div style="color:#1A73E8;font-size:13px;font-weight:700;letter-spacing:0.1em;">🛰️ ${sat?.name || satName}</div>
           ${noradId ? `<div style="color:#6F8092;font-size:9px;font-family:monospace;">#${noradId}</div>` : ''}
         </div>`;
@@ -1949,7 +1932,7 @@ map.addSource('mitre-nodes', { type: 'geojson', data: EMPTY_FC });
       </div>`);
     });
 
-    (window as any).showFlightTrack = async (icao24: string, callsign: string) => {
+    (window as any).showFlightTrack = async (icao24: string) => {
       try {
         const res = await fetch(`/api/flights/tracks?icao24=${encodeURIComponent(icao24)}`, { cache: 'no-store' });
         const data = await res.json();
@@ -2005,12 +1988,6 @@ map.addSource('mitre-nodes', { type: 'geojson', data: EMPTY_FC });
     const iv = setInterval(update, 300000); // 5 min (was 1 min — shadow barely moves)
     return () => clearInterval(iv);
   }, [mapReady, activeLayers.day_night]);
-
-  // Helper to set GeoJSON
-  const setGeo = useCallback((source: string, features: any[]) => {
-    const src = mapRef.current?.getSource(source) as any;
-    if (src) src.setData({ type: 'FeatureCollection', features });
-  }, []);
 
   const setVis = useCallback((ids: string[], visible: boolean) => {
     const map = mapRef.current;

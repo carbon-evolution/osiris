@@ -12,12 +12,6 @@ import type { CctvCamera } from './types';
 const CACHE_TTL_MS = 5 * 60 * 1000;
 const API_URL = 'https://trafficnz.info/service/traffic/rest/4/cameras/all';
 
-/** Extract a single text value from an XML tag, or return fallback */
-function xmlTag(xml: string, tag: string, fallback = ''): string {
-  const m = xml.match(new RegExp(`<${tag}>([^<]*)<\\/${tag}>`));
-  return m ? m[1].trim() : fallback;
-}
-
 /** Parse the NZTA XML into a flat array */
 function parseNztXml(xml: string): Record<string, string>[] {
   const cameras: Record<string, string>[] = [];
