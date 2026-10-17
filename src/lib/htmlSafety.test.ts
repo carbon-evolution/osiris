@@ -31,6 +31,11 @@ describe('parseEsc', () => {
   it('parses JSON first, then escapes the values', () => {
     expect(parseEsc<string[]>('["CVE-1","<script>"]')).toEqual(['CVE-1', '&lt;script&gt;']);
   });
+
+  it('accepts already-decoded values (maplibre 6 nested properties)', () => {
+    expect(parseEsc<string[]>(['CVE-1', '<script>'])).toEqual(['CVE-1', '&lt;script&gt;']);
+    expect(parseEsc<string[]>([])).toEqual([]);
+  });
 });
 
 describe('jsArg', () => {
