@@ -10,7 +10,7 @@ export const dynamic = 'force-dynamic';
  * local cache so the layer is "cached locally, then projected":
  *   - cached on disk        → served from .cache/tiles (no upstream hit)
  *   - upstream tile exists   → fetched, cached, served
- *   - upstream 404 (no-data) → transparent 1×1 PNG, cached, served as 200
+ *   - upstream 404 (no-data) → transparent 1×1 PNG, served as 200 (not cached)
  * Returning transparent PNGs for GIBS no-data tiles (SST over land, LST over
  * ocean) keeps the browser console free of the 404 storm those tiles produce.
  */
@@ -21,6 +21,7 @@ const GIBS_LAYERS: Record<string, string> = {
 };
 
 const MATRIX = 'GoogleMapsCompatible_Level7';
+const MAX_ZOOM = 7;
 const TILE_DIR = path.join(process.cwd(), '.cache', 'tiles');
 
 // 1×1 fully transparent PNG.
@@ -42,9 +43,16 @@ export async function GET(req: Request) {
   const z = safe(p.get('z') || '');
   const x = safe(p.get('x') || '');
   const y = safe(p.get('y') || '');
-  const gibsLayer = GIBS_LAYERS[layer];
+  const gibsLayer = Object.hasOwn(GIBS_LAYERS, layer) ? GIBS_LAYERS[layer] : undefined;
 
   if (!gibsLayer || !date || z === '' || x === '' || y === '') {
+    return new Response('bad tile request', { status: 400 });
+  }
+  // Every accepted tile can become a file on disk, so only accept real tile
+  // coordinates: a YYYY-MM-DD date and z/x/y inside the Level7 matrix.
+  const zi = Number(z), xi = Number(x), yi = Number(y);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || !Number.isInteger(zi) || zi < 0 || zi > MAX_ZOOM
+      || !Number.isInteger(xi) || !Number.isInteger(yi) || xi < 0 || yi < 0 || xi >= 2 ** zi || yi >= 2 ** zi) {
     return new Response('bad tile request', { status: 400 });
   }
 
@@ -63,11 +71,12 @@ export async function GET(req: Request) {
   let body: Buffer;
   try {
     const res = await fetch(url, { signal: AbortSignal.timeout(12000) });
-    if (res.ok) {
-      body = Buffer.from(await res.arrayBuffer());
-    } else {
-      body = BLANK_PNG; // no-data / beyond-resolution → transparent
+    if (!res.ok) {
+      // no-data / beyond-resolution → transparent, not cached: only real
+      // upstream tiles are written to disk.
+      return new Response(new Uint8Array(BLANK_PNG), { headers: PNG });
     }
+    body = Buffer.from(await res.arrayBuffer());
   } catch {
     // Upstream unreachable — serve transparent but DON'T cache (so we retry later).
     return new Response(new Uint8Array(BLANK_PNG), { headers: PNG });

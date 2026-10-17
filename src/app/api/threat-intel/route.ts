@@ -1,6 +1,7 @@
 import { withQueryCache } from '@/lib/feeds/serve';
 import { NextResponse } from 'next/server';
 import fs from 'fs';
+import path from 'path';
 
 export const dynamic = 'force-dynamic';
 
@@ -42,13 +43,15 @@ async function _GET() {
     const blocklisted: any[] = [];
     let id = 0;
 
-    // Read AbuseIPDB key from local config
-    let abuseipdbKey = '';
-    const abuseCachePath = '/Users/arthurlin/Downloads/Opencode/osiris/.abuseipdb_cache.json';
+    // AbuseIPDB key: ABUSEIPDB_KEY env var, else a .abuseipdb_key file in the project root
+    let abuseipdbKey = process.env.ABUSEIPDB_KEY?.trim() || '';
+    const abuseCachePath = path.join(process.cwd(), '.cache', 'abuseipdb.json');
     const ABUSE_CACHE_TTL = 86_400_000;
-    try {
-      abuseipdbKey = fs.readFileSync('/Users/arthurlin/Downloads/Opencode/osiris/.abuseipdb_key', 'utf8').trim();
-    } catch {}
+    if (!abuseipdbKey) {
+      try {
+        abuseipdbKey = fs.readFileSync(path.join(process.cwd(), '.abuseipdb_key'), 'utf8').trim();
+      } catch {}
+    }
 
     // 0. AbuseIPDB — known malicious IPs (requires free API key, 5 req/day free tier)
     // Disk-cache response for 24h to stay within rate limit
@@ -81,7 +84,7 @@ async function _GET() {
           if (res.ok) {
             const data = await res.json();
             abuseEntries = (data.data || []).slice(0, 300);
-            try { fs.writeFileSync(abuseCachePath, JSON.stringify({ ts: Date.now(), data: abuseEntries })); } catch {}
+            try { fs.mkdirSync(path.dirname(abuseCachePath), { recursive: true }); fs.writeFileSync(abuseCachePath, JSON.stringify({ ts: Date.now(), data: abuseEntries })); } catch {}
             console.log('[OSIRIS] AbuseIPDB fetched:', abuseEntries.length, 'entries');
           }
         } catch (e) { console.warn('[OSIRIS] AbuseIPDB error:', e instanceof Error ? e.message : e); }

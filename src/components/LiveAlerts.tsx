@@ -194,7 +194,7 @@ export default function LiveAlerts({ data, onLocate, onWatchFeed }: LiveAlertsPr
                         <div className="flex items-start gap-1.5 mb-2">
                           <Icon className="w-3.5 h-3.5 flex-shrink-0 mt-[2px]" style={{ color: sevColor }} />
                           <span className={`text-[10px] font-mono text-[#E8EAED] leading-relaxed ${alert.type === 'news' ? 'line-clamp-3' : 'truncate'}`}>
-                            {(alert.description || alert.title || '').replace(/&#39;/g, "'").replace(/&quot;/g, '"').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>')}
+                            {(alert.description || alert.title || '').replace(/&#39;/g, "'").replace(/&quot;/g, '"').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&')}
                           </span>
                         </div>
                         <div className="flex items-center justify-between border-t border-[#2A2A28]/50 pt-1.5 mt-1.5">

@@ -13,9 +13,15 @@ import { NextResponse } from 'next/server';
  * lightweight stats route safely serves 10k concurrent users instantly.
  */
 
-export async function GET(req: Request) {
+// Internal calls go to this server directly. Deriving the origin from the
+// request would let a forged Host header point these fetches at any host.
+function internalOrigin(): string {
+  return process.env.INTERNAL_ORIGIN || `http://127.0.0.1:${process.env.PORT || 3000}`;
+}
+
+export async function GET() {
   try {
-    const origin = new URL(req.url).origin;
+    const origin = internalOrigin();
 
     // Fetch all internal APIs in parallel (they have their own Cache-Control TTLs)
     const [flightsRes, satsRes, cctvRes, weatherRes, infraRes, gdeltRes] = await Promise.allSettled([

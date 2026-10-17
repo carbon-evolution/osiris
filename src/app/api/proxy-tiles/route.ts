@@ -16,6 +16,9 @@ export async function GET(request: NextRequest) {
     }
 
     const response = await fetch(targetUrl.toString(), {
+      // Tiles never redirect; refusing redirects keeps the request on the
+      // allowlisted cartocdn.com host checked above.
+      redirect: 'error',
       headers: {
         'Accept': '*/*',
         'User-Agent': 'Osiris-Tile-Proxy/1.0',

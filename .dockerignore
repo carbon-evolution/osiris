@@ -11,6 +11,8 @@ build
 .env
 .env.local
 .env*.local
+.abuseipdb_key
+.abuseipdb_cache.json
 
 # VCS & tooling
 .git
