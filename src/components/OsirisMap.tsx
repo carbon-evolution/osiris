@@ -1557,32 +1557,6 @@ map.addSource('mitre-nodes', { type: 'geojson', data: EMPTY_FC });
       </div>`);
     });
 
-    // ── SCM Suppliers ──
-    map.on('click', 'scm-dots', e => {
-      if (!e.features?.length) return;
-      const raw = e.features[0].properties as any;
-      const p = escDeep(raw);
-      const coords = (e.features[0].geometry as any).coordinates;
-      const color = p.risk_level === 'CRITICAL' ? '#FF1744' : p.risk_level === 'HIGH' ? '#FF9500' : '#00BCD4';
-      const activeThreats = p.active_threats ? parseEsc<string[]>(raw.active_threats) : [];
-      
-      let threatsHtml = '';
-      if (activeThreats.length > 0) {
-        threatsHtml = `<div style="margin-top:8px;padding-top:6px;border-top:1px solid ${color}40;color:${color};font-size:9px;font-weight:bold;">
-          ACTIVE THREATS:<br/>${activeThreats.map((t: string) => `⚠ ${t}`).join('<br/>')}
-        </div>`;
-      }
-
-      popup(coords, `<div style="${pStyle}border:1px solid ${color}40;">
-        <div style="color:${color};font-size:12px;font-weight:700;margin-bottom:4px;">🏢 ${p.name}</div>
-        <div style="font-size:9px;color:#5F6368;margin-bottom:8px;">${p.category} | ${p.city}, ${p.country}</div>
-        <div style="display:grid;grid-template-columns:1fr;gap:4px;font-size:11px;">
-          <div><span style="color:#6F8092;font-size:9px;">SCM RISK LEVEL</span><br/><span style="color:${color};font-weight:bold;">${p.risk_level}</span></div>
-        </div>
-        ${threatsHtml}
-      </div>`);
-    });
-
     // ── IP Sweep device click ──
     map.on('click', 'sweep-device-dots', (e: any) => {
       const raw = e.features?.[0]?.properties;

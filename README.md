@@ -212,7 +212,7 @@ Layers are organized into intuitive groups in the left-hand rail. Toggle any lay
 - **Energy** — Crude oil (WTI, Brent)
 - **Commodities** — Gold, Silver, Copper, Natural Gas, Wheat, Corn
 - **Crypto** — Bitcoin, Ethereum
-- **SCM Risk** — Supply chain risk command panel with supplier risk, port congestion, chokepoint analysis, and market alerts
+- **SCM Alerts** — Chokepoint → commodity supply-chain alerts derived from the maritime feed
 - **Country Risk** — Live country risk ticker with exchange open/close status
 
 #### 🛰️ Space & Satellite
@@ -464,7 +464,7 @@ src/
 │   ├── CacheBadges.tsx      # Per-feed freshness badges (X-OSIRIS-* headers)
 │   ├── OfflineBanner.tsx    # "Serving cached intelligence" banner
 │   ├── LocalIntelPanel.tsx  # Local OTCAD / ICS-CERT / recon datasets
-│   ├── IntelFeed.tsx · MarketsPanel.tsx · LiveAlerts.tsx · ScmPanel.tsx
+│   ├── IntelFeed.tsx · MarketsPanel.tsx · LiveAlerts.tsx
 │   ├── SearchBar.tsx · SharePanel.tsx · ViewPresets.tsx · GlobalStatusBar.tsx
 │   ├── CameraViewer.tsx · KeyboardShortcuts.tsx · ScaleBar.tsx · ErrorBoundary.tsx
 │   └── mapMarkers.ts        # Layer-specific marker renderers
