@@ -33,4 +33,18 @@ export const DENMARK_OFFICIAL_BATCH2_ATTRACTIONS: CctvCamera[] = [
     external_url: 'https://www.sletterhagefyr.dk/',
     source: 'Sletterhage Fyrs Venner',
   },
+
+  // GeoCenter Møns Klint publishes a 24/7 livestream from Dronningestolen.
+  // The official Møns Klint UNESCO nomination dossier gives Dronningestolen
+  // as N 54° 58' 04" E 12° 33' 01", which is used for the display marker.
+  {
+    id: 'dk-moens-klint-dronningestolen-official',
+    lat: 54.967778,
+    lng: 12.550278,
+    name: 'Møns Klint — Dronningestolen webcam',
+    city: 'Borre',
+    country: 'Denmark',
+    external_url: 'https://www.moensklint.dk/fr/webcam/',
+    source: 'GeoCenter Møns Klint',
+  },
 ];
