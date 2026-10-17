@@ -2,6 +2,7 @@ import type { CctvCamera } from './types';
 
 export const DENMARK_BATCH2_ATTRACTION_REPLACED_IDS = new Set<string>([
   'dk-public-givskud-zoo',
+  'dk-public-knebel-sletterhage',
 ]);
 
 export const DENMARK_OFFICIAL_BATCH2_ATTRACTIONS: CctvCamera[] = [
@@ -17,5 +18,19 @@ export const DENMARK_OFFICIAL_BATCH2_ATTRACTIONS: CctvCamera[] = [
     country: 'Denmark',
     external_url: 'https://www.givskudzoo.dk/da/besoeg-zoo/koebarometer/',
     source: 'GIVSKUD ZOO - ZOOTOPIA',
+  },
+
+  // Sletterhage Fyrs Venner embeds a public IPCamLive player directly on the
+  // official lighthouse homepage. Use the operator page rather than the
+  // generic webcam-directory listing; no hidden media endpoint is required.
+  {
+    id: 'dk-sletterhage-fyr-official',
+    lat: 56.095278,
+    lng: 10.513056,
+    name: 'Sletterhage Fyr — Live webcam',
+    city: 'Knebel',
+    country: 'Denmark',
+    external_url: 'https://www.sletterhagefyr.dk/',
+    source: 'Sletterhage Fyrs Venner',
   },
 ];
