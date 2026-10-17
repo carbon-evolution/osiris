@@ -3,7 +3,6 @@ import type { NextConfig } from "next";
 const nextConfig: NextConfig = {
   output: 'standalone',
   serverExternalPackages: ['ws'],
-  transpilePackages: ['react-map-gl', 'mapbox-gl'],
   // No component uses next/image, so the /_next/image optimizer is turned off.
   // It previously allowed any https host, which made it an open fetch proxy
   // and exposed Next's image-optimizer SSRF/RCE advisories.

@@ -38,7 +38,6 @@
     "react": "19.2.4",
     "react-dom": "19.2.4",
     "react-force-graph-2d": "^1.29.1",
-    "react-map-gl": "^8.1.1",
     "rss-parser": "^3.13.0",
     "satellite.js": "^7.0.0",
     "shapefile": "^0.6.6",
