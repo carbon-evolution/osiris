@@ -1,0 +1,84 @@
+name: ci
+
+# Tests, production build and dependency audit on every PR and push to main.
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      # Same images as backend/docker-compose.data.yml; the DB-backed suites
+      # (cache, rateLimit, feedStore, postgres) create their own schema.
+      postgres:
+        image: postgis/postgis:16-3.4
+        env:
+          POSTGRES_USER: osiris
+          POSTGRES_PASSWORD: osiris
+          POSTGRES_DB: osiris
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U osiris"
+          --health-interval 5s --health-timeout 5s --health-retries 20
+      redis:
+        image: redis:7-alpine
+        ports: ["6379:6379"]
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s --health-timeout 5s --health-retries 20
+    env:
+      PG_HOST: localhost
+      PG_PORT: 5432
+      PG_USER: osiris
+      PG_PASSWORD: osiris
+      PG_DB: osiris
+      REDIS_URL: redis://localhost:6379
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npx vitest run
+
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      # Production dependencies only: the remaining dev-only findings
+      # (eslint-config-next's glob chain) never ship.
+      - name: Audit dashboard dependencies
+        run: npm audit --omit=dev --audit-level=high
+      - name: Audit intel dependencies
+        working-directory: intel
+        run: npm audit --omit=dev --audit-level=high
+      - name: Check intel server
+        working-directory: intel
+        run: npm ci && node --check server.js

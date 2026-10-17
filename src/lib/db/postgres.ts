@@ -1,4 +1,4 @@
-import { Pool } from 'pg';
+import { Pool, type PoolClient } from 'pg';
 
 let pool: Pool | null = null;
 
@@ -20,7 +20,24 @@ export function getPool(): Pool {
 // Generic local-first store for feed-style data (CVE/KEV/IOC/news).
 // `kind` namespaces a feed; `uid` is the upstream unique id for upsert.
 export async function ensureSchema(): Promise<void> {
-  const p = getPool();
+  const p = await getPool().connect();
+  try {
+    await p.query('BEGIN');
+    // Serialise schema setup across callers and processes: concurrent
+    // CREATE ... IF NOT EXISTS still collides on a fresh database
+    // (duplicate key in pg_extension_name_index).
+    await p.query("SELECT pg_advisory_xact_lock(hashtext('osiris:ensureSchema'))");
+    await createSchema(p);
+    await p.query('COMMIT');
+  } catch (err) {
+    await p.query('ROLLBACK').catch(() => {});
+    throw err;
+  } finally {
+    p.release();
+  }
+}
+
+async function createSchema(p: PoolClient): Promise<void> {
   await p.query('CREATE EXTENSION IF NOT EXISTS postgis');
   await p.query(`
     CREATE TABLE IF NOT EXISTS feed_items (
