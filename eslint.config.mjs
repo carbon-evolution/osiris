@@ -13,6 +13,19 @@ const eslintConfig = defineConfig([
     "build/**",
     "next-env.d.ts",
   ]),
+  {
+    // intel/ is a standalone CommonJS Node service (no "type": "module").
+    files: ["intel/**/*.js"],
+    rules: { "@typescript-eslint/no-require-imports": "off" },
+  },
+  {
+    rules: {
+      // ~480 existing `any`s are being replaced file by file; warn so lint can
+      // gate CI on everything else in the meantime. Switch back to "error"
+      // once the count reaches zero.
+      "@typescript-eslint/no-explicit-any": "warn",
+    },
+  },
 ]);
 
 export default eslintConfig;

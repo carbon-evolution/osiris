@@ -1,12 +1,13 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useIsClient } from '@/lib/useIsClient';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   ChevronDown, ChevronUp, Shield, ShieldAlert, ShieldOff, Globe,
-  Eye, BookMarked, ExternalLink, AlertTriangle, TrendingUp, TrendingDown,
-  Maximize2, Minimize2, Bug, Siren, Zap
+  Eye, BookMarked, 
+  Maximize2, Minimize2, Bug, Siren
 } from 'lucide-react';
 
 /* ═══════════════════════════════════════════════════════════════
@@ -46,7 +47,7 @@ function timeAgo(dateStr: string): string {
   } catch { return ''; }
 }
 
-export default function CyberIntelPanel({ data, reconFindings = [], onLocate }: CyberIntelPanelProps) {
+export default function CyberIntelPanel({ reconFindings = [], onLocate }: CyberIntelPanelProps) {
   const [expanded, setExpanded] = useState(true);
   const [maximized, setMaximized] = useState(false);
   const [activeTab, setActiveTab] = useState<IntelTab>('kev');
@@ -55,8 +56,7 @@ export default function CyberIntelPanel({ data, reconFindings = [], onLocate }: 
   const [loading, setLoading] = useState(true);
 
   // Portal mount guard
-  const [mounted, setMounted] = useState(false);
-  useEffect(() => setMounted(true), []);
+  const mounted = useIsClient();
 
   // Fetch cyber intel data
   useEffect(() => {
@@ -274,7 +274,7 @@ export default function CyberIntelPanel({ data, reconFindings = [], onLocate }: 
                           <span className="text-[10px] font-mono text-[var(--text-muted)] tracking-widest">NO CVE DATA</span>
                         </div>
                       ) : (
-                        cves.map((cve: any, i: number) => (
+                        cves.map((cve: any) => (
                           <div key={cve.id} className="px-3 py-2 hover:bg-[var(--hover-accent)] transition-colors">
                             <div className="flex items-center gap-1.5 mb-0.5">
                               <span
@@ -370,7 +370,7 @@ export default function CyberIntelPanel({ data, reconFindings = [], onLocate }: 
                           <span className="text-[10px] font-mono text-[var(--text-muted)] tracking-widest">NO MITRE DATA</span>
                         </div>
                       ) : (
-                        mitreGroups.map((group: any, i: number) => (
+                        mitreGroups.map((group: any) => (
                           <div key={group.id} className="px-3 py-2 hover:bg-[var(--hover-accent)] transition-colors">
                             <div className="flex items-center gap-1.5 mb-1">
                               <span className="text-[10px]">{group.country === 'RU' ? '🇷🇺' : group.country === 'KP' ? '🇰🇵' : group.country === 'CN' ? '🇨🇳' : group.country === 'IR' ? '🇮🇷' : '🏴'}</span>

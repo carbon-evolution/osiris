@@ -94,8 +94,6 @@ async function fetchEstoniaRoadCameras(): Promise<CctvCamera[]> {
 
       if (isNaN(lat) || isNaN(lng)) continue;
 
-      const direction = cam.calibration?.direction || '';
-
       cameras.push({
         id: `ee-road-${id}`,
         lat,
@@ -135,7 +133,6 @@ async function fetchTallinnCameras(): Promise<CctvCamera[]> {
 
     const cameras: CctvCamera[] = [];
     const seen = new Set<string>();
-    const step = 0.005; // small jitter to spread overlapping markers
 
     for (let i = 0; i < camerasList.length; i++) {
       const cam = camerasList[i];

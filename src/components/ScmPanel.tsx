@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Target, ChevronDown, ChevronUp, AlertTriangle, Ship, Anchor, AlertCircle, Maximize2, Minimize2 } from 'lucide-react';
+import { Target, ChevronDown, ChevronUp, AlertTriangle, Anchor, AlertCircle } from 'lucide-react';
 
 interface ScmPanelProps {
   data: any;
@@ -10,7 +10,6 @@ interface ScmPanelProps {
 
 export default function ScmPanel({ data }: ScmPanelProps) {
   const [expanded, setExpanded] = useState(true);
-  const [maximized, setMaximized] = useState(false);
 
   const suppliers = data.scm_suppliers || [];
   const criticalSuppliers = suppliers.filter((s: any) => s.risk_level === 'CRITICAL' || s.risk_level === 'HIGH');

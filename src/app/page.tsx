@@ -3,7 +3,7 @@
 import { useEffect, useState, useRef, useCallback, useMemo } from 'react';
 import dynamic from 'next/dynamic';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Layers, BarChart3, Newspaper, Search, X, Globe, MapPinned, Radar, Satellite, Moon, ExternalLink, AlertTriangle, Activity, Database, Wifi, Play, Network, Crosshair, ShieldAlert } from 'lucide-react';
+import { Layers, BarChart3, Newspaper, Search, X, Globe, MapPinned, Radar, Satellite, Moon, ExternalLink, AlertTriangle, Database, Network, ShieldAlert } from 'lucide-react';
 import IntelFeed from '@/components/IntelFeed';
 
 /** Unwrap longitudes to prevent 340° dateline jumps in Mapbox rendering.
@@ -35,7 +35,6 @@ function unwrapLine(coords: number[][]): number[][] {
   return result;
 }
 import MarketsPanel from '@/components/MarketsPanel';
-import ScmPanel from '@/components/ScmPanel';
 import SearchBar from '@/components/SearchBar';
 import ScaleBar from '@/components/ScaleBar';
 import ErrorBoundary from '@/components/ErrorBoundary';
@@ -79,11 +78,10 @@ function useIsMobile() {
 }
 const UptimeClock = () => {
   const [uptime, setUptime] = useState('00:00:00');
-  const startTime = useRef(0);
-  if (startTime.current === 0) startTime.current = Date.now();
   useEffect(() => {
+    const startTime = Date.now();
     const iv = setInterval(() => {
-      const e = Math.floor((Date.now() - startTime.current) / 1000);
+      const e = Math.floor((Date.now() - startTime) / 1000);
       setUptime(`${String(Math.floor(e/3600)).padStart(2,'0')}:${String(Math.floor((e%3600)/60)).padStart(2,'0')}:${String(e%60).padStart(2,'0')}`);
     }, 1000);
     return () => clearInterval(iv);
@@ -101,15 +99,6 @@ const ZuluClock = () => {
     return () => clearInterval(iv);
   }, []);
   return <span className="text-[var(--cyan-primary)] font-bold tabular-nums">{time || 'ZULU --:--:--Z'}</span>;
-};
-
-/** Real entity count — no fake throughput metrics */
-const ActiveEntityCount = ({ data }: { data: Record<string, unknown[]> }) => {
-  const count = useMemo(() => {
-    if (!data) return 0;
-    return Object.values(data).reduce((sum, v) => sum + (Array.isArray(v) ? v.length : 0), 0);
-  }, [data]);
-  return <span className="text-[var(--alert-green)] font-bold tabular-nums">{count.toLocaleString()}</span>;
 };
 
 /** Extracts a watchable YouTube URL from embed/channel URLs */
@@ -187,16 +176,21 @@ function buildThreatGraph(clicked: any, data: any) {
 }
 
 export default function Dashboard() {
-  const dataRef = useRef<any>({});
-  const [dataVersion, setDataVersion] = useState(0);
-  const data = dataRef.current;
+  // Feed data lives in state so renders read a committed value; dataRef mirrors
+  // it for async callbacks that need the latest merged data.
+  const [data, setData] = useState<any>({});
+  const dataRef = useRef<any>(data);
+  const mergeData = useCallback((patch: any) => {
+    dataRef.current = { ...dataRef.current, ...patch };
+    setData(dataRef.current);
+  }, []);
   // Local-cache freshness, keyed by feed name (from X-OSIRIS-* response headers).
   const [cacheMeta, setCacheMeta] = useState<Record<string, { status: string; ageSec: number; sourceOk: boolean }>>({});
 
   const [backendStatus, setBackendStatus] = useState<'connecting' | 'connected' | 'error'>('connecting');
   const [mapView, setMapView] = useState({ zoom: 2.5, latitude: 20 });
   const [flyToLocation, setFlyToLocation] = useState<{ lat: number; lng: number; ts: number } | null>(null);
-  const [globalStats, setGlobalStats] = useState<any>(null);
+  const [, setGlobalStats] = useState<any>(null);
   const mouseCoordsRef = useRef<{ lat: number; lng: number } | null>(null);
   const coordsDisplayRef = useRef<HTMLDivElement>(null);
   const [locationLabel, setLocationLabel] = useState('');
@@ -208,12 +202,12 @@ export default function Dashboard() {
   const [showLayers, setShowLayers] = useState(true);
   const [showMarkets, setShowMarkets] = useState(false);
   const [showAlerts, setShowAlerts] = useState(false);
-  const [showScmPanel, setShowScmPanel] = useState(true);
+  const [, setShowScmPanel] = useState(true);
   const [showIntel, setShowIntel] = useState(false);
   const [showCyberIntel, setShowCyberIntel] = useState(false);
   const [showLocalIntel, setShowLocalIntel] = useState(false);
   const [showEntityGraph, setShowEntityGraph] = useState(false);
-  const [isFullscreen, setIsFullscreen] = useState(false);
+  const [, setIsFullscreen] = useState(false);
   const [mobilePanel, setMobilePanel] = useState<'layers'|'markets'|'intel'|'search'|'recon'|null>(null);
   const [mapProjection, setMapProjection] = useState<'globe'|'mercator'>('globe');
   const [mapStyle, setMapStyle] = useState<'dark'|'satellite'>('dark');
@@ -230,7 +224,7 @@ export default function Dashboard() {
     }
   }, []);
   const [entityGraphTarget, setEntityGraphTarget] = useState<{ type: string; id: string; label?: string; properties?: Record<string, any>; seedGraph?: { nodes: any[]; links: any[] } } | null>(null);
-  const [demoMode, setDemoMode] = useState(false);
+  const [demoMode] = useState(false);
   const [osirisTheme, setOsirisTheme] = useState<'core'|'ghost'>('core');
 
   useEffect(() => {
@@ -238,7 +232,6 @@ export default function Dashboard() {
   }, [osirisTheme]);
 
   const isMobile = useIsMobile();
-  const startTime = useRef(Date.now());
   const geocodeCache = useRef<Map<string, string>>(new Map());
   const geocodeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastGeocodedPos = useRef<{ lat: number; lng: number } | null>(null);
@@ -305,6 +298,7 @@ export default function Dashboard() {
     const layers = p.get('layers');
     if (layers) {
       const active = layers.split(',');
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- restores layers from window.location after mount; reading it during render would break hydration
       setActiveLayers(prev => {
         const next = { ...prev };
         Object.keys(next).forEach(k => { (next as any)[k] = active.includes(k); });
@@ -481,8 +475,7 @@ export default function Dashboard() {
         }
         const json = await res.json();
         const d = transform ? transform(json) : json;
-        dataRef.current = { ...dataRef.current, ...d };
-        setDataVersion(v => v + 1);
+        mergeData(d);
         setBackendStatus('connected');
       }
     } catch (e) {
@@ -494,6 +487,7 @@ export default function Dashboard() {
   // ── PROGRESSIVE DATA LOADING (request-optimized) ──
   useEffect(() => {
     // Priority 1: Core feeds (always needed for panels)
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- kicks off the async feed fetches; state is set when each response arrives
     fetchEndpoint('/api/earthquakes');
     fetchEndpoint('/api/news');
     const marketTimer = setTimeout(() => fetchEndpoint('/api/markets', d => ({ markets: d })), 800);
@@ -591,17 +585,18 @@ export default function Dashboard() {
     // Submarine Cables
     if (activeLayers.cables && !layerFetchedRef.current.has('cables')) {
       (async () => {
+        const patch: Record<string, any> = {};
         try {
           const ts = Date.now();
       const res = await fetch(`/data/submarine-cables.json?v=${ts}`);
              if (res.ok) {
                 const cablesData = await res.json();
-                dataRef.current = { ...dataRef.current, submarine_cables: unwrapCableLongitudes(cablesData.features) };
+                patch.submarine_cables = unwrapCableLongitudes(cablesData.features);
             }
           const lpRes = await fetch(`/data/submarine-cables-landing-points.json?v=${ts}`);
           if (lpRes.ok) {
             const lpData = await lpRes.json();
-            dataRef.current = { ...dataRef.current, submarine_cables_landing_points: lpData.features };
+            patch.submarine_cables_landing_points = lpData.features;
           }
           // Pre-load cable metadata and merge into feature properties
           const metaRes = await fetch(`/data/submarine-cables-meta.json?v=${ts}`);
@@ -609,7 +604,7 @@ export default function Dashboard() {
             const metaData = await metaRes.json();
             const metaMap = new Map<string, any>();
             metaData.forEach((m: any) => { if (m.id) metaMap.set(m.id, m); });
-            const enriched = (dataRef.current.submarine_cables || []).map((f: any) => {
+            const enriched = (patch.submarine_cables || dataRef.current.submarine_cables || []).map((f: any) => {
               const meta = metaMap.get(f.properties.id);
               if (meta) {
                 return { ...f, properties: { ...f.properties,
@@ -621,10 +616,10 @@ export default function Dashboard() {
               }
               return f;
             });
-            dataRef.current = { ...dataRef.current, submarine_cables: enriched };
+            patch.submarine_cables = enriched;
           }
-             setDataVersion(v => v + 1);
-        } catch (e) { console.warn('Cables fetch failed'); }
+        } catch { console.warn('Cables fetch failed'); }
+        finally { if (Object.keys(patch).length) mergeData(patch); }
       })();
       layerFetchedRef.current.add('cables');
     }
@@ -708,85 +703,6 @@ export default function Dashboard() {
   // CCTV: loaded once on layer toggle via layerFetchedRef (no viewport polling)
 
   // Reactive layer fetch: handled by layerFetchedRef above (no duplicate)
-
-  // ── OSIRIS SDK — Intelligence Fusion Layer ──
-  // Produces node coordinates for the SDK network mesh visualization.
-  // Does NOT duplicate existing layer visuals — SDK layer is LINES ONLY.
-  // Cameras are excluded — they have their own dedicated layer.
-  useEffect(() => {
-    const anyActive = activeLayers.sdk_sea || activeLayers.sdk_air || activeLayers.sdk_naval;
-    if (!anyActive) {
-      dataRef.current = { ...dataRef.current, sdk_entities: [] };
-      return;
-    }
-
-    const sdkEntities: any[] = [];
-
-    // Air domain (nodes only — no visual duplication)
-    const allFlights = [
-      ...(data.commercial_flights || []),
-      ...(data.private_flights || []),
-      ...(data.private_jets || []),
-      ...(data.military_flights || []),
-    ];
-    // Sample flights to keep it clean (every Nth)
-    const flightStep = Math.max(1, Math.floor(allFlights.length / 60));
-    for (let i = 0; i < allFlights.length; i += flightStep) {
-      const f = allFlights[i];
-      if (!f.lat || !f.lng) continue;
-      sdkEntities.push({
-        type: 'Feature', geometry: { type: 'Point', coordinates: [f.lng, f.lat] },
-        properties: { domain: 'AIR', name: f.callsign?.trim() || 'TRACK', source: 'ADS-B / OpenSky' },
-      });
-    }
-
-    // Sea domain
-    const ships = data.maritime_ships || [];
-    const shipStep = Math.max(1, Math.floor(ships.length / 60));
-    for (let i = 0; i < ships.length; i += shipStep) {
-      const s = ships[i];
-      if (!s.lat || !s.lng) continue;
-      sdkEntities.push({
-        type: 'Feature', geometry: { type: 'Point', coordinates: [s.lng, s.lat] },
-        properties: { domain: 'SEA', name: s.name || `MMSI-${s.mmsi}`, source: 'AIS Stream' },
-      });
-    }
-
-    // Events — Earthquakes
-    if (data.earthquakes?.length) {
-      for (const eq of data.earthquakes) {
-        if (!eq.lat || !eq.lng) continue;
-        sdkEntities.push({
-          type: 'Feature', geometry: { type: 'Point', coordinates: [eq.lng, eq.lat] },
-          properties: { domain: 'LAND', name: `M${eq.magnitude} ${eq.place || ''}`, source: 'USGS' },
-        });
-      }
-    }
-
-    // GDELT events
-    if (data.gdelt?.length) {
-      for (const g of data.gdelt) {
-        if (!g.lat || !g.lng) continue;
-        sdkEntities.push({
-          type: 'Feature', geometry: { type: 'Point', coordinates: [g.lng, g.lat] },
-          properties: { domain: 'INTEL', name: g.name || 'GDELT Event', source: 'GDELT Project' },
-        });
-      }
-    }
-
-    // News intel
-    if (data.news?.length) {
-      for (const n of data.news) {
-        if (!n.coords || n.coords.length < 2) continue;
-        sdkEntities.push({
-          type: 'Feature', geometry: { type: 'Point', coordinates: [n.coords[1], n.coords[0]] },
-          properties: { domain: 'INTEL', name: n.title || 'SIGINT', source: n.source || 'RSS Feed' },
-        });
-      }
-    }
-
-    dataRef.current = { ...dataRef.current, sdk_entities: sdkEntities };
-  }, [dataVersion, activeLayers.sdk_sea, activeLayers.sdk_air, activeLayers.sdk_naval]);
 
   const totalFlights = useMemo(() => (
     (data.commercial_flights?.length||0)+(data.private_flights?.length||0)+(data.private_jets?.length||0)+(data.military_flights?.length||0)

@@ -169,7 +169,7 @@ function connectAisStream() {
 
   try {
     ws = new WebSocket("wss://stream.aisstream.io/v0/stream");
-  } catch (e) {
+  } catch {
     globalForAis.isAisConnecting = false;
     return;
   }
@@ -302,7 +302,7 @@ function connectAisStream() {
           globalForAis.aisDirty.add(evictKey);
         }
       }
-    } catch (e) {
+    } catch {
       // ignore parse errors
     }
   });

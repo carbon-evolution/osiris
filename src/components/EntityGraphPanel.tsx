@@ -58,7 +58,18 @@ function EntityGraphPanel({ entity, onClose }: Props) {
   const [expanded, setExpanded] = useState(false);
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
   const graphRef = useRef<any>(null);
-  const containerRef = useRef<HTMLDivElement>(null);
+  // Graph canvas size tracks the container (callback ref + ResizeObserver),
+  // so render reads state instead of measuring the DOM through a ref.
+  const [graphSize, setGraphSize] = useState({ width: 480, height: 400 });
+  const resizeObserver = useRef<ResizeObserver | null>(null);
+  const containerRef = useCallback((el: HTMLDivElement | null) => {
+    resizeObserver.current?.disconnect();
+    if (!el) return;
+    const measure = () => setGraphSize({ width: el.clientWidth || 480, height: el.clientHeight || 400 });
+    measure();
+    resizeObserver.current = new ResizeObserver(measure);
+    resizeObserver.current.observe(el);
+  }, []);
 
   const mergeGraph = useCallback((existing: GraphData, incoming: GraphData): GraphData => {
     const nodeMap = new Map<string, EntityNode>();
@@ -117,6 +128,7 @@ function EntityGraphPanel({ entity, onClose }: Props) {
     if (entity.seedGraph && entity.seedGraph.nodes?.length) {
       const sg = entity.seedGraph;
       const nodes = sg.nodes.some((n: any) => n.id === root.id) ? sg.nodes : [root, ...sg.nodes];
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- loads the graph for a new entity (pre-built seed graph, else API fetch)
       setGraphData({ nodes, links: sg.links || [] });
       setExpandedIds(new Set([`${entity.type}:${entity.id}`]));
       setSelectedNode(nodes.find((n: any) => n.id === root.id) || root);
@@ -302,8 +314,8 @@ function EntityGraphPanel({ entity, onClose }: Props) {
               ref={graphRef} graphData={graphData} nodeId="id"
               nodeCanvasObject={paintNode} linkCanvasObject={paintLink}
               onNodeClick={handleNodeClick} backgroundColor="rgba(0,0,0,0)"
-              width={containerRef.current?.clientWidth || 480}
-              height={containerRef.current?.clientHeight || 400}
+              width={graphSize.width}
+              height={graphSize.height}
               d3AlphaDecay={0.05} d3VelocityDecay={0.4} cooldownTicks={100}
               linkDirectionalParticles={1} linkDirectionalParticleWidth={1.5}
               linkDirectionalParticleSpeed={0.003}

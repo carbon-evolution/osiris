@@ -63,7 +63,7 @@ async function fetchTfLCameras(): Promise<any[]> {
         source: 'TfL',
       };
     }).filter((c: any) => c.lat && c.lng);
-  } catch (e) { return []; }
+  } catch { return []; }
 }
 
 // ── US-WEST: WSDOT Washington State (~500) ──
@@ -77,7 +77,7 @@ async function fetchWSDOTCameras(): Promise<any[]> {
       name: cam.Title || 'WSDOT Camera', city: 'Washington', country: 'US',
       feed_url: cam.ImageURL || '', source: 'WSDOT',
     })).filter((c: any) => c.lat && c.lng && c.feed_url);
-  } catch (e) { return []; }
+  } catch { return []; }
 }
 
 // ── CANADA: Ottawa, Toronto, Montreal, Quebec ──
@@ -98,7 +98,7 @@ async function fetchCanadaCameras(): Promise<any[]> {
         });
       }
     }
-  } catch (e) { /* silent */ }
+  } catch { /* silent */ }
 
   // Quebec 511 (Comprehensive - covers Montreal, Quebec City, highways)
   try {
@@ -119,7 +119,7 @@ async function fetchCanadaCameras(): Promise<any[]> {
         });
       }
     }
-  } catch (e) { /* silent */ }
+  } catch { /* silent */ }
 
   // Ontario 511 (MTO Highway Cameras)
   try {
@@ -135,7 +135,7 @@ async function fetchCanadaCameras(): Promise<any[]> {
         });
       }
     }
-  } catch (e) { /* silent */ }
+  } catch { /* silent */ }
 
   // Ville de Montréal municipal cameras
   try {
@@ -150,7 +150,7 @@ async function fetchCanadaCameras(): Promise<any[]> {
         });
       }
     }
-  } catch (e) { /* silent */ }
+  } catch { /* silent */ }
 
   // Curated Toronto cameras (fallback if 511ON fails)
   const curated = [
@@ -174,7 +174,7 @@ async function fetchCanadaCameras(): Promise<any[]> {
         });
       }
     }
-  } catch (e) { /* silent */ }
+  } catch { /* silent */ }
 
 
   // Toronto Open Data Municipal Traffic Cameras
@@ -194,7 +194,7 @@ async function fetchCanadaCameras(): Promise<any[]> {
         });
       }
     }
-  } catch (e) { /* silent */ }
+  } catch { /* silent */ }
 
   // British Columbia HighwayCams (Live JSON API)
   try {
@@ -211,7 +211,7 @@ async function fetchCanadaCameras(): Promise<any[]> {
         });
       }
     }
-  } catch (e) { /* silent */ }
+  } catch { /* silent */ }
 
   return cams.filter((c: any) => c.lat && c.lng);
 }
@@ -233,7 +233,7 @@ async function fetchUSCentralCameras(): Promise<any[]> {
         });
       }
     }
-  } catch (e) { /* silent */ }
+  } catch { /* silent */ }
 
   return cams.filter((c: any) => c.lat && c.lng);
 }
@@ -289,7 +289,7 @@ async function fetchUSEastCameras(): Promise<any[]> {
         });
       }
     }
-  } catch (e) { /* silent */ }
+  } catch { /* silent */ }
 
 
   return cams.filter((c: any) => c.lat && c.lng);
@@ -328,7 +328,7 @@ async function fetchAsiaCameras(): Promise<any[]> {
         });
       }
     }
-  } catch (e) { /* silent */ }
+  } catch { /* silent */ }
 
   return cams;
 }
@@ -424,7 +424,7 @@ const REGION_FETCHERS: Record<string, () => Promise<any[]>> = {
 }
 
 // Determine which regions to fetch based on viewport bounds
-function getRegionsForBounds(lat: number, lng: number, radius: number): string[] {
+function getRegionsForBounds(lat: number, lng: number): string[] {
   const regions: string[] = [];
   // UK
   if (lat > 49 && lat < 61 && lng > -8 && lng < 2) regions.push('uk');
@@ -529,7 +529,6 @@ export async function GET(request: Request) {
     const region = searchParams.get('region');
     const lat = parseFloat(searchParams.get('lat') || '0');
     const lng = parseFloat(searchParams.get('lng') || '0');
-    const radius = parseFloat(searchParams.get('radius') || '10');
 
     let regionsToFetch: string[];
 
@@ -538,7 +537,7 @@ export async function GET(request: Request) {
     } else if (region) {
       regionsToFetch = region.split(',').filter(r => Object.hasOwn(REGION_FETCHERS, r)); // own keys only: `in` also matches constructor, toString, __proto__
     } else if (lat !== 0 || lng !== 0) {
-      regionsToFetch = getRegionsForBounds(lat, lng, radius);
+      regionsToFetch = getRegionsForBounds(lat, lng);
     } else {
       // Default: load all regions for global coverage
       regionsToFetch = Object.keys(REGION_FETCHERS);

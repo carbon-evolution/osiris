@@ -62,7 +62,7 @@ async function _GET() {
       // Check disk cache
       try {
         const cached = JSON.parse(fs.readFileSync(abuseCachePath, 'utf8'));
-        if (Date.now() - cached.ts < 86_400_000 && Array.isArray(cached.data)) {
+        if (Date.now() - cached.ts < ABUSE_CACHE_TTL && Array.isArray(cached.data)) {
           abuseEntries = cached.data;
           cacheHit = true;
           console.log('[OSIRIS] AbuseIPDB cache hit:', abuseEntries.length, 'entries');

@@ -4,8 +4,8 @@ import { memo, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Plane, Satellite, Activity, Sun, AlertTriangle, Camera, Flame, Target,
-  CloudLightning, Radiation, Tv, Anchor, Ship, Newspaper,
-  Network, Share2, Radio, Mountain, ShieldAlert, Globe, Eye, BookMarked, Thermometer, Waves
+  CloudLightning, Radiation, Tv, Anchor, Ship, 
+  Radio, Mountain, ShieldAlert, Globe, Eye, BookMarked, Thermometer, Waves
 } from 'lucide-react';
 
 interface LayerPanelProps {
@@ -134,7 +134,6 @@ function LayerPanel({ data, activeLayers, setActiveLayers, isMobile, theme = 'co
   const [hoveredGroup, setHoveredGroup] = useState<string | null>(null);
 
   const LAYER_GROUPS = getLayerGroups(theme);
-  const ALL_LAYERS = LAYER_GROUPS.flatMap(g => g.layers);
 
   const toggle = (key: string) => setActiveLayers((prev: any) => ({ ...prev, [key]: !prev[key] }));
   
@@ -299,7 +298,6 @@ function LayerPanel({ data, activeLayers, setActiveLayers, isMobile, theme = 'co
                       {group.layers.map((layer) => {
                         const isLayerActive = activeLayers[layer.key];
                         const count = getCount(layer);
-                        const Icon = layer.icon || Shield;
                         
                         return (
                           <button

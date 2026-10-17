@@ -24,7 +24,7 @@ export async function POST(request: Request) {
             }
         }
 
-        const payload = JSON.parse(payloadText);
+        JSON.parse(payloadText); // reject non-JSON bodies before forwarding
 
         // Forward the payload to the local OSIRIS Discord Bot running on Port 3005
         // Using the Tailscale internal IP of the Discord bot server
