@@ -5,6 +5,10 @@ import {
   DENMARK_BATCH2_EXTRA_REPLACED_IDS,
   DENMARK_OFFICIAL_BATCH2_EXTRA,
 } from './denmark-official-batch2-extra';
+import {
+  DENMARK_BATCH2_AIRFIELD_REPLACED_IDS,
+  DENMARK_OFFICIAL_BATCH2_AIRFIELDS,
+} from './denmark-official-batch2-airfields';
 
 /**
  * Denmark camera catalogue with official-source upgrades layered over the
@@ -17,9 +21,11 @@ export async function fetchDenmarkCameras(): Promise<CctvCamera[]> {
     ...base.filter(
       (camera) =>
         !DENMARK_BATCH2_REPLACED_IDS.has(camera.id) &&
-        !DENMARK_BATCH2_EXTRA_REPLACED_IDS.has(camera.id),
+        !DENMARK_BATCH2_EXTRA_REPLACED_IDS.has(camera.id) &&
+        !DENMARK_BATCH2_AIRFIELD_REPLACED_IDS.has(camera.id),
     ),
     ...DENMARK_OFFICIAL_BATCH2,
     ...DENMARK_OFFICIAL_BATCH2_EXTRA,
+    ...DENMARK_OFFICIAL_BATCH2_AIRFIELDS,
   ];
 }
