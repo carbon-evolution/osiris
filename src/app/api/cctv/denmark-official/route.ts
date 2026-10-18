@@ -13,7 +13,8 @@ const PFG_FEEDS: Record<string, string> = {
 
 export async function GET(request: NextRequest) {
   const cam = request.nextUrl.searchParams.get('cam') || '';
-  const target = PFG_FEEDS[cam];
+  // Own keys only: a plain lookup also matches constructor, toString, __proto__.
+  const target = Object.hasOwn(PFG_FEEDS, cam) ? PFG_FEEDS[cam] : undefined;
   if (!target) {
     return NextResponse.json({ error: 'invalid camera' }, { status: 400 });
   }
