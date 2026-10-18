@@ -10,6 +10,17 @@ import type { CctvCamera } from './types';
 const ENDPOINT = 'https://api.data.gov.sg/v1/transport/traffic-images';
 const CACHE_TTL_MS = 5 * 60 * 1000;
 
+/** Fields read from each camera in the data.gov.sg traffic-images response. */
+interface SgCameraRaw {
+  camera_id?: string | number;
+  image?: string;
+  location?: { latitude?: number; longitude?: number };
+}
+
+interface SgTrafficImagesResponse {
+  items?: { cameras?: SgCameraRaw[] }[];
+}
+
 let cached: CctvCamera[] | null = null;
 let cacheTs = 0;
 
@@ -27,15 +38,15 @@ export async function fetchSingaporeCameras(): Promise<CctvCamera[]> {
     });
     if (!res.ok) return cached ?? [];
 
-    const data: any = await res.json();
-    const list: any[] = data?.items?.[0]?.cameras ?? [];
+    const data: SgTrafficImagesResponse | null = await res.json();
+    const list: SgCameraRaw[] = data?.items?.[0]?.cameras ?? [];
     const cameras: CctvCamera[] = [];
     const seen = new Set<string>();
 
     for (const c of list) {
       const id: string = String(c.camera_id ?? '');
-      const lat: number = c.location?.latitude;
-      const lng: number = c.location?.longitude;
+      const lat = c.location?.latitude;
+      const lng = c.location?.longitude;
       const image: string = c.image || '';
 
       if (!id || !lat || !lng || !image) continue;

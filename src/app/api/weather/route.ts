@@ -80,6 +80,23 @@ type NwsResponse = {
   features?: NwsFeature[];
 };
 
+/** Fields read from a GDACS event GeoJSON feature. */
+type GdacsFeature = {
+  properties: {
+    eventtype?: string;
+    eventid?: number | string;
+    name?: string;
+    description?: string;
+    alertlevel?: string;
+    icon?: string;
+    fromdate?: string;
+    datemodified?: string;
+    country?: string;
+    url?: { report?: string };
+  };
+  geometry?: { coordinates?: number[] };
+};
+
 async function _GET() {
   try {
     const [eonetRes, nwsRes, gdacsRes] = await Promise.allSettled([
@@ -191,7 +208,7 @@ async function _GET() {
 
     if (gdacsRes.status === 'fulfilled' && gdacsRes.value.ok) {
       try {
-        const data = (await gdacsRes.value.json()) as { features?: any[] };
+        const data = (await gdacsRes.value.json()) as { features?: GdacsFeature[] };
         providerSucceeded = true;
 
         // Hazard types already covered by dedicated layers are skipped.

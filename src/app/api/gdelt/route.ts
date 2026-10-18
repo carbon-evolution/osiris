@@ -11,6 +11,25 @@ export const dynamic = 'force-dynamic';
  * (opt-in, OAuth — only used when ACLED_EMAIL/ACLED_PASSWORD are set).
  */
 
+/** Incident emitted to the client (GDELT, ACLED or simulated fallback). */
+interface GdeltEvent {
+  id: string;
+  lat: number;
+  lng: number;
+  name: string;
+  url: string;
+  html: string;
+  type: string;
+  category?: string;
+  count: number;
+  shareimage: string;
+  source?: string;
+  fatalities?: number;
+  actors?: string;
+  country?: string;
+  date?: string;
+}
+
 async function _GET() {
   try {
     // ACLED — structured, geocoded conflict events with actors + fatalities.
@@ -30,7 +49,7 @@ async function _GET() {
       { q: 'cyberattack OR ransomware OR data breach OR hacking', type: 'cyber', category: 'Cyber' },
     ];
 
-    const allEvents: any[] = [];
+    const allEvents: GdeltEvent[] = [];
     let eventId = 0;
 
     // Run all GDELT category queries in parallel so total latency stays ~5s

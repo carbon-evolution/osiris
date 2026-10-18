@@ -10,6 +10,19 @@ import type { CctvCamera } from './types';
 const PAGE_URL = 'https://umferdin.is/en/cameras';
 const CACHE_TTL_MS = 5 * 60 * 1000;
 
+/** Fields read from each camera in the umferdin.is __NEXT_DATA__ payload. */
+interface IcelandCameraRaw {
+  id?: string | number;
+  name?: string;
+  roadName?: string;
+  coordinates?: { lat?: number; lon?: number };
+  images?: { url?: string }[];
+}
+
+interface IcelandNextData {
+  props?: { pageProps?: { cameras?: IcelandCameraRaw[] } };
+}
+
 let cached: CctvCamera[] | null = null;
 let cacheTs = 0;
 
@@ -32,15 +45,15 @@ export async function fetchIcelandCameras(): Promise<CctvCamera[]> {
 
     const m = html.match(/<script id="__NEXT_DATA__"[^>]*>([\s\S]*?)<\/script>/);
     if (!m) return cached ?? [];
-    const data: any = JSON.parse(m[1]);
-    const list: any[] = data?.props?.pageProps?.cameras ?? [];
+    const data: IcelandNextData | null = JSON.parse(m[1]);
+    const list: IcelandCameraRaw[] = data?.props?.pageProps?.cameras ?? [];
 
     const cameras: CctvCamera[] = [];
     const seen = new Set<string>();
 
     for (const c of list) {
-      const lat: number = c?.coordinates?.lat;
-      const lng: number = c?.coordinates?.lon;
+      const lat = c?.coordinates?.lat;
+      const lng = c?.coordinates?.lon;
       const image: string = c?.images?.[0]?.url || '';
       const id: string = String(c?.id ?? '');
       if (!lat || !lng || !image || !id) continue;

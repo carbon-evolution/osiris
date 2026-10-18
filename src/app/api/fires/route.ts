@@ -23,8 +23,15 @@ type Fire = {
   frp: number;
   daynight?: string;
   satellite?: string;
+  title?: string;
   type: string;
 };
+
+/** Fields read from a NASA EONET v3 event. */
+interface EonetEvent {
+  title?: string;
+  geometry?: { date?: string; coordinates?: number[] }[];
+}
 
 const FIRMS_SOURCES: { url: string; label: string }[] = [
   { url: 'https://firms.modaps.eosdis.nasa.gov/data/active_fire/suomi-npp-viirs-c2/csv/SUOMI_VIIRS_C2_Global_24h.csv', label: 'VIIRS S-NPP' },
@@ -83,7 +90,7 @@ async function _GET() {
       });
       if (volcRes.ok) {
         const volcData = await volcRes.json();
-        const volcanoes: Fire[] = (volcData.events || []).map((e: any) => {
+        const volcanoes: Fire[] = (volcData.events || []).map((e: EonetEvent): Fire | null => {
           const geo = e.geometry?.[e.geometry.length - 1];
           if (!geo?.coordinates) return null;
           return {
@@ -91,8 +98,8 @@ async function _GET() {
             brightness: 500, confidence: 'high',
             date: geo.date?.split('T')[0] || '', time: '', frp: 100,
             satellite: 'EONET', title: `[VOLCANO] ${e.title}`, type: 'volcano',
-          } as any;
-        }).filter(Boolean);
+          };
+        }).filter((v: Fire | null): v is Fire => v !== null);
         fires = [...fires, ...volcanoes];
       }
     } catch (e) {

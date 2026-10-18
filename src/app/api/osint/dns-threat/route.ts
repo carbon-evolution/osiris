@@ -128,6 +128,35 @@ async function getIpAsn(ip: string): Promise<{ asn: number; org: string } | null
   return null;
 }
 
+interface DnsThreatResult {
+  source: string;
+  timestamp: string;
+  checks: Record<string, unknown>;
+  spamhaus?: {
+    cidr_blocks_loaded: number;
+    malicious_asns_loaded: number;
+    host_in_spamhaus: boolean;
+    asn_matches: { asn: number; org: string }[];
+    cidr_matches: { ip: string; cidr: string }[];
+  };
+  query?: string;
+  type?: 'ip' | 'domain';
+  resolved_ips?: string[];
+  dnsbl?: {
+    listed: boolean;
+    blocklists: { ip: string; dnsbl: string; listed: boolean; return_code: string }[];
+  };
+  reputation?: {
+    asn_count: number;
+    unique_ips: number;
+    on_spamhaus: boolean;
+    on_dnsbl: boolean;
+  };
+  risk_level?: 'HIGH' | 'MEDIUM' | 'LOW';
+  risk_factors?: string[];
+  sanctions_match?: { source: string; hits: Array<{ matched_value: string; entries: SanctionEntry[] }> } | null;
+}
+
 async function _GET(req: Request) {
   const { searchParams } = new URL(req.url);
   const domain = searchParams.get('domain');
@@ -149,7 +178,7 @@ async function _GET(req: Request) {
       });
     }
 
-    const result: any = {
+    const result: DnsThreatResult = {
       source: 'DNS Threat Check',
       timestamp: new Date().toISOString(),
       checks: {},

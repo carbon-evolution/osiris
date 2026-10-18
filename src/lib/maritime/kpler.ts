@@ -29,6 +29,25 @@ export type KplerStatus =
 
 type Creds = { id: string; secret: string };
 
+/** Fields read from the Auth0 token endpoint response (success or error). */
+interface KplerTokenResponse {
+  access_token?: string;
+  expires_in?: number | string;
+  error?: string;
+  error_description?: string;
+}
+
+/** Fields read from each vessel in the Kpler Vessels GraphQL response. */
+interface KplerVesselRow {
+  mmsi?: number | string;
+  lastPositionUpdate?: { navigationalStatus?: number | null };
+  currentVoyage?: { matchedPort?: { name?: string; country?: string } };
+}
+
+interface KplerVesselsResponse {
+  data?: { vessels?: KplerVesselRow[] };
+}
+
 function readCreds(): Creds | null {
   let id = process.env.KPLER_CLIENT_ID;
   let secret = process.env.KPLER_CLIENT_SECRET;
@@ -102,7 +121,7 @@ async function getToken(): Promise<string | null> {
     return null;
   }
 
-  const body = await res.json().catch(() => ({} as any));
+  const body: KplerTokenResponse = await res.json().catch(() => ({}));
   if (!res.ok || !body.access_token) {
     g.kplerRetryAfter = Date.now() + TOKEN_RETRY_MS;
     // Auth0 returns 403 access_denied with a "create a client-grant" message
@@ -160,8 +179,8 @@ export async function enrichWithKpler(ships: Ship[]): Promise<KplerStatus> {
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
       body: JSON.stringify({ query, variables: { mmsi: mmsis } }),
     });
-    const json = await res.json().catch(() => ({} as any));
-    const rows: any[] = json?.data?.vessels ?? [];
+    const json: KplerVesselsResponse | null = await res.json().catch(() => ({}));
+    const rows: KplerVesselRow[] = json?.data?.vessels ?? [];
     if (!rows.length) return 'active';
 
     const byMmsi = new Map<number, Ship>();

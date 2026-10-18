@@ -16,7 +16,7 @@ export const dynamic = 'force-dynamic';
  * Caches per icao24 for 2 minutes — tracks update infrequently for most flights.
  */
 
-const cache = new Map<string, { ts: number; data: any }>();
+const cache = new Map<string, { ts: number; data: unknown }>();
 const CACHE_TTL_MS = 2 * 60 * 1000;
 
 function getCached(key: string) {
@@ -26,7 +26,7 @@ function getCached(key: string) {
   return null;
 }
 
-function setCache(key: string, data: any) {
+function setCache(key: string, data: unknown) {
   cache.set(key, { ts: Date.now(), data });
   if (cache.size > 500) {
     const oldest = [...cache.entries()].sort((a, b) => a[1].ts - b[1].ts)[0];

@@ -94,6 +94,12 @@ const NUCLEAR_FACILITIES = [
   { id: 'nuc-br-angra', name: 'Angra NPP', city: 'Angra dos Reis', country: 'Brazil', lat: -23.0083, lng: -44.4583, status: 'Operational', reactors: 2, capacityMW: 1884, owner: 'Eletronuclear' },
 ];
 
+/** Fields read from a USGS GeoJSON summary feature. */
+interface UsgsQuakeFeature {
+  geometry: { coordinates: number[] };
+  properties: { mag: number };
+}
+
 async function _GET() {
   let dynamicFacilities = [...NUCLEAR_FACILITIES];
 
@@ -102,7 +108,7 @@ async function _GET() {
     const res = await fetch('https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/4.5_day.geojson', { signal: AbortSignal.timeout(5000) });
     if (res.ok) {
       const eqData = await res.json();
-      const earthquakes = eqData.features || [];
+      const earthquakes: UsgsQuakeFeature[] = eqData.features || [];
 
       // Fast distance approximation (km)
       const getDistanceKm = (lat1: number, lng1: number, lat2: number, lng2: number) => {
@@ -113,13 +119,13 @@ async function _GET() {
 
       dynamicFacilities = NUCLEAR_FACILITIES.map(facility => {
         // Check if any quake is within 150km
-        const nearbyQuakes = earthquakes.filter((eq: any) => {
+        const nearbyQuakes = earthquakes.filter((eq) => {
           const [eqLng, eqLat] = eq.geometry.coordinates;
           return getDistanceKm(facility.lat, facility.lng, eqLat, eqLng) < 150;
         });
 
         if (nearbyQuakes.length > 0) {
-          const maxMag = Math.max(...nearbyQuakes.map((eq: any) => eq.properties.mag));
+          const maxMag = Math.max(...nearbyQuakes.map((eq) => eq.properties.mag));
           return {
             ...facility,
             status: `SEISMIC RISK (M${maxMag.toFixed(1)})`,

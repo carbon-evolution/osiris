@@ -74,6 +74,22 @@ export type AcledEvent = {
   source: 'ACLED';
 };
 
+/** Fields read from an ACLED API row (numeric fields arrive as strings). */
+interface AcledRow {
+  event_id_cnty?: string;
+  event_date?: string;
+  event_type: string;
+  sub_event_type?: string;
+  latitude: string;
+  longitude: string;
+  actor1?: string;
+  actor2?: string;
+  fatalities: string;
+  notes?: string;
+  location?: string;
+  country?: string;
+}
+
 // Map ACLED event types to OSIRIS incident buckets.
 function bucket(eventType: string): AcledEvent['type'] {
   const t = (eventType || '').toLowerCase();
@@ -116,7 +132,7 @@ export async function fetchAcledEvents(days = 30, limit = 600): Promise<AcledEve
     }
     if (!res.ok) throw new Error(`ACLED read ${res.status}`);
     const json = await res.json();
-    const rows: any[] = Array.isArray(json) ? json : json.data || [];
+    const rows: AcledRow[] = Array.isArray(json) ? json : json.data || [];
 
     const events: AcledEvent[] = [];
     for (const r of rows) {

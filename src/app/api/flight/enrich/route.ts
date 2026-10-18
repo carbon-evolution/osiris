@@ -17,8 +17,52 @@ export const dynamic = 'force-dynamic';
 
 const ADSBDB_BASE = 'https://api.adsbdb.com/v0';
 
+interface EnrichedAirport {
+  name?: string;
+  iata?: string;
+  icao?: string;
+  municipality?: string;
+  country?: string;
+  country_iso?: string;
+  lat?: number;
+  lng?: number;
+}
+
+interface EnrichedRoute {
+  callsign: string;
+  callsign_icao?: string;
+  callsign_iata?: string;
+  airline: {
+    name?: string;
+    icao?: string;
+    iata?: string;
+    country?: string;
+    country_iso?: string;
+  } | null;
+  origin: EnrichedAirport | null;
+  destination: EnrichedAirport | null;
+}
+
+interface EnrichedAircraft {
+  type?: string;
+  icao_type?: string;
+  manufacturer?: string;
+  registration?: string;
+  owner_country?: string;
+  owner_country_iso?: string;
+  operator?: string;
+  owner?: string;
+  photo?: string;
+  photo_full?: string;
+}
+
+interface EnrichResult {
+  route?: EnrichedRoute;
+  aircraft?: EnrichedAircraft;
+}
+
 // In-memory cache keyed by callsign, TTL = 15 min
-const cache = new Map<string, { ts: number; data: any }>();
+const cache = new Map<string, { ts: number; data: EnrichedRoute }>();
 const CACHE_TTL_MS = 15 * 60 * 1000;
 
 function getCached(key: string) {
@@ -28,7 +72,7 @@ function getCached(key: string) {
   return null;
 }
 
-function setCache(key: string, data: any) {
+function setCache(key: string, data: EnrichedRoute) {
   cache.set(key, { ts: Date.now(), data });
   // Evict oldest entries if cache > 500
   if (cache.size > 500) {
@@ -52,7 +96,7 @@ export async function GET(req: Request) {
     );
   }
 
-  const result: any = {};
+  const result: EnrichResult = {};
 
   // ── 1. Route + Airline lookup by callsign ──
   if (callsignRaw) {

@@ -22,8 +22,8 @@ interface ReconTarget { target: string; subdomains_found?: number; alive_count?:
 
 export default function LocalIntelPanel() {
   const [tab, setTab] = useState<Tab>('otcad');
-  const [otcad, setOtcad] = useState<{ items: OtcadItem[]; stats?: any } | null>(null);
-  const [ics, setIcs] = useState<{ items: IcsItem[]; stats?: any } | null>(null);
+  const [otcad, setOtcad] = useState<{ items: OtcadItem[]; stats?: Record<string, unknown> } | null>(null);
+  const [ics, setIcs] = useState<{ items: IcsItem[]; stats?: Record<string, unknown> } | null>(null);
   const [recon, setRecon] = useState<{ targets: ReconTarget[]; count?: number } | null>(null);
   const [loading, setLoading] = useState(true);
 

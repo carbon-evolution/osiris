@@ -1,6 +1,11 @@
 import { withQueryCache } from '@/lib/feeds/serve';
 import { NextResponse } from 'next/server';
 
+/** An XposedOrNot ExposedData entry; data_classes is checked with Array.isArray before use. */
+interface XonExposedItem {
+  data_classes?: unknown;
+}
+
 async function _GET(req: Request) {
   const { searchParams } = new URL(req.url);
   const email = searchParams.get('email');
@@ -33,7 +38,7 @@ async function _GET(req: Request) {
     }
     
     if (data.ExposedData && Array.isArray(data.ExposedData)) {
-       data.ExposedData.forEach((item: any) => {
+       data.ExposedData.forEach((item: XonExposedItem) => {
           if (item.data_classes && Array.isArray(item.data_classes)) {
              item.data_classes.forEach((dc: string) => dataExposed.add(dc));
           }
@@ -46,8 +51,8 @@ async function _GET(req: Request) {
       breaches: breachList,
       data_exposed: Array.from(dataExposed).sort()
     });
-  } catch (error: any) {
-    return NextResponse.json({ error: 'Leak lookup failed', detail: error.message }, { status: 500 });
+  } catch (error) {
+    return NextResponse.json({ error: 'Leak lookup failed', detail: error instanceof Error ? error.message : String(error) }, { status: 500 });
   }
 }
 

@@ -152,13 +152,26 @@ function computeGroundTrack(line1: string, line2: string, meanMotion: number): [
 // SatNOGS Open API - Provides full TLE JSON without API keys or IP blocks
 const SATNOGS_API = 'https://db.satnogs.org/api/tle/?format=json';
 
-let globalCachedSats: any[] = [];
+/** Fields read from each SatNOGS TLE record. */
+interface SatnogsTle {
+  tle0?: string;
+  tle1?: string;
+  tle2?: string;
+}
+
+interface TleRecord {
+  name: string;
+  line1: string;
+  line2: string;
+}
+
+let globalCachedSats: TleRecord[] = [];
 let globalCacheTime = 0;
 
 async function _GET() {
   try {
     const nowTime = Date.now();
-    let allSats: any[] = globalCachedSats;
+    let allSats: TleRecord[] = globalCachedSats;
     let source = 'memory-cache';
 
     if (globalCachedSats.length === 0 || nowTime - globalCacheTime > 3600000) {
@@ -169,8 +182,8 @@ async function _GET() {
         });
 
         if (res.ok) {
-          const data = await res.json();
-          const fetchedSats: any[] = [];
+          const data: SatnogsTle[] = await res.json();
+          const fetchedSats: TleRecord[] = [];
           const seen = new Set<string>();
 
           for (const item of data) {

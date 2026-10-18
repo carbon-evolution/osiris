@@ -5,9 +5,10 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { X, ExternalLink, RefreshCw, MapPin, Camera, Maximize2 } from 'lucide-react';
 import Hls from 'hls.js';
 import { needsHlsProxy, toHlsProxyUrl } from '@/app/api/cctv/hls-hosts';
+import type { CctvCamera } from '@/app/api/cctv/types';
 
 interface CameraViewerProps {
-  camera: any | null;
+  camera: CctvCamera | null;
   onClose: () => void;
   onLocate?: (lat: number, lng: number) => void;
 }
@@ -35,7 +36,9 @@ export default function CameraViewer({ camera, onClose, onLocate }: CameraViewer
   const hlsRef = useRef<Hls | null>(null);
   const refreshTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const streamType = camera?.stream_type || 'jpg';
+  // Widened to string: the player also handles an 'mp4' stream type that
+  // CctvStreamType does not enumerate.
+  const streamType: string = camera?.stream_type || 'jpg';
   const externalFeedUrl = camera?.external_url || camera?.feed_url;
   const externalOnly = Boolean(camera?.external_url && !camera?.feed_url && !camera?.stream_url);
 

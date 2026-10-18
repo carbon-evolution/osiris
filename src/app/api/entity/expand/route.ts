@@ -29,6 +29,19 @@ const APT_GROUPS: Record<string, { name: string; country: string; techniques: st
   G0045: { name: 'Cozy Bear', country: 'RU', techniques: ['T1566', 'T1059', 'T1005'] },
 };
 
+interface GraphNode {
+  id: string;
+  label: string;
+  type: string;
+  properties: Record<string, unknown>;
+}
+
+interface GraphLink {
+  source: string;
+  target: string;
+  label: string;
+}
+
 export async function GET(req: Request) {
   const clientIp = getClientIp(req);
   if (isRateLimited(clientIp, 30, 60_000)) {
@@ -61,7 +74,7 @@ export async function GET(req: Request) {
       type: 'event' as const,
       properties: { technique_id: tId, technique_name: APT_TECHNIQUES[tId] || tId },
     }));
-    const links = techniqueNodes.map((n: any) => ({ source: `apt:${groupId}`, target: n.id, label: 'uses' }));
+    const links = techniqueNodes.map((n) => ({ source: `apt:${groupId}`, target: n.id, label: 'uses' }));
     return NextResponse.json({ nodes: techniqueNodes, links });
   }
 
@@ -83,8 +96,8 @@ export async function GET(req: Request) {
         return NextResponse.json({ nodes: [], links: [] });
       }
 
-      const nodes: any[] = [];
-      const links: any[] = [];
+      const nodes: GraphNode[] = [];
+      const links: GraphLink[] = [];
 
       if (geo.countryCode) {
         nodes.push({

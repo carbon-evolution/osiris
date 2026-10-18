@@ -37,8 +37,8 @@ async function _GET(req: Request) {
 
     const data = await res.json();
     return NextResponse.json(data);
-  } catch (error: any) {
-    return NextResponse.json({ error: 'Shodan lookup failed', detail: error.message }, { status: 502 });
+  } catch (error) {
+    return NextResponse.json({ error: 'Shodan lookup failed', detail: error instanceof Error ? error.message : String(error) }, { status: 502 });
   }
 }
 

@@ -19,7 +19,7 @@ async function _GET(req: Request) {
     const from = new Date(now.getTime() - days * 86400000);
     const datetime = `${from.toISOString().split('.')[0]}Z/${now.toISOString().split('.')[0]}Z`;
 
-    let scenes: any[] = [];
+    let scenes: ReturnType<typeof formatScene>[] = [];
     let source = '';
     let total = 0;
 
@@ -107,7 +107,16 @@ async function _GET(req: Request) {
   }
 }
 
-function formatScene(feature: any) {
+/** Fields read from a STAC item; STAC properties are an open-ended extension map. */
+interface StacFeature {
+  id?: string;
+  bbox?: number[];
+  properties?: Record<string, unknown>;
+  assets?: { thumbnail?: { href?: string }; preview?: { href?: string } };
+  geometry?: { type?: string };
+}
+
+function formatScene(feature: StacFeature) {
   const props = feature.properties || {};
   return {
     id: feature.id,

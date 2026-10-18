@@ -16,6 +16,25 @@ export const dynamic = 'force-dynamic';
  * Docs: https://urlhaus-api.abuse.ch/
  */
 const URLHAUS_API = 'https://urlhaus-api.abuse.ch/v1';
+
+/** Fields read from a URLhaus URL entry (host and payload lookups). */
+interface UrlhausUrl {
+  id?: string | number;
+  url?: string;
+  threat?: string;
+  url_status?: string;
+  host?: string;
+  date_added?: string;
+  last_online?: string | null;
+  filename?: string | null;
+  payload?: {
+    md5?: string;
+    sha1?: string;
+    sha256?: string;
+    file_type?: string;
+    signature?: string | null;
+  } | null;
+}
 // abuse.ch made authentication mandatory in 2024 — without an Auth-Key every
 // request returns 401. Get a free key at https://auth.abuse.ch and set URLHAUS_KEY.
 const URLHAUS_KEY = (typeof process !== 'undefined' && process.env && process.env.URLHAUS_KEY) || '';
@@ -82,7 +101,7 @@ async function _GET(req: Request) {
         });
       }
 
-      const urls = (data.urls || []).slice(0, 50).map((u: any) => ({
+      const urls = (data.urls || []).slice(0, 50).map((u: UrlhausUrl) => ({
         id: u.id || '',
         url: u.url || '',
         threat: u.threat || '',
@@ -208,7 +227,7 @@ async function _GET(req: Request) {
         first_seen: data.firstseen || '',
         last_seen: data.lastseen || '',
         tags: data.tags || [],
-        urls: (data.urls || []).slice(0, 20).map((u: any) => ({
+        urls: (data.urls || []).slice(0, 20).map((u: UrlhausUrl) => ({
           url: u.url || '',
           threat: u.threat || '',
           status: u.url_status || '',
