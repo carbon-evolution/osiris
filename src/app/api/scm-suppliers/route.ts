@@ -1,5 +1,6 @@
 import { withCache } from '@/lib/feeds/serve';
 import { NextResponse } from 'next/server';
+import { internalOrigin } from '@/lib/internalOrigin';
 
 /**
  * OSIRIS — SCM Supplier Risk Overlay
@@ -39,6 +40,7 @@ async function _GET() {
     return Math.sqrt(dx * dx + dy * dy) * 111.32;
   };
 
+  // Each source is independent: one failing must not skip the others.
   try {
     // 1. Fetch Earthquakes
     const eqRes = await fetch('https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/4.5_day.geojson', { signal: AbortSignal.timeout(5000) });
@@ -56,10 +58,14 @@ async function _GET() {
         }
       });
     }
+  } catch (e) {
+    console.error("SCM Risk overlay error (earthquakes):", e);
+  }
 
+  try {
     // 2. Fetch Active Fires (NASA FIRMS mock proxy from local or direct)
     // For performance, we'll fetch from the local fires endpoint since it already aggregates FIRMS
-    const fireRes = await fetch('http://127.0.0.1:3000/api/fires', { signal: AbortSignal.timeout(5000) });
+    const fireRes = await fetch(`${internalOrigin()}/api/fires`, { signal: AbortSignal.timeout(5000) });
     if (fireRes.ok) {
       const fireData = await fireRes.json();
       const fires = fireData.data || [];
@@ -71,9 +77,13 @@ async function _GET() {
         }
       });
     }
+  } catch (e) {
+    console.error("SCM Risk overlay error (fires):", e);
+  }
 
+  try {
     // 3. Fetch Conflict Zones (GDELT)
-    const gdeltRes = await fetch('http://127.0.0.1:3000/api/gdelt', { signal: AbortSignal.timeout(5000) });
+    const gdeltRes = await fetch(`${internalOrigin()}/api/gdelt`, { signal: AbortSignal.timeout(5000) });
     if (gdeltRes.ok) {
       const gdeltData = await gdeltRes.json();
       const conflicts = gdeltData.events || [];
@@ -85,9 +95,8 @@ async function _GET() {
         }
       });
     }
-
   } catch (e) {
-    console.error("SCM Risk overlay error:", e);
+    console.error("SCM Risk overlay error (conflicts):", e);
   }
 
   return NextResponse.json({

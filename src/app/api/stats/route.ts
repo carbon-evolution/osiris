@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { internalOrigin } from '@/lib/internalOrigin';
 
 /**
  * OSIRIS — Global Stats API
@@ -12,12 +13,6 @@ import { NextResponse } from 'next/server';
  * heavy external APIs (adsb.lol, USGS) are only hit once per minute, while this 
  * lightweight stats route safely serves 10k concurrent users instantly.
  */
-
-// Internal calls go to this server directly. Deriving the origin from the
-// request would let a forged Host header point these fetches at any host.
-function internalOrigin(): string {
-  return process.env.INTERNAL_ORIGIN || `http://127.0.0.1:${process.env.PORT || 3000}`;
-}
 
 export async function GET() {
   try {

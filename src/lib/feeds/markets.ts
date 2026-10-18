@@ -4,6 +4,8 @@
  * plus chokepoint→commodity SCM alerts derived from the maritime feed.
  */
 
+import { internalOrigin } from '@/lib/internalOrigin';
+
 const DEFENSE_STOCKS = ['RTX', 'LMT', 'NOC', 'GD', 'BA', 'PLTR'];
 const OIL_TICKERS = ['CL=F', 'BZ=F'];
 const COMMODITY_TICKERS = ['GC=F', 'SI=F', 'HG=F', 'NG=F', 'ZW=F', 'ZC=F'];
@@ -132,7 +134,7 @@ export async function fetchMarkets(): Promise<MarketsPayload> {
   // SCM: chokepoint → commodity correlation (best-effort; maritime served from same app).
   const scm_alerts: string[] = [];
   try {
-    const maritimeRes = await fetch('http://127.0.0.1:3000/api/maritime', { signal: AbortSignal.timeout(3000) });
+    const maritimeRes = await fetch(`${internalOrigin()}/api/maritime`, { signal: AbortSignal.timeout(3000) });
     if (maritimeRes.ok) {
       const maritimeData = await maritimeRes.json();
       const chokepoints = maritimeData.chokepoints || [];
