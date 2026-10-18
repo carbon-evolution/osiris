@@ -1,9 +1,10 @@
 import { NextResponse } from 'next/server';
 import { validateHost, isRateLimited, getClientIp } from '@/lib/ssrf-guard';
+import { checkScannerAccess } from '@/lib/scanner-access';
 
 /**
  * OSIRIS — Scanner Proxy (Hardened)
- * Rate-limited, target-validated, scope-restricted
+ * Access-gated, rate-limited, target-validated, scope-restricted
  */
 
 const SCANNER_URL = process.env.SCANNER_URL || '';
@@ -51,6 +52,15 @@ export async function GET(req: Request) {
     }, { status: 429 });
   }
 
+  // 2b. Access gate (OWASP A01): closed on public hosts unless the operator
+  //     issues SCANNER_ACCESS_TOKEN or opts in with SCANNER_ALLOW_ANONYMOUS.
+  //     Runs after the rate limit so token guesses are throttled too. See
+  //     src/lib/scanner-access.ts for the threat model.
+  const access = checkScannerAccess(req);
+  if (!access.ok) {
+    return NextResponse.json(access.body, { status: access.status });
+  }
+
   // 3. Validate params
   const { searchParams } = new URL(req.url);
   const target = searchParams.get('target')?.trim();
@@ -72,7 +82,8 @@ export async function GET(req: Request) {
   }
 
   // 5. Validate scan type (only safe scans allowed)
-  const scanConfig = ALLOWED_SCANS[scanType];
+  // Own keys only: `type=constructor` must not resolve via Object.prototype.
+  const scanConfig = Object.hasOwn(ALLOWED_SCANS, scanType) ? ALLOWED_SCANS[scanType] : undefined;
   if (!scanConfig) {
     return NextResponse.json({
       error: 'Scan type not available',

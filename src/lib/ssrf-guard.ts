@@ -232,7 +232,6 @@ export function isRateLimited(ip: string, limit: number = 20, windowMs: number =
   return entry.count > limit;
 }
 
-export function getClientIp(req: Request): string {
-  const forwarded = req.headers.get('x-forwarded-for');
-  return forwarded?.split(',')[0]?.trim() || req.headers.get('x-real-ip') || 'unknown';
-}
+// Forwarding headers are only honoured when TRUST_PROXY_HEADERS is set — see
+// ./client-ip for the threat model.
+export { clientIp as getClientIp } from './client-ip';
