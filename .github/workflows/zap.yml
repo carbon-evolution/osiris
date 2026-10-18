@@ -1,0 +1,42 @@
+name: zap
+
+# OWASP ZAP baseline scan (passive DAST) of a production build running in CI.
+# Findings are rated High / Medium / Low / Informational; the HTML/JSON/MD
+# report is uploaded as the `zap_scan` artifact. Not a merge gate.
+on:
+  push:
+    branches: [main]
+  schedule:
+    - cron: "37 5 * * 1" # weekly
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  baseline:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - name: Start OSIRIS
+        run: |
+          npx next start -p 3000 > "$RUNNER_TEMP/osiris.log" 2>&1 &
+          for i in $(seq 1 60); do
+            curl -fsS -o /dev/null http://localhost:3000/ && exit 0
+            sleep 2
+          done
+          cat "$RUNNER_TEMP/osiris.log"
+          exit 1
+      - uses: zaproxy/action-baseline@de8ad967d3548d44ef623df22cf95c3b0baf8b25 # v0.15.0
+        with:
+          target: http://localhost:3000
+          allow_issue_writing: false # report goes to the artifact, not new GitHub issues
+          fail_action: false
+          artifact_name: zap_scan

@@ -8,6 +8,10 @@ A **real-time global intelligence dashboard** that fuses live flight tracking, g
 ![MapLibre](https://img.shields.io/badge/MapLibre-GL-4FC3F7.svg)
 ![Framer Motion](https://img.shields.io/badge/Framer-Motion-0055FF.svg)
 ![License](https://img.shields.io/badge/license-MIT-green.svg)
+[![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/carbon-evolution/osiris/badge)](https://scorecard.dev/viewer/?uri=github.com/carbon-evolution/osiris)
+[![CI](https://github.com/carbon-evolution/osiris/actions/workflows/ci.yml/badge.svg)](https://github.com/carbon-evolution/osiris/actions/workflows/ci.yml)
+[![CodeQL](https://github.com/carbon-evolution/osiris/actions/workflows/codeql.yml/badge.svg)](https://github.com/carbon-evolution/osiris/actions/workflows/codeql.yml)
+[![Malware scan](https://github.com/carbon-evolution/osiris/actions/workflows/malware.yml/badge.svg)](https://github.com/carbon-evolution/osiris/actions/workflows/malware.yml)
 
 ---
 
