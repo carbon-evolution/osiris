@@ -87,7 +87,7 @@ ZAP baseline (2026-10-18): **0 High, 5 Medium, 5 Low, 5 Informational** alert ty
 - ✅ Scanner repository: Semgrep (JavaScript, Node, secrets, command-injection rules) on every PR.
 
 ### A06 — Insecure Design · 🟠 Medium
-- ⚠️ **Analytics middleware forwards every page view, including the visitor's IP address, to a hardcoded `http://umami-umami-1:3000`** with a default site ID inherited from the upstream project. This is undisclosed IP logging aimed at infrastructure you may not control; it should be opt-in via configuration.
+- ✅ **Analytics is opt-in and off by default**: the middleware sends nothing unless `UMAMI_URL` and `UMAMI_WEBSITE_ID` are both set (no hardcoded host or upstream site ID). The separate visitor-IP "Network Log" event was removed; page views time out after 2s and fail silently. Covered by unit tests.
 - ⚠️ Active recon capability exposed on a public dashboard (see A01).
 - ⚠️ The SSRF guard checks DNS at validation time; a DNS-rebinding race remains possible (documented in `src/lib/ssrf-guard.ts`).
 - ✅ Fail-closed defaults for optional integrations (webhook #44, scanner without key → 503); fixed-upstream proxies instead of caller-supplied URLs.
