@@ -18,8 +18,43 @@ const COUNTRY_CENTROIDS: Record<string, [number, number]> = {
   US:[-97,38],VN:[106,16],
 };
 
-async function batchGeo(ips: string[]): Promise<Map<string, any>> {
-  const geoMap = new Map<string, any>();
+/** ip-api.com batch result fields this route reads. */
+interface IpApiGeo {
+  status?: string;
+  query: string;
+  lat?: number;
+  lon?: number;
+  countryCode?: string;
+}
+
+/** AbuseIPDB blacklist entry fields this route reads. */
+interface AbuseEntry {
+  ipAddress: string;
+  countryCode?: string;
+  lastReportedAt?: string;
+  abuseConfidenceScore?: number;
+  isp?: string;
+}
+
+interface ThreatEntry {
+  id: string;
+  lat: number;
+  lng: number;
+  ip: string;
+  port: number;
+  malware: string;
+  status: string;
+  first_seen: string;
+  last_online: string;
+  country: string;
+  threat_type: string;
+  confidence?: number;
+  isp?: string;
+  url?: string;
+}
+
+async function batchGeo(ips: string[]): Promise<Map<string, IpApiGeo>> {
+  const geoMap = new Map<string, IpApiGeo>();
   if (ips.length === 0) return geoMap;
   try {
     const res = await fetch('http://ip-api.com/batch', {
@@ -40,7 +75,7 @@ async function batchGeo(ips: string[]): Promise<Map<string, any>> {
 
 async function _GET() {
   try {
-    const blocklisted: any[] = [];
+    const blocklisted: ThreatEntry[] = [];
     let id = 0;
 
     // AbuseIPDB key: ABUSEIPDB_KEY env var, else a .abuseipdb_key file in the project root
@@ -56,7 +91,7 @@ async function _GET() {
     // 0. AbuseIPDB — known malicious IPs (requires free API key, 5 req/day free tier)
     // Disk-cache response for 24h to stay within rate limit
     if (abuseipdbKey) {
-      let abuseEntries: any[] = [];
+      let abuseEntries: AbuseEntry[] = [];
       let cacheHit = false;
 
       // Check disk cache
@@ -91,7 +126,7 @@ async function _GET() {
       }
 
       if (abuseEntries.length > 0) {
-        const ips = abuseEntries.map((e: any) => e.ipAddress).filter(Boolean);
+        const ips = abuseEntries.map((e) => e.ipAddress).filter(Boolean);
         const geoMap = await batchGeo(ips);
         for (const entry of abuseEntries) {
           const geo = geoMap.get(entry.ipAddress);

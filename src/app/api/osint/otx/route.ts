@@ -12,7 +12,45 @@ export const dynamic = 'force-dynamic';
 const OTX_BASE = 'https://otx.alienvault.com/api/v1';
 const API_KEY = (typeof process !== 'undefined' && process.env && process.env.OTX_API_KEY) || '';
 
-async function otxFetch(path: string): Promise<any> {
+// Only the OTX indicator-section fields this route reads.
+interface OtxPulse {
+  id?: string;
+  name?: string;
+  description?: string;
+  tags?: string[];
+  created?: string;
+  tlp?: string;
+}
+
+interface OtxGeneral {
+  indicator?: string;
+  title?: string;
+  description?: string;
+  pulse_info?: { pulses?: OtxPulse[] };
+  validation?: unknown[];
+  base_indicator?: { indicator?: string };
+  type?: string;
+  type_title?: string;
+}
+
+interface OtxGeo {
+  country?: string;
+  country_code?: string;
+  city?: string;
+  latitude?: number;
+  longitude?: number;
+  asn?: string;
+}
+
+interface OtxMalware {
+  data?: { hash?: string; date?: string; detections?: number | Record<string, unknown> }[];
+}
+
+interface OtxUrlList {
+  url_list?: { url?: string; date?: string; domain?: string; result?: { urlworker?: { url?: string } } }[];
+}
+
+async function otxFetch<T>(path: string): Promise<T> {
   const headers: Record<string, string> = {
     'Accept': 'application/json',
   };
@@ -41,10 +79,10 @@ async function _GET(req: NextRequest) {
     // Domain intelligence: geo, categories, whois, related samples
     if (domain) {
       const [general, geo, malware, urlList] = await Promise.all([
-        otxFetch(`/indicators/domain/${encodeURIComponent(domain)}/general`).catch(() => null),
-        otxFetch(`/indicators/domain/${encodeURIComponent(domain)}/geo`).catch(() => null),
-        otxFetch(`/indicators/domain/${encodeURIComponent(domain)}/malware`).catch(() => null),
-        otxFetch(`/indicators/domain/${encodeURIComponent(domain)}/url_list?limit=10`).catch(() => null),
+        otxFetch<OtxGeneral>(`/indicators/domain/${encodeURIComponent(domain)}/general`).catch(() => null),
+        otxFetch<OtxGeo>(`/indicators/domain/${encodeURIComponent(domain)}/geo`).catch(() => null),
+        otxFetch<OtxMalware>(`/indicators/domain/${encodeURIComponent(domain)}/malware`).catch(() => null),
+        otxFetch<OtxUrlList>(`/indicators/domain/${encodeURIComponent(domain)}/url_list?limit=10`).catch(() => null),
       ]);
 
       return NextResponse.json({
@@ -56,7 +94,7 @@ async function _GET(req: NextRequest) {
           indicator: general.indicator || '',
           title: general.title || '',
           description: general.description || '',
-          pulses: (general.pulse_info?.pulses || []).slice(0, 5).map((p: any) => ({
+          pulses: (general.pulse_info?.pulses || []).slice(0, 5).map((p) => ({
             id: p.id,
             name: p.name,
             description: p.description?.slice(0, 200) || '',
@@ -77,12 +115,12 @@ async function _GET(req: NextRequest) {
           longitude: geo.longitude || null,
           asn: geo.asn || null,
         } : null,
-        malware_samples: (malware?.data || []).slice(0, 5).map((s: any) => ({
+        malware_samples: (malware?.data || []).slice(0, 5).map((s) => ({
           hash: s.hash || '',
           date: s.date || '',
           detections: s.detections || 0,
         })),
-        related_urls: (urlList?.url_list || []).slice(0, 10).map((u: any) => ({
+        related_urls: (urlList?.url_list || []).slice(0, 10).map((u) => ({
           url: u.url || '',
           date: u.date || '',
           domain: u.domain || '',
@@ -95,10 +133,10 @@ async function _GET(req: NextRequest) {
     // IP intelligence: geo, threat categories, related samples, URL list
     if (ip) {
       const [general, geo, malware, urlList] = await Promise.all([
-        otxFetch(`/indicators/IPv4/${encodeURIComponent(ip)}/general`).catch(() => null),
-        otxFetch(`/indicators/IPv4/${encodeURIComponent(ip)}/geo`).catch(() => null),
-        otxFetch(`/indicators/IPv4/${encodeURIComponent(ip)}/malware`).catch(() => null),
-        otxFetch(`/indicators/IPv4/${encodeURIComponent(ip)}/url_list?limit=10`).catch(() => null),
+        otxFetch<OtxGeneral>(`/indicators/IPv4/${encodeURIComponent(ip)}/general`).catch(() => null),
+        otxFetch<OtxGeo>(`/indicators/IPv4/${encodeURIComponent(ip)}/geo`).catch(() => null),
+        otxFetch<OtxMalware>(`/indicators/IPv4/${encodeURIComponent(ip)}/malware`).catch(() => null),
+        otxFetch<OtxUrlList>(`/indicators/IPv4/${encodeURIComponent(ip)}/url_list?limit=10`).catch(() => null),
       ]);
 
       return NextResponse.json({
@@ -110,7 +148,7 @@ async function _GET(req: NextRequest) {
           indicator: general.indicator || '',
           title: general.title || '',
           description: general.description || '',
-          pulses: (general.pulse_info?.pulses || []).slice(0, 5).map((p: any) => ({
+          pulses: (general.pulse_info?.pulses || []).slice(0, 5).map((p) => ({
             id: p.id,
             name: p.name,
             description: p.description?.slice(0, 200) || '',
@@ -128,12 +166,12 @@ async function _GET(req: NextRequest) {
           longitude: geo.longitude || null,
           asn: geo.asn || null,
         } : null,
-        malware_samples: (malware?.data || []).slice(0, 5).map((s: any) => ({
+        malware_samples: (malware?.data || []).slice(0, 5).map((s) => ({
           hash: s.hash || '',
           date: s.date || '',
           detections: s.detections || 0,
         })),
-        related_urls: (urlList?.url_list || []).slice(0, 10).map((u: any) => ({
+        related_urls: (urlList?.url_list || []).slice(0, 10).map((u) => ({
           url: u.url || '',
           date: u.date || '',
           domain: u.domain || '',
@@ -144,7 +182,7 @@ async function _GET(req: NextRequest) {
 
     // Hostname pulses: recent threat pulses mentioning this hostname
     if (hostname) {
-      const pulses = await otxFetch(`/indicators/hostname/${encodeURIComponent(hostname)}/general`).catch(() => null);
+      const pulses = await otxFetch<OtxGeneral>(`/indicators/hostname/${encodeURIComponent(hostname)}/general`).catch(() => null);
 
       return NextResponse.json({
         source: 'AlienVault OTX',
@@ -155,7 +193,7 @@ async function _GET(req: NextRequest) {
           indicator: pulses.indicator || '',
           title: pulses.title || '',
           description: pulses.description || '',
-          pulses: (pulses.pulse_info?.pulses || []).slice(0, 5).map((p: any) => ({
+          pulses: (pulses.pulse_info?.pulses || []).slice(0, 5).map((p) => ({
             id: p.id,
             name: p.name,
             description: p.description?.slice(0, 200) || '',

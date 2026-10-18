@@ -8,11 +8,30 @@ import {
   ChevronDown, ChevronUp, MapPin, AlertTriangle,
   Newspaper, Clock, Radio, Maximize2, Minimize2
 } from 'lucide-react';
+import type { NewsItem } from '@/lib/ai-engine';
+import type { EarthquakesPayload } from '@/lib/feeds/earthquakes';
 
 interface LiveAlertsProps {
-  data: any;
+  data: {
+    news?: NewsItem[];
+    earthquakes?: EarthquakesPayload['earthquakes'];
+  };
   onLocate: (lat: number, lng: number) => void;
   onWatchFeed?: (url: string, name: string) => void;
+}
+
+interface Alert {
+  type: 'news' | 'quake' | 'feed';
+  title: string;
+  description?: string;
+  source: string;
+  lat?: number;
+  lng?: number;
+  time?: string | number;
+  severity: string;
+  url?: string;
+  feedUrl?: string;
+  category?: string;
 }
 
 const RISK_COLORS: Record<string, string> = {
@@ -62,11 +81,11 @@ export default function LiveAlerts({ data, onLocate, onWatchFeed }: LiveAlertsPr
   ];
 
   // Build unified alert feed
-  const alerts: any[] = [];
+  const alerts: Alert[] = [];
 
   // OSINT Telegram News Feed (from /api/news)
   if (data.news) {
-    data.news.forEach((a: any) => {
+    data.news.forEach((a) => {
       alerts.push({
         type: 'news', title: a.title, description: a.description, source: a.source,
         lat: a.coords?.[0], lng: a.coords?.[1], time: a.published,
@@ -78,7 +97,7 @@ export default function LiveAlerts({ data, onLocate, onWatchFeed }: LiveAlertsPr
 
   // Earthquakes
   if (data.earthquakes) {
-    data.earthquakes.slice(0, 5).forEach((eq: any) => {
+    data.earthquakes.slice(0, 5).forEach((eq) => {
       alerts.push({
         type: 'quake', title: `M${eq.magnitude} - ${eq.place}`, source: 'USGS',
         lat: eq.lat, lng: eq.lng, time: eq.time,
