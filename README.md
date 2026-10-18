@@ -352,6 +352,24 @@ Build for production:
 npm run build && npm start
 ```
 
+### Signed releases
+
+Each [GitHub Release](https://github.com/carbon-evolution/osiris/releases)
+ships a source archive, a prebuilt Next.js standalone bundle (run with
+`node server.js`), an npm SBOM and `SHA256SUMS`, each with a keyless Sigstore
+signature (`.sigstore.json`) plus SLSA build provenance (`.intoto.jsonl`); the
+container image on GHCR is signed too. Quick check:
+
+```bash
+sha256sum -c SHA256SUMS
+cosign verify-blob --bundle SHA256SUMS.sigstore.json \
+  --certificate-identity 'https://github.com/carbon-evolution/osiris/.github/workflows/release.yml@refs/tags/vX.Y.Z' \
+  --certificate-oidc-issuer https://token.actions.githubusercontent.com SHA256SUMS
+```
+
+Full steps (provenance, image) in
+[DOCKER.md → Verifying a release](DOCKER.md#4-verifying-a-release).
+
 ---
 
 ## 💻 Configuration
