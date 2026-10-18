@@ -1,0 +1,267 @@
+import type { CctvCamera } from './types';
+
+// Official Denmark webcam sources verified in October 2026.
+// Small display offsets are used for co-located cameras so each marker remains clickable.
+export const DENMARK_BATCH2_REPLACED_IDS = new Set<string>([
+  'dk-public-kalundborg-flyveplads',
+  'dk-public-juelsminde-marina',
+  'dk-public-svendborg-golf',
+  'dk-public-egernsund-marina-minde',
+  'dk-public-nivaa-harbour',
+  'dk-public-frederikshavn-harbour',
+]);
+
+export const DENMARK_OFFICIAL_BATCH2: CctvCamera[] = [
+  // Polyteknisk Flyvegruppe, Kalundborg Flyveplads (EKKL).
+  // All three snapshot endpoints returned current JPEG frames on 2026-10-17.
+  {
+    id: 'dk-kalundborg-pfg-1',
+    lat: 55.70008,
+    lng: 11.26046,
+    name: 'Kalundborg Flyveplads — PFG',
+    city: 'Kalundborg',
+    country: 'Denmark',
+    feed_url: '/api/cctv/denmark-official?cam=1',
+    stream_type: 'jpg',
+    external_url: 'https://pfg.dk/webcam',
+    source: 'Polyteknisk Flyvegruppe',
+  },
+  {
+    id: 'dk-kalundborg-pfg-2',
+    lat: 55.70000,
+    lng: 11.26056,
+    name: 'Kalundborg Flyveplads — Southeast',
+    city: 'Kalundborg',
+    country: 'Denmark',
+    feed_url: '/api/cctv/denmark-official?cam=2',
+    stream_type: 'jpg',
+    external_url: 'https://pfg.dk/webcam',
+    source: 'Polyteknisk Flyvegruppe',
+  },
+  {
+    id: 'dk-kalundborg-pfg-3',
+    lat: 55.69992,
+    lng: 11.26066,
+    name: 'Kalundborg Flyveplads — Southwest',
+    city: 'Kalundborg',
+    country: 'Denmark',
+    feed_url: '/api/cctv/denmark-official?cam=3',
+    stream_type: 'jpg',
+    external_url: 'https://pfg.dk/webcam',
+    source: 'Polyteknisk Flyvegruppe',
+  },
+
+  // Læsø Kommune, Læsø Flyveplads. The municipality states that the images
+  // normally refresh every 10 minutes. Both images share the same physical
+  // webcam position; tiny display offsets keep both markers selectable.
+  {
+    id: 'dk-laesoe-airfield-telemast',
+    lat: 57.27624,
+    lng: 11.00744,
+    name: 'Læsø Flyveplads — Telemast / sigtbarhed',
+    city: 'Læsø',
+    country: 'Denmark',
+    feed_url: 'https://cdn.moliri.dk/image/moliri-public/laesoekommune/thumbnail?filename=telemast.jpg&folderPath=Dokumenter%2fSubsides%2fFlyveplads%2fWebcam&width=800',
+    stream_type: 'jpg',
+    external_url: 'https://www.laesoe.dk/borger/trafik-og-veje/laesoe-flyveplads/webcam-paa-flyvepladsen',
+    source: 'Læsø Kommune',
+  },
+  {
+    id: 'dk-laesoe-airfield-windsock',
+    lat: 57.27616,
+    lng: 11.00756,
+    name: 'Læsø Flyveplads — Vindpose / landingsbane',
+    city: 'Læsø',
+    country: 'Denmark',
+    feed_url: 'https://cdn.moliri.dk/image/moliri-public/laesoekommune/thumbnail?filename=vindpose.jpg&folderPath=Dokumenter%2fSubsides%2fFlyveplads%2fWebcam&width=800',
+    stream_type: 'jpg',
+    external_url: 'https://www.laesoe.dk/borger/trafik-og-veje/laesoe-flyveplads/webcam-paa-flyvepladsen',
+    source: 'Læsø Kommune',
+  },
+
+  // Juelsminde Havn & Marina — eight official direct JPEG snapshots.
+  // The first direct image endpoint returned HTTP 200 image/jpeg on a live
+  // fetch on 2026-10-17; the remaining URLs are published by the same official
+  // webcam section. Display offsets keep co-located harbour markers selectable.
+  {
+    id: 'dk-juelsminde-official-1',
+    lat: 55.71429,
+    lng: 10.01564,
+    name: 'Juelsminde — Ny Marina',
+    city: 'Juelsminde',
+    country: 'Denmark',
+    feed_url: 'https://juelsmindehavn.dk/kamera/Juelsmindemarina.jpg',
+    stream_type: 'jpg',
+    external_url: 'https://juelsmindehavn.dk/webcams/webcam-1-juelsminde-marine.aspx',
+    source: 'Juelsminde Havn & Marina',
+  },
+  {
+    id: 'dk-juelsminde-official-2',
+    lat: 55.71425,
+    lng: 10.01578,
+    name: 'Juelsminde — Gammel Havn indsejling',
+    city: 'Juelsminde',
+    country: 'Denmark',
+    feed_url: 'https://juelsmindehavn.dk/kamera/Juelsmindegammelhavnind.jpg',
+    stream_type: 'jpg',
+    external_url: 'https://juelsmindehavn.dk/webcams/webcam-2-gammel-havn-indsejlingen.aspx',
+    source: 'Juelsminde Havn & Marina',
+  },
+  {
+    id: 'dk-juelsminde-official-3',
+    lat: 55.71420,
+    lng: 10.01591,
+    name: 'Juelsminde — Østhavn 1',
+    city: 'Juelsminde',
+    country: 'Denmark',
+    feed_url: 'https://juelsmindehavn.dk/kamera/Oesterhavnen1.jpg',
+    stream_type: 'jpg',
+    external_url: 'https://juelsmindehavn.dk/webcams/webcam-3-%C3%B8sthavn-1.aspx',
+    source: 'Juelsminde Havn & Marina',
+  },
+  {
+    id: 'dk-juelsminde-official-4',
+    lat: 55.71412,
+    lng: 10.01599,
+    name: 'Juelsminde — Østhavn 2',
+    city: 'Juelsminde',
+    country: 'Denmark',
+    feed_url: 'https://juelsmindehavn.dk/kamera/Oesterhavnen2.jpg',
+    stream_type: 'jpg',
+    external_url: 'https://juelsmindehavn.dk/webcams/webcam-4-%C3%B8sthavn-2.aspx',
+    source: 'Juelsminde Havn & Marina',
+  },
+  {
+    id: 'dk-juelsminde-official-5',
+    lat: 55.71404,
+    lng: 10.01591,
+    name: 'Juelsminde — Gammel Havn',
+    city: 'Juelsminde',
+    country: 'Denmark',
+    feed_url: 'https://juelsmindehavn.dk/kamera/Juelsmindegammelhavn2.jpg',
+    stream_type: 'jpg',
+    external_url: 'https://juelsmindehavn.dk/webcams/webcam-5-gammel-havn.aspx',
+    source: 'Juelsminde Havn & Marina',
+  },
+  {
+    id: 'dk-juelsminde-official-6',
+    lat: 55.71400,
+    lng: 10.01577,
+    name: 'Juelsminde — Ny Marina sydøst',
+    city: 'Juelsminde',
+    country: 'Denmark',
+    feed_url: 'https://juelsmindehavn.dk/kamera/Juelsmindemarinasydost.jpg',
+    stream_type: 'jpg',
+    external_url: 'https://juelsmindehavn.dk/webcams/webcam-6-juelsminde-marina-sydoest.aspx',
+    source: 'Juelsminde Havn & Marina',
+  },
+  {
+    id: 'dk-juelsminde-official-7',
+    lat: 55.71404,
+    lng: 10.01563,
+    name: 'Juelsminde — Ny Marina nord',
+    city: 'Juelsminde',
+    country: 'Denmark',
+    feed_url: 'https://juelsmindehavn.dk/kamera/Juelsmindemarinanord.jpg',
+    stream_type: 'jpg',
+    external_url: 'https://juelsmindehavn.dk/webcams/webcam-7-juelsminde-marina-nord.aspx',
+    source: 'Juelsminde Havn & Marina',
+  },
+  {
+    id: 'dk-juelsminde-official-8',
+    lat: 55.71412,
+    lng: 10.01555,
+    name: 'Juelsminde — Sandbjerg Marina',
+    city: 'Juelsminde',
+    country: 'Denmark',
+    feed_url: 'https://juelsmindehavn.dk/kamera/sandbjergmarina.jpg',
+    stream_type: 'jpg',
+    external_url: 'https://juelsmindehavn.dk/webcams/webcam-8-sandbjerg-marina.aspx',
+    source: 'Juelsminde Havn & Marina',
+  },
+
+  // Svendborg Golfklub — official IPCamLive embed published on the club's
+  // homepage. Use the stable player alias rather than transient stream tokens.
+  {
+    id: 'dk-svendborg-golf-official',
+    lat: 55.088611,
+    lng: 10.553611,
+    name: 'Svendborg Golfklub — Live webcam',
+    city: 'Svendborg',
+    country: 'Denmark',
+    stream_url: 'https://g0.ipcamlive.com/player/player.php?alias=672333bb1e92c&skin=white&autoplay=1&mute=1&disableautofullscreen=1&disablezoombutton=1&disableframecapture=1&disabletimelapseplayer=1&disablestorageplayer=1&disabledownloadbutton=1&disableplaybackspeedbutton=1&disablenavigation=1&disableuserpause=1',
+    stream_type: 'iframe',
+    external_url: 'https://svendborggolfklub.dk/',
+    source: 'Svendborg Golfklub',
+  },
+
+  // Marina Minde — the official marina page publishes four direct JPEG views.
+  // The embedded carousel loaded all four image endpoints on 2026-10-17.
+  {
+    id: 'dk-marina-minde-1',
+    lat: 54.89702,
+    lng: 9.61796,
+    name: 'Marina Minde — Kamera 1',
+    city: 'Egernsund',
+    country: 'Denmark',
+    feed_url: 'https://mhds.dk/marinaminde/webcam/kamera1.jpeg',
+    stream_type: 'jpg',
+    external_url: 'https://marinaminde.dk/webcams-x-4/',
+    source: 'Marina Minde',
+  },
+  {
+    id: 'dk-marina-minde-2',
+    lat: 54.89702,
+    lng: 9.61815,
+    name: 'Marina Minde — Kamera 2',
+    city: 'Egernsund',
+    country: 'Denmark',
+    feed_url: 'https://mhds.dk/marinaminde/webcam/kamera2.jpeg',
+    stream_type: 'jpg',
+    external_url: 'https://marinaminde.dk/webcams-x-4/',
+    source: 'Marina Minde',
+  },
+  {
+    id: 'dk-marina-minde-3',
+    lat: 54.89687,
+    lng: 9.61815,
+    name: 'Marina Minde — Kamera 3',
+    city: 'Egernsund',
+    country: 'Denmark',
+    feed_url: 'https://mhds.dk/marinaminde/webcam/kamera3.jpeg',
+    stream_type: 'jpg',
+    external_url: 'https://marinaminde.dk/webcams-x-4/',
+    source: 'Marina Minde',
+  },
+  {
+    id: 'dk-marina-minde-4',
+    lat: 54.89687,
+    lng: 9.61796,
+    name: 'Marina Minde — Kamera 4',
+    city: 'Egernsund',
+    country: 'Denmark',
+    feed_url: 'https://mhds.dk/marinaminde/webcam/kamera4.jpeg',
+    stream_type: 'jpg',
+    external_url: 'https://marinaminde.dk/webcams-x-4/',
+    source: 'Marina Minde',
+  },
+
+  // Nivå Havn og Strandpark links to a public IPCamLive camera from its
+  // official municipal webcam page. The current IPCamLive plan does not allow
+  // third-party embedding without a transient token, so OSIRIS opens the
+  // official webcam page instead of presenting a broken iframe.
+  {
+    id: 'dk-nivaa-havn-official',
+    lat: 55.938889,
+    lng: 12.528611,
+    name: 'Nivå Havn — Livecam',
+    city: 'Nivå',
+    country: 'Denmark',
+    external_url: 'https://nivaahavn.fredensborg.dk/havnekontor/webcam',
+    source: 'Nivå Havn og Strandpark',
+  },
+
+  // Frederikshavn Havn intentionally removed its public webcam in 2026 for
+  // security reasons. Its stale third-party listing is filtered above and is
+  // deliberately not replaced here.
+];
