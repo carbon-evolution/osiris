@@ -12,6 +12,8 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Local Claude Code state (sub-agent worktrees are full repo copies).
+    ".claude/**",
   ]),
   {
     // intel/ is a standalone CommonJS Node service (no "type": "module").

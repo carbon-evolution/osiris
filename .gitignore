@@ -70,3 +70,6 @@ graphify-out/
 
 # OSIRIS local data caches
 .cache/
+
+# Claude Code sub-agent worktrees (local only)
+.claude/worktrees/
