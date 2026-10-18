@@ -111,3 +111,34 @@ describe('proxy-tiles: stays on cartocdn.com', () => {
     expect(calls).toHaveLength(0);
   });
 });
+
+describe('geo: Vercel location headers are trusted only on Vercel', () => {
+  const vercelHeaders = { 'x-vercel-ip-latitude': '1.5', 'x-vercel-ip-longitude': '2.5', 'x-vercel-ip-city': 'Fake%20City' };
+  afterEach(() => { delete process.env.VERCEL; });
+
+  it('ignores client-supplied x-vercel-ip-* headers off Vercel', async () => {
+    stubFetch(() => new Response('', { status: 503 })); // external providers down
+    const { GET } = await import('./geo/route');
+    const body = await (await GET(new NextRequest('http://x/api/geo', { headers: vercelHeaders }))).json();
+    expect(body.source).not.toBe('vercel');
+    expect(body.lat).not.toBe(1.5);
+    expect(calls.length).toBeGreaterThan(0); // fell through to the external lookups
+  });
+
+  it('uses them when VERCEL=1', async () => {
+    process.env.VERCEL = '1';
+    const { GET } = await import('./geo/route');
+    const body = await (await GET(new NextRequest('http://x/api/geo', { headers: vercelHeaders }))).json();
+    expect(body).toMatchObject({ source: 'vercel', lat: 1.5, lon: 2.5, city: 'Fake City' });
+    expect(calls).toHaveLength(0);
+  });
+});
+
+describe('cctv/denmark-official: camera keys must be own keys', () => {
+  it.each(['constructor', 'toString', '__proto__', '9'])('?cam=%s is a 400 without fetching', async (cam) => {
+    const { GET } = await import('./cctv/denmark-official/route');
+    const res = await GET(new NextRequest(`http://x/api/cctv/denmark-official?cam=${cam}`));
+    expect(res.status).toBe(400);
+    expect(calls).toHaveLength(0);
+  });
+});
