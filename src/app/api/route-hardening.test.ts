@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { existsSync, rmSync } from 'node:fs';
 import path from 'node:path';
 import { NextRequest } from 'next/server';
+import { createHmac } from 'node:crypto';
 
 // Each test stubs global fetch and records the URLs routes try to reach.
 let calls: { url: string; init?: RequestInit }[] = [];
@@ -140,5 +141,63 @@ describe('cctv/denmark-official: camera keys must be own keys', () => {
     const res = await GET(new NextRequest(`http://x/api/cctv/denmark-official?cam=${cam}`));
     expect(res.status).toBe(400);
     expect(calls).toHaveLength(0);
+  });
+});
+
+describe('github-webhook: verified relay to a configured target only', () => {
+  const body = JSON.stringify({ action: 'opened' });
+  const sign = (secret: string) => 'sha256=' + createHmac('sha256', secret).update(body).digest('hex');
+  const post = (headers: Record<string, string> = {}, payload = body) =>
+    new Request('http://x/api/github-webhook', { method: 'POST', headers, body: payload });
+  afterEach(() => { delete process.env.GITHUB_WEBHOOK_SECRET; delete process.env.GITHUB_WEBHOOK_FORWARD_URL; });
+
+  it.each([
+    ['nothing set (previously relayed anonymously to a hardcoded internal IP)', {}],
+    ['secret only (no target configured)', { GITHUB_WEBHOOK_SECRET: 's3cret' }],
+    ['URL only (previously: no secret = no signature check)', { GITHUB_WEBHOOK_FORWARD_URL: 'http://bot.internal:3005/github/webhook' }],
+  ])('503 and no forward when %s', async (_label, env) => {
+    Object.assign(process.env, env);
+    const { POST } = await import('./github-webhook/route');
+    const res = await POST(post({ 'x-hub-signature-256': 'sha256=whatever' }));
+    expect(res.status).toBe(503);
+    expect(calls).toHaveLength(0);
+  });
+
+  describe('when configured', () => {
+    beforeEach(() => {
+      process.env.GITHUB_WEBHOOK_SECRET = 's3cret';
+      process.env.GITHUB_WEBHOOK_FORWARD_URL = 'http://bot.internal:3005/github/webhook';
+    });
+
+    it('401 without a signature', async () => {
+      const { POST } = await import('./github-webhook/route');
+      expect((await POST(post())).status).toBe(401);
+      expect(calls).toHaveLength(0);
+    });
+
+    it('401 with a wrong signature', async () => {
+      const { POST } = await import('./github-webhook/route');
+      expect((await POST(post({ 'x-hub-signature-256': sign('wrong') }))).status).toBe(401);
+      expect(calls).toHaveLength(0);
+    });
+
+    it('forwards a correctly signed payload to the configured URL', async () => {
+      const { POST } = await import('./github-webhook/route');
+      const res = await POST(post({ 'x-hub-signature-256': sign('s3cret') }));
+      expect(res.status).toBe(200);
+      expect(calls).toHaveLength(1);
+      expect(calls[0].url).toBe('http://bot.internal:3005/github/webhook');
+      expect(calls[0].init?.body).toBe(body);
+      expect(calls[0].init?.signal).toBeDefined();
+    });
+
+    it('rejects a signed non-JSON body without forwarding', async () => {
+      const { POST } = await import('./github-webhook/route');
+      const raw = 'not json';
+      const sig = 'sha256=' + createHmac('sha256', 's3cret').update(raw).digest('hex');
+      const res = await POST(post({ 'x-hub-signature-256': sig }, raw));
+      expect(res.status).toBe(500);
+      expect(calls).toHaveLength(0);
+    });
   });
 });
