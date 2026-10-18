@@ -11,6 +11,60 @@ import type { CctvCamera } from './types';
 // ── Module-level cache ──
 const CACHE_TTL_MS = 5 * 60 * 1000;
 
+// ── Upstream shapes (only the fields read below) ──
+interface GeoJsonFeature<P> {
+  id?: string | number;
+  properties?: P;
+  geometry?: { coordinates?: number[] };
+}
+
+interface OregonFeature {
+  attributes?: {
+    latitude?: number;
+    longitude?: number;
+    filename?: string;
+    title?: string;
+    name?: string;
+    route?: string;
+    city?: string;
+  };
+}
+
+interface VirginiaProps {
+  image_url?: string;
+  name?: string;
+  description?: string;
+  jurisdiction?: string;
+  https_url?: string;
+}
+
+interface MassachusettsProps {
+  fulljpeg?: string;
+  halfjpeg?: string;
+  hugejpeg?: string;
+  name?: string;
+  description?: string;
+}
+
+interface KentuckyProps {
+  latitude?: number;
+  longitude?: number;
+  snapshot?: string;
+  name?: string;
+  highway?: string;
+  county?: string;
+}
+
+interface MinnesotaCamera {
+  lat?: number;
+  lon?: number;
+  pub_url?: string;
+  name?: string;
+  id?: string;
+  roadway?: string;
+  location?: string;
+}
+
 // ── Oregon TripCheck ──
 async function fetchOregonCameras(): Promise<CctvCamera[]> {
   try {
@@ -20,12 +74,12 @@ async function fetchOregonCameras(): Promise<CctvCamera[]> {
     });
     if (!res.ok) return [];
     const data = await res.json();
-    const features: any[] = data?.features || [];
+    const features: OregonFeature[] = data?.features || [];
     const cameras: CctvCamera[] = [];
     const seen = new Set<string>();
 
     for (const f of features) {
-      const p = f.attributes || {};
+      const p: NonNullable<OregonFeature['attributes']> = f.attributes || {};
       const lat = p.latitude;
       const lng = p.longitude;
       const filename: string = p.filename || '';
@@ -56,12 +110,12 @@ async function fetchVirginiaCameras(): Promise<CctvCamera[]> {
     });
     if (!res.ok) return [];
     const data = await res.json();
-    const features: any[] = data?.features || [];
+    const features: GeoJsonFeature<VirginiaProps>[] = data?.features || [];
     const cameras: CctvCamera[] = [];
     const seen = new Set<string>();
 
     for (const f of features) {
-      const p = f.properties || {};
+      const p: VirginiaProps = f.properties || {};
       const coords = f.geometry?.coordinates;
       if (!coords || coords.length < 2) continue;
       const [lng, lat] = coords;
@@ -94,12 +148,12 @@ async function fetchMassachusettsCameras(): Promise<CctvCamera[]> {
     const res = await fetch(url, { signal: AbortSignal.timeout(12000), cache: 'force-cache' });
     if (!res.ok) return [];
     const data = await res.json();
-    const features: any[] = data?.features || [];
+    const features: GeoJsonFeature<MassachusettsProps>[] = data?.features || [];
     const cameras: CctvCamera[] = [];
     const seen = new Set<string>();
 
     for (const f of features) {
-      const p = f.properties || {};
+      const p: MassachusettsProps = f.properties || {};
       const coords = f.geometry?.coordinates;
       if (!coords || coords.length < 2) continue;
       const [lng, lat] = coords;
@@ -130,12 +184,12 @@ async function fetchKentuckyCameras(): Promise<CctvCamera[]> {
     const res = await fetch(url, { signal: AbortSignal.timeout(15000), cache: 'force-cache' });
     if (!res.ok) return [];
     const data = await res.json();
-    const features: any[] = data?.features || [];
+    const features: GeoJsonFeature<KentuckyProps>[] = data?.features || [];
     const cameras: CctvCamera[] = [];
     const seen = new Set<string>();
 
     for (const f of features) {
-      const p = f.properties || {};
+      const p: KentuckyProps = f.properties || {};
       const lat = p.latitude;
       const lng = p.longitude;
       const imgUrl: string = p.snapshot || '';
@@ -164,7 +218,7 @@ async function fetchMinnesotaCameras(): Promise<CctvCamera[]> {
       cache: 'force-cache',
     });
     if (!res.ok) return [];
-    const data: any[] = await res.json();
+    const data: MinnesotaCamera[] = await res.json();
     const cameras: CctvCamera[] = [];
     const seen = new Set<string>();
 

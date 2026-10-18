@@ -48,8 +48,17 @@ function findCoords(text: string): [number, number] | null {
   return null;
 }
 
-function parseTelegramHTML(html: string, channel: string): any[] {
-  const items: any[] = [];
+/** A raw article scraped from Telegram or an RSS fallback feed. */
+interface RawArticle {
+  title: string;
+  description: string;
+  link: string;
+  pubDate: string;
+  source: string;
+}
+
+function parseTelegramHTML(html: string, channel: string): RawArticle[] {
+  const items: RawArticle[] = [];
   const messageBlockRegex = /<div class="tgme_widget_message_wrap js-widget_message_wrap"[\s\S]*?<\/div>\s*<\/div>\s*<\/div>/gi;
   let blockMatch;
 
@@ -74,8 +83,8 @@ function parseTelegramHTML(html: string, channel: string): any[] {
   return items;
 }
 
-function parseRSSItems(xml: string, sourceName: string): any[] {
-  const items: any[] = [];
+function parseRSSItems(xml: string, sourceName: string): RawArticle[] {
+  const items: RawArticle[] = [];
   const itemRegex = /<item>([\s\S]*?)<\/item>/gi;
   let match;
 
@@ -115,7 +124,7 @@ async function _GET() {
     });
 
     const feedResults = await Promise.allSettled(feedPromises);
-    const allArticles: any[] = [];
+    const allArticles: RawArticle[] = [];
 
     for (const result of feedResults) {
       if (result.status === 'fulfilled') allArticles.push(...result.value);

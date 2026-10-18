@@ -2,6 +2,38 @@ import { withQueryCache } from '@/lib/feeds/serve';
 import { NextResponse } from 'next/server';
 import { isRateLimited, getClientIp } from '@/lib/ssrf-guard';
 
+// Only the Google DoH fields this route reads.
+interface DohAnswer {
+  name?: string;
+  type?: number;
+  TTL?: number;
+  data?: string;
+}
+
+interface DohResponse {
+  Answer?: DohAnswer[];
+  Status?: number;
+}
+
+interface DnsRecord {
+  name?: string;
+  type?: number;
+  ttl?: number;
+  data?: string;
+}
+
+interface DnsResult {
+  domain: string;
+  records: Record<string, DnsRecord[]>;
+  timestamp: string;
+  summary?: {
+    ip_addresses: (string | undefined)[];
+    mail_servers: (string | undefined)[];
+    nameservers: (string | undefined)[];
+    total_records: number;
+  };
+}
+
 // DNS Lookup via Google DNS-over-HTTPS (free, no key)
 async function _GET(req: Request) {
   const { searchParams } = new URL(req.url);
@@ -20,7 +52,7 @@ async function _GET(req: Request) {
 
   try {
     const types = ['A', 'AAAA', 'MX', 'NS', 'TXT', 'CNAME', 'SOA'];
-    const results: any = { domain, records: {}, timestamp: new Date().toISOString() };
+    const results: DnsResult = { domain, records: {}, timestamp: new Date().toISOString() };
 
     const lookups = await Promise.allSettled(
       types.map(async (type) => {
@@ -29,17 +61,17 @@ async function _GET(req: Request) {
           headers: { 'Accept': 'application/json' },
         });
         if (res.ok) {
-          const data = await res.json();
+          const data: DohResponse = await res.json();
           return { type, answers: data.Answer || [], status: data.Status };
         }
-        return { type, answers: [], status: -1 };
+        return { type, answers: [] as DohAnswer[], status: -1 };
       })
     );
 
     for (const result of lookups) {
       if (result.status === 'fulfilled') {
         const { type, answers } = result.value;
-        results.records[type] = answers.map((a: any) => ({
+        results.records[type] = answers.map((a) => ({
           name: a.name,
           type: a.type,
           ttl: a.TTL,
@@ -54,9 +86,9 @@ async function _GET(req: Request) {
     const nsRecords = results.records.NS || [];
     
     results.summary = {
-      ip_addresses: aRecords.map((r: any) => r.data),
-      mail_servers: mxRecords.map((r: any) => r.data),
-      nameservers: nsRecords.map((r: any) => r.data),
+      ip_addresses: aRecords.map((r) => r.data),
+      mail_servers: mxRecords.map((r) => r.data),
+      nameservers: nsRecords.map((r) => r.data),
       total_records: Object.values(results.records).flat().length,
     };
 

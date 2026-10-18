@@ -7,17 +7,36 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   ChevronDown, ChevronUp, Shield, ShieldAlert, ShieldOff, Globe,
   Eye, BookMarked, 
-  Maximize2, Minimize2, Bug, Siren
+  Maximize2, Minimize2, Bug, Siren, type LucideIcon
 } from 'lucide-react';
+import type { ReconFinding } from '@/components/OsintPanel';
 
 /* ═══════════════════════════════════════════════════════════════
    OSIRIS — Cyber Threat Intelligence Panel
    CVEs, network intel, and MITRE ATT&CK in a dedicated slideout
    ═══════════════════════════════════════════════════════════════ */
 
+// Fields read from /api/cyber-intel.
+interface CyberIntelData {
+  cves?: { id: string; severity: string; cvss?: number; vendors: string[]; summary: string; cwe?: string }[];
+  spamhaus_drop?: { id: string; cidr: string; country: string }[];
+  tor_exit_nodes?: { id: string; ip: string; country: string }[];
+  mitre_enrichment?: {
+    tactical_groups?: { id: string; name: string; country: string; techniques?: string[]; technique_names?: string[] }[];
+  };
+  timestamp?: string;
+}
+
+// Fields read from /api/cyber-threats (CISA KEV).
+interface CyberThreatsData {
+  threats?: { id: string; name?: string; vendor?: string; product?: string; date?: string; due?: string }[];
+  stats?: { threat_level?: string };
+}
+
 interface CyberIntelPanelProps {
-  data: any;
-  reconFindings?: any[];
+  /** Passed by the page but not read; the panel fetches its own feeds. */
+  data: unknown;
+  reconFindings?: ReconFinding[];
   onLocate?: (lat: number, lng: number) => void;
 }
 
@@ -51,8 +70,8 @@ export default function CyberIntelPanel({ reconFindings = [], onLocate }: CyberI
   const [expanded, setExpanded] = useState(true);
   const [maximized, setMaximized] = useState(false);
   const [activeTab, setActiveTab] = useState<IntelTab>('kev');
-  const [cyberIntel, setCyberIntel] = useState<any>(null);
-  const [cyberThreats, setCyberThreats] = useState<any>(null);
+  const [cyberIntel, setCyberIntel] = useState<CyberIntelData | null>(null);
+  const [cyberThreats, setCyberThreats] = useState<CyberThreatsData | null>(null);
   const [loading, setLoading] = useState(true);
 
   // Portal mount guard
@@ -95,10 +114,10 @@ export default function CyberIntelPanel({ reconFindings = [], onLocate }: CyberI
 
   // Stats summary
   const totalCves = cves.length;
-  const criticalCves = cves.filter((c: any) => c.severity === 'CRITICAL').length;
-  const highCves = cves.filter((c: any) => c.severity === 'HIGH').length;
+  const criticalCves = cves.filter((c) => c.severity === 'CRITICAL').length;
+  const highCves = cves.filter((c) => c.severity === 'HIGH').length;
 
-  const TABS: { key: IntelTab; label: string; icon: any; count: number }[] = [
+  const TABS: { key: IntelTab; label: string; icon: LucideIcon; count: number }[] = [
     { key: 'kev', label: 'CISA KEV', icon: Siren, count: cisaThreats.length },
     { key: 'cves', label: 'CVEs', icon: Bug, count: totalCves },
     { key: 'network', label: 'NETWORK', icon: Globe, count: spamhaus.length + torNodes.length },
@@ -210,7 +229,7 @@ export default function CyberIntelPanel({ reconFindings = [], onLocate }: CyberI
                     {reconFindings.slice(0, 12).map((f) => (
                       <button
                         key={f.id + f.ts}
-                        onClick={() => { if (typeof f.lat === 'number' && onLocate) onLocate(f.lat, f.lng); }}
+                        onClick={() => { if (typeof f.lat === 'number' && onLocate) onLocate(f.lat, f.lng!); }}
                         disabled={typeof f.lat !== 'number'}
                         className="flex items-center justify-between gap-2 px-2 py-1 rounded text-left transition-colors hover:bg-[var(--hover-accent)] disabled:cursor-default"
                         style={{ border: `1px solid ${f.malicious ? '#D32F2F' : '#00E5FF'}22` }}
@@ -243,7 +262,7 @@ export default function CyberIntelPanel({ reconFindings = [], onLocate }: CyberI
                           <span className="text-[10px] font-mono text-[var(--text-muted)] tracking-widest">NO ACTIVE CISA KEV ALERTS</span>
                         </div>
                       ) : (
-                        cisaThreats.map((threat: any, i: number) => (
+                        cisaThreats.map((threat, i) => (
                           <div key={i} className="px-3 py-2 hover:bg-[var(--hover-accent)] transition-colors">
                             <div className="flex items-center gap-1.5 mb-0.5">
                               <span className="text-[9px] font-mono font-bold text-[#FF1744] tracking-widest">KEV</span>
@@ -274,7 +293,7 @@ export default function CyberIntelPanel({ reconFindings = [], onLocate }: CyberI
                           <span className="text-[10px] font-mono text-[var(--text-muted)] tracking-widest">NO CVE DATA</span>
                         </div>
                       ) : (
-                        cves.map((cve: any) => (
+                        cves.map((cve) => (
                           <div key={cve.id} className="px-3 py-2 hover:bg-[var(--hover-accent)] transition-colors">
                             <div className="flex items-center gap-1.5 mb-0.5">
                               <span
@@ -320,7 +339,7 @@ export default function CyberIntelPanel({ reconFindings = [], onLocate }: CyberI
                             <span className="text-[9px] font-mono font-bold text-[#FF9100] tracking-widest">SPAMHAUS DROP ({spamhaus.length})</span>
                           </div>
                           <div className="flex flex-wrap gap-1 max-h-[120px] overflow-y-auto styled-scrollbar">
-                            {spamhaus.slice(0, 25).map((drop: any) => (
+                            {spamhaus.slice(0, 25).map((drop) => (
                               <span
                                 key={drop.id}
                                 className="px-1.5 py-0.5 rounded text-[7px] font-mono bg-[#FF9100]/10 text-[#FF9100]/80 border border-[#FF9100]/20"
@@ -340,7 +359,7 @@ export default function CyberIntelPanel({ reconFindings = [], onLocate }: CyberI
                             <span className="text-[9px] font-mono font-bold text-[#6D28D9] tracking-widest">TOR EXIT NODES ({torNodes.length})</span>
                           </div>
                           <div className="flex flex-wrap gap-1 max-h-[120px] overflow-y-auto styled-scrollbar">
-                            {torNodes.slice(0, 30).map((node: any) => (
+                            {torNodes.slice(0, 30).map((node) => (
                               <span
                                 key={node.id}
                                 className="px-1.5 py-0.5 rounded text-[7px] font-mono bg-[#6D28D9]/10 text-[#6D28D9]/80 border border-[#6D28D9]/20"
@@ -370,7 +389,7 @@ export default function CyberIntelPanel({ reconFindings = [], onLocate }: CyberI
                           <span className="text-[10px] font-mono text-[var(--text-muted)] tracking-widest">NO MITRE DATA</span>
                         </div>
                       ) : (
-                        mitreGroups.map((group: any) => (
+                        mitreGroups.map((group) => (
                           <div key={group.id} className="px-3 py-2 hover:bg-[var(--hover-accent)] transition-colors">
                             <div className="flex items-center gap-1.5 mb-1">
                               <span className="text-[10px]">{group.country === 'RU' ? '🇷🇺' : group.country === 'KP' ? '🇰🇵' : group.country === 'CN' ? '🇨🇳' : group.country === 'IR' ? '🇮🇷' : '🏴'}</span>

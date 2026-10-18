@@ -74,8 +74,78 @@ function cidrToSampleIp(cidr: string): string | null {
   } catch { return null; }
 }
 
-async function batchGeo(ips: string[]): Promise<Map<string, any>> {
-  const geoMap = new Map<string, any>();
+/** ip-api.com batch result fields this route reads. */
+interface IpApiGeo {
+  status?: string;
+  query: string;
+  lat?: number;
+  lon?: number;
+  countryCode?: string;
+}
+
+/** CIRCL /api/last entry fields this route reads. */
+interface CirclCve {
+  id?: string;
+  summary?: string;
+  cvss?: number;
+  Published?: string;
+  published?: string;
+  vulnerable_configuration?: { title?: string; id?: string }[];
+  references?: string[];
+  capec?: { cwe_id?: string }[];
+}
+
+interface CveItem {
+  id?: string;
+  summary: string;
+  cvss: number;
+  severity: string;
+  published: string;
+  vulnerable_configuration: string[];
+  references: string[];
+  cwe: string;
+  vendors: string[];
+  lat: number;
+  lng: number;
+}
+
+interface GeoThreatNode {
+  id: string;
+  lat: number;
+  lng: number;
+  country: string;
+  source: string;
+  threat_type: string;
+  cidr?: string;
+  sample_ip?: string;
+  ip?: string;
+}
+
+interface TacticalGroup {
+  id: string;
+  name: string;
+  country: string;
+  techniques: string[];
+}
+
+interface MitreEnrichment {
+  software_techniques: Record<string, { techniques: string[]; names: string[]; descriptions: string[] }>;
+  tactical_groups: TacticalGroup[];
+}
+
+interface CyberIntelResponse {
+  cves: CveItem[];
+  spamhaus_drop: GeoThreatNode[];
+  tor_exit_nodes: GeoThreatNode[];
+  mitre_enrichment: MitreEnrichment | Record<string, never>;
+  total: number;
+  timestamp: string;
+  cve_nodes?: Record<string, unknown>[];
+  mitre_nodes?: Record<string, unknown>[];
+}
+
+async function batchGeo(ips: string[]): Promise<Map<string, IpApiGeo>> {
+  const geoMap = new Map<string, IpApiGeo>();
   if (ips.length === 0) return geoMap;
   try {
     const res = await fetch('http://ip-api.com/batch', {
@@ -95,7 +165,7 @@ async function batchGeo(ips: string[]): Promise<Map<string, any>> {
 }
 
 async function _GET() {
-  const response: any = {
+  const response: CyberIntelResponse = {
     cves: [],
     spamhaus_drop: [],
     tor_exit_nodes: [],
@@ -111,8 +181,8 @@ async function _GET() {
     });
     if (res.ok) {
       const data = await res.json();
-      response.cves = (data || []).slice(0, 30).map((cve: any) => {
-        const configTitles = (cve.vulnerable_configuration || []).slice(0, 5).map((c: any) => c.title || c.id || '');
+      response.cves = (data || []).slice(0, 30).map((cve: CirclCve): CveItem => {
+        const configTitles = (cve.vulnerable_configuration || []).slice(0, 5).map((c) => c.title || c.id || '');
         const vendors = configTitles.map(extractVendor).filter(Boolean) as string[];
         const uniqueVendors = [...new Set(vendors)];
         let lat = 37.774, lng = -122.419; // default: San Francisco
@@ -122,13 +192,13 @@ async function _GET() {
         }
         return {
           id: cve.id,
-          summary: cve.summary?.length > 200 ? cve.summary.slice(0, 200) + '...' : (cve.summary || ''),
+          summary: cve.summary && cve.summary.length > 200 ? cve.summary.slice(0, 200) + '...' : (cve.summary || ''),
           cvss: cve.cvss || 0,
           severity: !cve.cvss ? 'UNKNOWN' : cve.cvss >= 9 ? 'CRITICAL' : cve.cvss >= 7 ? 'HIGH' : cve.cvss >= 4 ? 'MEDIUM' : 'LOW',
           published: cve.Published || cve.published || '',
           vulnerable_configuration: configTitles,
           references: (cve.references || []).slice(0, 3),
-          cwe: cve.capec?.length > 0 ? `CWE-${cve.capec[0].cwe_id}` : '',
+          cwe: cve.capec && cve.capec.length > 0 ? `CWE-${cve.capec[0].cwe_id}` : '',
           vendors: uniqueVendors,
           lat,
           lng,
@@ -230,7 +300,7 @@ async function _GET() {
     descriptions: techIds.map(t => TECHNIQUE_NAMES[t]?.description || ''),
   });
 
-  response.mitre_enrichment = {
+  const mitreEnrichment: MitreEnrichment = {
     software_techniques: {
       'wordpress': buildSoftwareTechniques(['T1190', 'T1505', 'T1195']),
       'php': buildSoftwareTechniques(['T1190', 'T1505', 'T1059']),
@@ -249,9 +319,10 @@ async function _GET() {
       { id: 'G0045', name: 'Cozy Bear', country: 'RU', techniques: ['T1566', 'T1059', 'T1005'] },
     ],
   };
+  response.mitre_enrichment = mitreEnrichment;
 
   // Map-ready arrays for CVEs and MITRE
-  response.cve_nodes = response.cves.map((cve: any) => ({
+  response.cve_nodes = response.cves.map((cve) => ({
     id: cve.id,
     lat: cve.lat,
     lng: cve.lng,
@@ -264,7 +335,7 @@ async function _GET() {
     threat_type: 'cve',
   }));
 
-  response.mitre_nodes = response.mitre_enrichment.tactical_groups.map((group: any) => {
+  response.mitre_nodes = mitreEnrichment.tactical_groups.map((group) => {
     const centroid = COUNTRY_CENTROIDS[group.country] || COUNTRY_CENTROIDS.US!;
     return {
       id: group.id,

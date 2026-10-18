@@ -8,16 +8,36 @@ import {
   Radio, Mountain, ShieldAlert, Globe, Eye, BookMarked, Thermometer, Waves
 } from 'lucide-react';
 
+type ActiveLayers = Record<string, boolean>;
+
 interface LayerPanelProps {
-  data: any;
-  activeLayers: any;
-  setActiveLayers: React.Dispatch<React.SetStateAction<any>>;
+  data: Record<string, unknown>;
+  activeLayers: ActiveLayers;
+  // Accepts the parent's useState setter for any concrete layer-flag object:
+  // the updater passed in returns the same type it is given.
+  setActiveLayers: (update: <L extends ActiveLayers>(prev: L) => L) => void;
   isMobile?: boolean;
   theme?: 'core' | 'ghost';
   setTheme?: (theme: 'core' | 'ghost') => void;
 }
 
-const getLayerGroups = (theme: 'core' | 'ghost') => {
+interface LayerDef {
+  key: string;
+  label: string;
+  icon: React.ElementType;
+  color: string;
+  dataKey: string;
+  countTypes?: string[];
+}
+
+interface LayerGroup {
+  label: string;
+  fullLabel: string;
+  color: string;
+  layers: LayerDef[];
+}
+
+const getLayerGroups = (theme: 'core' | 'ghost'): LayerGroup[] => {
   const isGhost = theme === 'ghost';
   const phantomPurple = '#B388FF';
   const ghostPriv = '#CE93D8';
@@ -122,7 +142,7 @@ const getLayerGroups = (theme: 'core' | 'ghost') => {
 };
 
 // SVG component for Shield which was missing in the imports above
-function Shield(props: any) {
+function Shield(props: React.SVGProps<SVGSVGElement>) {
   return (
     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
       <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
@@ -135,21 +155,23 @@ function LayerPanel({ data, activeLayers, setActiveLayers, isMobile, theme = 'co
 
   const LAYER_GROUPS = getLayerGroups(theme);
 
-  const toggle = (key: string) => setActiveLayers((prev: any) => ({ ...prev, [key]: !prev[key] }));
+  const toggle = (key: string) => setActiveLayers(<L extends ActiveLayers>(prev: L): L => ({ ...prev, [key]: !prev[key] }));
   
-  const getCount = (layer: any): number | null => {
+  const getCount = (layer: LayerDef): number | null => {
     const dk: string = layer?.dataKey;
     if (!dk) return null;
+    const countTypes = layer.countTypes;
     let total = 0;
     let found = false;
     for (const k of dk.split(',')) {
-      if (data[k] && Array.isArray(data[k])) {
+      const rows = data[k];
+      if (rows && Array.isArray(rows)) {
         found = true;
         // Layers sharing a dataKey (blocklist/phishing/ssl_blacklist all read
         // threat_intel) count only the rows matching their own threat_type.
-        total += layer.countTypes
-          ? data[k].filter((t: any) => layer.countTypes.includes(t.threat_type)).length
-          : data[k].length;
+        total += countTypes
+          ? rows.filter((t: { threat_type: string }) => countTypes.includes(t.threat_type)).length
+          : rows.length;
       }
     }
     return found ? total : null;

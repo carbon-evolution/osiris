@@ -18,6 +18,73 @@ const ISMALICIOUS_API = 'https://api.ismalicious.com';
 const API_KEY = (typeof process !== 'undefined' && process.env && process.env.ISMALICIOUS_KEY) || '';
 const API_SECRET = (typeof process !== 'undefined' && process.env && process.env.ISMALICIOUS_SECRET) || '';
 
+// Only the /check response fields this route reads; all optional because
+// which blocks are present depends on the enrichment level and query type.
+interface IsMaliciousCheck {
+  type?: string;
+  malicious?: boolean;
+  riskScore?: number;
+  reputation?: { malicious?: number; suspicious?: number; harmless?: number; undetected?: number };
+  sources?: { name?: string; category?: string; status?: string; type?: string; url?: string }[];
+  whois?: {
+    registrar?: string;
+    domain?: {
+      domain?: string;
+      registrar?: string;
+      created_date?: string;
+      expiration_date?: string;
+      updated_date?: string;
+      name_servers?: string[];
+      status?: string[];
+    };
+  };
+  geo?: {
+    country?: string;
+    country_code?: string;
+    city?: string;
+    isp?: string;
+    org?: string;
+    asn?: string | number;
+    as_number?: string | number;
+  };
+  otx?: {
+    reputationScore?: number;
+    pulseCount?: number;
+    pulses?: { name?: string; description?: string; created?: string; tags?: string[]; adversary?: string }[];
+  };
+  labsReputation?: { score?: number; classification?: string; lastUpdated?: string };
+  passiveDns?: { hostname?: string; value?: string; recordType?: string; type?: string; firstSeen?: string; lastSeen?: string }[];
+  fileAnalysis?: {
+    md5?: string;
+    sha1?: string;
+    sha256?: string;
+    fileType?: string;
+    fileName?: string;
+    signature?: string;
+    firstSeen?: string;
+    tags?: string[];
+  };
+}
+
+interface IsMaliciousResult {
+  source: string;
+  query: string;
+  type: string;
+  malicious: boolean;
+  risk_score: number | null;
+  api_key_configured: boolean;
+  timestamp: string;
+  reputation?: Record<string, number>;
+  blocklist_sources?: Record<string, string>[];
+  total_blocklists?: number;
+  whois?: Record<string, string | string[]>;
+  geo?: Record<string, string | number>;
+  otx?: Record<string, unknown>;
+  labs_reputation?: Record<string, unknown>;
+  passive_dns?: Record<string, string>[];
+  file_analysis?: Record<string, string | string[]>;
+}
+
 function buildAuthHeader(): Record<string, string> {
   if (!API_KEY) return {};
   // Auth = base64("key:secret"). Without the secret the API returns 401.
@@ -25,7 +92,7 @@ function buildAuthHeader(): Record<string, string> {
   return { 'X-API-KEY': encoded };
 }
 
-async function ismFetch(path: string, params: Record<string, string>): Promise<any> {
+async function ismFetch(path: string, params: Record<string, string>): Promise<IsMaliciousCheck> {
   const url = new URL(`${ISMALICIOUS_API}${path}`);
   for (const [k, v] of Object.entries(params)) {
     url.searchParams.set(k, v);
@@ -72,7 +139,7 @@ async function _GET(req: Request) {
     const data = await ismFetch('/check', { query, enrichment });
 
     // Transform response into a consistent structure
-    const result: any = {
+    const result: IsMaliciousResult = {
       source: 'isMalicious',
       query,
       type: data.type || 'UNKNOWN',
@@ -98,7 +165,7 @@ async function _GET(req: Request) {
 
     // Blocklist sources that flagged this entity
     if (data.sources && Array.isArray(data.sources)) {
-      result.blocklist_sources = data.sources.map((s: any) => ({
+      result.blocklist_sources = data.sources.map((s) => ({
         name: s.name || '',
         category: s.category || '',
         status: s.status || '',
@@ -139,7 +206,7 @@ async function _GET(req: Request) {
       result.otx = {
         reputation_score: data.otx.reputationScore ?? null,
         pulse_count: data.otx.pulseCount ?? 0,
-        pulses: Array.isArray(data.otx.pulses) ? data.otx.pulses.slice(0, 5).map((p: any) => ({
+        pulses: Array.isArray(data.otx.pulses) ? data.otx.pulses.slice(0, 5).map((p) => ({
           name: p.name || '',
           description: p.description?.slice(0, 200) || '',
           created: p.created || '',
@@ -160,7 +227,7 @@ async function _GET(req: Request) {
 
     // Passive DNS (full enrichment)
     if (data.passiveDns && Array.isArray(data.passiveDns)) {
-      result.passive_dns = data.passiveDns.slice(0, 20).map((p: any) => ({
+      result.passive_dns = data.passiveDns.slice(0, 20).map((p) => ({
         hostname: p.hostname || p.value || '',
         record_type: p.recordType || p.type || '',
         first_seen: p.firstSeen || '',

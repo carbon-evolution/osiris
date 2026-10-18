@@ -46,7 +46,35 @@ const MILITARY_INDICATORS = new Set([
 const AIRLINE_CODE_RE = /^([A-Z]{3})\d/;
 const JAMMING_NACAP_THRESHOLD = 4;
 
-function classifyFlight(f: any) {
+/**
+ * Raw aircraft record in airplanes.live (readsb) field names. OpenSky state
+ * vectors are mapped onto the same shape below. Only the fields read here.
+ */
+interface RawAircraft {
+  hex?: string;
+  flight?: string;
+  t?: string;
+  r?: string;
+  dbFlags?: number;
+  lat?: number | null;
+  lon?: number | null;
+  /** Feet; airplanes.live reports "ground" for aircraft on the ground. */
+  alt_baro?: number | 'ground' | null;
+  gs?: number | null;
+  track?: number;
+  squawk?: string;
+  category_os?: number;
+  nac_p?: number;
+}
+
+interface JammingPoint {
+  lat: number;
+  lng: number;
+  nac_p: number;
+  callsign: string;
+}
+
+function classifyFlight(f: RawAircraft) {
   const modelUpper = (f.t || '').toUpperCase();
   const flightStr = (f.flight || '').trim().toUpperCase();
   const dbFlags = (f.dbFlags || 0);
@@ -96,7 +124,7 @@ function classifyFlight(f: any) {
   };
 }
 
-function aggregateJamming(points: any[], threshold: number) {
+function aggregateJamming(points: JammingPoint[], threshold: number) {
   if (points.length === 0) return [];
   const grid = new Map<string, { lat: number; lng: number; count: number; total_nac_p: number }>();
   const GRID_SIZE = 2;
@@ -118,12 +146,15 @@ function aggregateJamming(points: any[], threshold: number) {
     }));
 }
 
+export type Flight = NonNullable<ReturnType<typeof classifyFlight>>;
+export type JammingZone = ReturnType<typeof aggregateJamming>[number];
+
 export interface FlightsPayload {
-  commercial_flights: any[];
-  private_flights: any[];
-  private_jets: any[];
-  military_flights: any[];
-  gps_jamming: any[];
+  commercial_flights: Flight[];
+  private_flights: Flight[];
+  private_jets: Flight[];
+  military_flights: Flight[];
+  gps_jamming: JammingZone[];
   total: number;
   timestamp: string;
 }
@@ -135,7 +166,7 @@ export async function fetchFlights(): Promise<FlightsPayload> {
     fetchWithTimeout('https://api.airplanes.live/v2/ladd', 20000),
   ]);
 
-  const allRaw: any[] = [];
+  const allRaw: RawAircraft[] = [];
   const seenHex = new Set<string>();
 
   if (osFetch?.ok) {
@@ -168,11 +199,11 @@ export async function fetchFlights(): Promise<FlightsPayload> {
     }
   }
 
-  const commercial: any[] = [];
-  const privateFl: any[] = [];
-  const jets: any[] = [];
-  const military: any[] = [];
-  const gpsJamming: any[] = [];
+  const commercial: Flight[] = [];
+  const privateFl: Flight[] = [];
+  const jets: Flight[] = [];
+  const military: Flight[] = [];
+  const gpsJamming: JammingPoint[] = [];
 
   for (const raw of allRaw) {
     const flight = classifyFlight(raw);

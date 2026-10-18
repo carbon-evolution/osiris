@@ -13,8 +13,29 @@ import { stealthFetch } from '@/lib/stealthFetch';
 
 const SATNOGS_BASE = 'https://db.satnogs.org/api';
 
+// The SatNOGS transmitter fields this route reads.
+interface SatnogsTransmitter {
+  uuid?: string;
+  description?: string;
+  alive?: boolean;
+  type?: string;
+  mode?: string;
+  uplink_low?: number;
+  downlink_low?: number;
+  baud?: number;
+  status?: string;
+  service?: string;
+}
+
+interface SatEnrichResult {
+  noradId: string;
+  satellite?: Record<string, unknown>;
+  transmitters?: Record<string, unknown>[];
+  orbital?: Record<string, unknown>;
+}
+
 // In-memory cache keyed by noradId, TTL = 60 min
-const cache = new Map<string, { ts: number; data: any }>();
+const cache = new Map<string, { ts: number; data: SatEnrichResult }>();
 const CACHE_TTL_MS = 60 * 60 * 1000;
 
 function getCached(key: string) {
@@ -24,7 +45,7 @@ function getCached(key: string) {
   return null;
 }
 
-function setCache(key: string, data: any) {
+function setCache(key: string, data: SatEnrichResult) {
   cache.set(key, { ts: Date.now(), data });
   // Evict oldest entries if cache > 200
   if (cache.size > 200) {
@@ -47,7 +68,7 @@ export async function GET(req: Request) {
     );
   }
 
-  const result: any = { noradId: noradIdClean };
+  const result: SatEnrichResult = { noradId: noradIdClean };
 
   // ── 1. Check cache ──
   const cached = getCached(noradIdClean);
@@ -103,7 +124,7 @@ export async function GET(req: Request) {
     if (res.ok) {
       const body = await res.json();
       if (Array.isArray(body)) {
-        result.transmitters = body.map((tx: any) => ({
+        result.transmitters = body.map((tx: SatnogsTransmitter) => ({
           uuid: tx.uuid,
           description: tx.description || null,
           alive: tx.alive ?? null,

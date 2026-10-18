@@ -93,11 +93,62 @@ const AIRPORT_DB: Record<string, { icao: string; iata: string; name: string; cit
   'SCEL': { icao: 'SCEL', iata: 'SCL', name: 'Santiago International', city: 'Santiago', country: 'CL', lat: -33.3930, lon: -70.7853 },
 };
 
+/**
+ * OpenSky state vector (positional array). Only indices 0–11 are read here:
+ * icao24, callsign, origin_country, time_position, last_contact, longitude,
+ * latitude, baro_altitude, on_ground, velocity, true_track, vertical_rate.
+ */
+type OpenSkyState = [
+  string,
+  string | null,
+  string,
+  number | null,
+  number,
+  number | null,
+  number | null,
+  number | null,
+  boolean,
+  number | null,
+  number | null,
+  number | null,
+  ...unknown[],
+];
+
+interface BoardEntry {
+  icao24: string;
+  callsign: string;
+  lat: number;
+  lon: number;
+  alt_ft: number;
+  speed_knots: number;
+  heading: number;
+  vert_rate_fpm: number;
+  distance_km: number;
+  on_ground: boolean;
+}
+
+interface PointFeature {
+  type: string;
+  geometry: { type: string; coordinates: number[] };
+  properties: Record<string, unknown>;
+}
+
+interface AirportBoard {
+  airport: { icao: string; iata: string; name: string; city: string; country: string; lat: number; lon: number };
+  radius_km: number;
+  timestamp: string;
+  stats: { total_nearby: number; arrivals: number; departures: number };
+  arrivals: BoardEntry[];
+  departures: BoardEntry[];
+  nearby: BoardEntry[];
+  geojson?: { type: string; features: PointFeature[] };
+}
+
 // Cache for the OpenSky states fetch (re-used across board requests)
-const statesCache: { ts: number; states: any[] } = { ts: 0, states: [] };
+const statesCache: { ts: number; states: OpenSkyState[] } = { ts: 0, states: [] };
 const STATES_CACHE_TTL = 30000; // 30 seconds
 
-async function getLiveStates(): Promise<any[]> {
+async function getLiveStates(): Promise<OpenSkyState[]> {
   const now = Date.now();
   if (statesCache.states.length > 0 && now - statesCache.ts < STATES_CACHE_TTL) {
     return statesCache.states;
@@ -175,19 +226,19 @@ export async function GET(req: Request) {
   const states = await getLiveStates();
 
   // Filter flights near the airport and classify
-  const arrivals: any[] = [];
-  const departures: any[] = [];
-  const nearAirport: any[] = [];
+  const arrivals: BoardEntry[] = [];
+  const departures: BoardEntry[] = [];
+  const nearAirport: BoardEntry[] = [];
 
   for (const s of states) {
     const hex: string = (s[0] || '').toLowerCase();
     const callsign: string = (s[1] || '').trim();
-    const lon: number = s[5];
-    const lat: number = s[6];
-    const altBaro: number = s[7]; // meters
-    const velocity: number = s[9]; // m/s
-    const track: number = s[10];
-    const vertRate: number = s[11]; // m/s
+    const lon: number | null = s[5];
+    const lat: number | null = s[6];
+    const altBaro: number | null = s[7]; // meters
+    const velocity: number | null = s[9]; // m/s
+    const track: number | null = s[10];
+    const vertRate: number | null = s[11]; // m/s
     const onGround: boolean = s[8] === true;
 
     if (lat == null || lon == null) continue;
@@ -200,7 +251,7 @@ export async function GET(req: Request) {
     const altFeet = typeof altBaro === 'number' ? Math.round(altBaro * 3.28084) : 0;
     const speedKnots = typeof velocity === 'number' ? Math.round(velocity * 1.94384) : 0;
 
-    const entry = {
+    const entry: BoardEntry = {
       icao24: hex,
       callsign,
       lat: Math.round(lat * 100000) / 100000,
@@ -244,7 +295,7 @@ export async function GET(req: Request) {
   departures.sort((a, b) => a.alt_ft - b.alt_ft);
 
   // Build result
-  const result: any = {
+  const result: AirportBoard = {
     airport: {
       icao: airport.icao,
       iata: airport.iata,
@@ -277,13 +328,13 @@ export async function GET(req: Request) {
         properties: { type: 'airport', icao: airport.icao, name: airport.name },
       },
       // Arrival markers
-      ...result.arrivals.map((f: any) => ({
+      ...result.arrivals.map((f) => ({
         type: 'Feature',
         geometry: { type: 'Point', coordinates: [f.lon, f.lat] },
         properties: { ...f, board_type: 'arrival' },
       })),
       // Departure markers
-      ...result.departures.map((f: any) => ({
+      ...result.departures.map((f) => ({
         type: 'Feature',
         geometry: { type: 'Point', coordinates: [f.lon, f.lat] },
         properties: { ...f, board_type: 'departure' },

@@ -2,6 +2,32 @@ import { withQueryCache } from '@/lib/feeds/serve';
 import { NextResponse } from 'next/server';
 import { isRateLimited, getClientIp } from '@/lib/ssrf-guard';
 
+// Only the fields read from a MITRE CVE 5.0 record.
+interface CvssMetric {
+  baseScore?: number;
+  vectorString?: string;
+  baseSeverity?: string;
+}
+
+interface MitreCveRecord {
+  cveMetadata?: { cveId?: string; datePublished?: string; dateUpdated?: string };
+  containers?: {
+    cna?: {
+      descriptions?: { lang?: string; value?: string }[];
+      metrics?: {
+        cvssV3_1?: CvssMetric;
+        cvssV3_0?: CvssMetric;
+        cvssV31?: CvssMetric;
+        cvssV2_0?: CvssMetric;
+        cvssV2?: CvssMetric;
+      }[];
+      problemTypes?: { descriptions?: { cweId?: string; description?: string }[] }[];
+      references?: { url?: string }[];
+      affected?: { vendor?: string; product?: string; versions?: { version?: string }[] }[];
+    };
+  };
+}
+
 // CVE Intelligence — fetches vulnerability details from CIRCL CVE API (free, no key)
 async function _GET(req: Request) {
   const { searchParams } = new URL(req.url);
@@ -56,11 +82,11 @@ async function _GET(req: Request) {
       });
     }
 
-    const data = await res.json();
+    const data: MitreCveRecord = await res.json();
 
     // Parse the CVE 5.0 JSON format from MITRE
     const cna = data.containers?.cna;
-    const description = cna?.descriptions?.find((d: any) => d.lang === 'en')?.value
+    const description = cna?.descriptions?.find((d) => d.lang === 'en')?.value
       || cna?.descriptions?.[0]?.value
       || 'No description available.';
 
@@ -96,13 +122,13 @@ async function _GET(req: Request) {
     }
 
     // Extract references
-    const references = (cna?.references || []).slice(0, 5).map((r: any) => r.url);
+    const references = (cna?.references || []).slice(0, 5).map((r) => r.url);
 
     // Extract affected products
-    const affected = (cna?.affected || []).slice(0, 5).map((a: any) => ({
+    const affected = (cna?.affected || []).slice(0, 5).map((a) => ({
       vendor: a.vendor || 'Unknown',
       product: a.product || 'Unknown',
-      versions: (a.versions || []).slice(0, 3).map((v: any) => v.version).filter(Boolean),
+      versions: (a.versions || []).slice(0, 3).map((v) => v.version).filter(Boolean),
     }));
 
     return NextResponse.json({

@@ -8,6 +8,7 @@ import {
   Plane, Ship, Building2, User, Globe, Newspaper, ShieldAlert,
   RefreshCw, Network, Wifi
 } from 'lucide-react';
+import type { ForceGraphMethods, LinkObject, NodeObject } from 'react-force-graph-2d';
 
 const ForceGraph2D = dynamic(() => import('react-force-graph-2d'), { ssr: false });
 
@@ -17,7 +18,7 @@ interface EntityNode {
   id: string;
   label: string;
   type: 'aircraft' | 'vessel' | 'company' | 'person' | 'country' | 'event' | 'sanction' | 'ip' | 'apt' | 'cve';
-  properties?: Record<string, any>;
+  properties?: Record<string, unknown>;
   x?: number; y?: number;
 }
 
@@ -46,7 +47,7 @@ const TYPE_ICONS: Record<string, typeof Plane> = {
 // ── PROPS ──
 
 interface Props {
-  entity: { type: string; id: string; label?: string; properties?: Record<string, any>; seedGraph?: { nodes: any[]; links: any[] } } | null;
+  entity: { type: string; id: string; label?: string; properties?: Record<string, unknown>; seedGraph?: { nodes: EntityNode[]; links: EntityLink[] } } | null;
   onClose: () => void;
 }
 
@@ -57,7 +58,7 @@ function EntityGraphPanel({ entity, onClose }: Props) {
   const [selectedNode, setSelectedNode] = useState<EntityNode | null>(null);
   const [expanded, setExpanded] = useState(false);
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
-  const graphRef = useRef<any>(null);
+  const graphRef = useRef<ForceGraphMethods | undefined>(undefined);
   // Graph canvas size tracks the container (callback ref + ResizeObserver),
   // so render reads state instead of measuring the DOM through a ref.
   const [graphSize, setGraphSize] = useState({ width: 480, height: 400 });
@@ -98,16 +99,16 @@ function EntityGraphPanel({ entity, onClose }: Props) {
     return { nodes: Array.from(nodeMap.values()), links: merged };
   }, []);
 
-  const expandEntity = useCallback(async (type: string, id: string, properties?: Record<string, any>) => {
+  const expandEntity = useCallback(async (type: string, id: string, properties?: Record<string, unknown>) => {
     const key = `${type}:${id}`;
     if (expandedIds.has(key)) return;
     setLoading(true); setError(null);
     try {
       const params = new URLSearchParams({ type, id });
       // Forward extra properties for aircraft/vessel resolution
-      if (properties?.registration) params.set('registration', properties.registration);
-      if (properties?.model) params.set('model', properties.model);
-      if (properties?.icao24) params.set('icao24', properties.icao24);
+      if (properties?.registration) params.set('registration', String(properties.registration));
+      if (properties?.model) params.set('model', String(properties.model));
+      if (properties?.icao24) params.set('icao24', String(properties.icao24));
       const res = await fetch(`/api/entity/expand?${params}`, { cache: 'no-store' });
       if (!res.ok) { const b = await res.json().catch(() => ({})); throw new Error(b.error || `HTTP ${res.status}`); }
       const data = await res.json();
@@ -127,11 +128,11 @@ function EntityGraphPanel({ entity, onClose }: Props) {
     // directly instead of resolving the seed via the API.
     if (entity.seedGraph && entity.seedGraph.nodes?.length) {
       const sg = entity.seedGraph;
-      const nodes = sg.nodes.some((n: any) => n.id === root.id) ? sg.nodes : [root, ...sg.nodes];
+      const nodes = sg.nodes.some((n) => n.id === root.id) ? sg.nodes : [root, ...sg.nodes];
       // eslint-disable-next-line react-hooks/set-state-in-effect -- loads the graph for a new entity (pre-built seed graph, else API fetch)
       setGraphData({ nodes, links: sg.links || [] });
       setExpandedIds(new Set([`${entity.type}:${entity.id}`]));
-      setSelectedNode(nodes.find((n: any) => n.id === root.id) || root);
+      setSelectedNode(nodes.find((n) => n.id === root.id) || root);
       setError(null);
       return;
     }
@@ -144,7 +145,7 @@ function EntityGraphPanel({ entity, onClose }: Props) {
 
   const RESOLVABLE_TYPES = new Set(['aircraft', 'vessel', 'company', 'person', 'ip', 'country', 'apt', 'cve']);
 
-  const handleNodeClick = useCallback((node: any) => {
+  const handleNodeClick = useCallback((node: NodeObject) => {
     const n = node as EntityNode;
     setSelectedNode(n);
     const rawId = n.id.includes(':') ? n.id.split(':').slice(1).join(':') : n.id;
@@ -153,7 +154,7 @@ function EntityGraphPanel({ entity, onClose }: Props) {
     }
   }, [expandedIds, expandEntity]);
 
-  const paintNode = useCallback((node: any, ctx: CanvasRenderingContext2D, globalScale: number) => {
+  const paintNode = useCallback((node: NodeObject, ctx: CanvasRenderingContext2D, globalScale: number) => {
     const n = node as EntityNode;
     const isSelected = n === selectedNode;
     const color = TYPE_COLORS[n.type] || '#888';
@@ -206,10 +207,12 @@ function EntityGraphPanel({ entity, onClose }: Props) {
     }
   }, [selectedNode]);
 
-  const paintLink = useCallback((link: any, ctx: CanvasRenderingContext2D, globalScale: number) => {
-    const { source: s, target: t } = link;
+  const paintLink = useCallback((link: LinkObject, ctx: CanvasRenderingContext2D, globalScale: number) => {
+    // By paint time force-graph has replaced the source/target ids with node objects.
+    const s = link.source as NodeObject;
+    const t = link.target as NodeObject;
     if (!s.x || !t.x) return;
-    ctx.beginPath(); ctx.moveTo(s.x, s.y); ctx.lineTo(t.x, t.y);
+    ctx.beginPath(); ctx.moveTo(s.x, s.y!); ctx.lineTo(t.x, t.y!);
     // Smooth, thin, non-dashed lines
     ctx.strokeStyle = 'rgba(60,64,67,0.25)'; // faint gray
     ctx.lineWidth = Math.max(0.5, 1 / globalScale); 
@@ -219,7 +222,7 @@ function EntityGraphPanel({ entity, onClose }: Props) {
     if (fs > 3) {
       ctx.font = `${fs}px 'JetBrains Mono', monospace`; 
       ctx.fillStyle = 'rgba(95,99,104,0.85)';
-      ctx.textAlign = 'center'; ctx.fillText(link.label || '', (s.x + t.x) / 2, (s.y + t.y) / 2);
+      ctx.textAlign = 'center'; ctx.fillText(link.label || '', (s.x + t.x) / 2, (s.y! + t.y!) / 2);
     }
   }, []);
 

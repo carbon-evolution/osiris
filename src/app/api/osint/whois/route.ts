@@ -3,6 +3,45 @@ import { NextResponse } from 'next/server';
 import { safeFetch, isRateLimited, getClientIp } from '@/lib/ssrf-guard';
 import { matchExact, type SanctionEntry } from '@/lib/sanctions';
 
+/** jCard property: [name, parameters, value type, value] (RFC 7095). */
+type VCardProperty = [name: string, params: unknown, type: string, value: string];
+
+/** Only the RDAP domain-response fields this route reads. */
+interface RdapDomain {
+  handle?: string;
+  ldhName?: string;
+  status?: string[];
+  events?: { eventAction?: string; eventDate?: string }[];
+  nameservers?: { ldhName?: string }[];
+  entities?: { handle?: string; roles?: string[]; vcardArray?: [string, VCardProperty[]] }[];
+}
+
+interface RdapEntitySummary {
+  handle?: string;
+  roles?: string[];
+  name?: string;
+  org?: string;
+}
+
+interface WhoisResult {
+  domain: string;
+  timestamp: string;
+  rdap?: {
+    handle?: string;
+    name?: string;
+    status?: string[];
+    events: { action?: string; date?: string }[];
+    nameservers: (string | undefined)[];
+    entities: RdapEntitySummary[];
+  };
+  registration?: string;
+  expiration?: string;
+  last_changed?: string;
+  http?: { status: number; headers: Record<string, string>; redirected: boolean; final_url: string };
+  security_score?: { score: number; max: number; grade: string };
+  sanctions_match?: { source: string; hits: Array<{ matched_value: string; entries: SanctionEntry[] }> } | null;
+}
+
 // WHOIS + Domain Intelligence via RDAP (free, standardized).
 // Cross-checks any registrant / org names returned by RDAP against the
 // OFAC SDN list so a sanctioned registrant surfaces alongside the WHOIS
@@ -23,7 +62,7 @@ async function _GET(req: Request) {
   }
 
   try {
-    const results: any = { domain, timestamp: new Date().toISOString() };
+    const results: WhoisResult = { domain, timestamp: new Date().toISOString() };
 
     // RDAP (Registration Data Access Protocol) — successor to WHOIS
     try {
@@ -32,29 +71,29 @@ async function _GET(req: Request) {
         headers: { 'Accept': 'application/json' },
       });
       if (res.ok) {
-        const data = await res.json();
+        const data: RdapDomain = await res.json();
         results.rdap = {
           handle: data.handle,
           name: data.ldhName,
           status: data.status,
-          events: (data.events || []).map((e: any) => ({
+          events: (data.events || []).map((e) => ({
             action: e.eventAction,
             date: e.eventDate,
           })),
-          nameservers: (data.nameservers || []).map((ns: any) => ns.ldhName),
-          entities: (data.entities || []).map((e: any) => ({
+          nameservers: (data.nameservers || []).map((ns) => ns.ldhName),
+          entities: (data.entities || []).map((e): RdapEntitySummary => ({
             handle: e.handle,
             roles: e.roles,
-            name: e.vcardArray?.[1]?.find((v: any) => v[0] === 'fn')?.[3],
-            org: e.vcardArray?.[1]?.find((v: any) => v[0] === 'org')?.[3],
-          })).filter((e: any) => e.name || e.org),
+            name: e.vcardArray?.[1]?.find((v) => v[0] === 'fn')?.[3],
+            org: e.vcardArray?.[1]?.find((v) => v[0] === 'org')?.[3],
+          })).filter((e) => e.name || e.org),
         };
 
         // Extract key dates
         const events = results.rdap.events || [];
-        results.registration = events.find((e: any) => e.action === 'registration')?.date;
-        results.expiration = events.find((e: any) => e.action === 'expiration')?.date;
-        results.last_changed = events.find((e: any) => e.action === 'last changed')?.date;
+        results.registration = events.find((e) => e.action === 'registration')?.date;
+        results.expiration = events.find((e) => e.action === 'expiration')?.date;
+        results.last_changed = events.find((e) => e.action === 'last changed')?.date;
       }
     } catch (e) { console.warn('[OSIRIS] Suppressed error:', e instanceof Error ? e.message : e); }
 

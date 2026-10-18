@@ -5,7 +5,38 @@ import { isRateLimited, getClientIp } from '@/lib/ssrf-guard';
 // BGP/ASN lookup via RIPEstat (free, no key). Replaces bgpview.io, which is dead.
 const RIPE = 'https://stat.ripe.net/data';
 
-async function ripe(path: string): Promise<any> {
+// Only the RIPEstat `data` fields this route reads, across the endpoints it calls.
+interface RipeData {
+  holder?: string;
+  prefixes?: { prefix?: string }[];
+  neighbours?: unknown[];
+  asns?: string[];
+  prefix?: string;
+}
+
+interface BgpAsnRef {
+  asn: number;
+  name: string;
+  country_code: string;
+  description: string;
+}
+
+interface BgpResult {
+  query: string;
+  timestamp: string;
+  type?: 'asn' | 'ip';
+  asn?: BgpAsnRef;
+  prefixes?: {
+    ipv4: { prefix: string }[];
+    ipv6: { prefix: string }[];
+    total_v4: number;
+    total_v6: number;
+  };
+  peers?: { upstream: unknown[]; total: number };
+  ip?: { prefixes: { prefix: string; asn: BgpAsnRef }[] };
+}
+
+async function ripe(path: string): Promise<RipeData> {
   const res = await fetch(`${RIPE}/${path}`, {
     signal: AbortSignal.timeout(8000),
     headers: { Accept: 'application/json' },
@@ -34,7 +65,7 @@ async function _GET(req: Request) {
   }
 
   try {
-    const results: any = { query, timestamp: new Date().toISOString() };
+    const results: BgpResult = { query, timestamp: new Date().toISOString() };
     const isIP = /^(\d{1,3}\.){3}\d{1,3}$/.test(query) || query.includes(':');
     const isASN = /^(AS)?\d+$/i.test(query);
     const asnNum = isASN ? query.replace(/^AS/i, '') : null;
@@ -49,7 +80,7 @@ async function _GET(req: Request) {
       const holder = ov.status === 'fulfilled' ? ov.value.holder || '' : '';
       results.asn = { asn: Number(asnNum), name: holder, description: holder, country_code: '' };
       if (pfx.status === 'fulfilled') {
-        const prefixes: string[] = (pfx.value.prefixes || []).map((p: any) => p.prefix).filter(Boolean);
+        const prefixes: string[] = (pfx.value.prefixes || []).map((p) => p.prefix).filter((p): p is string => Boolean(p));
         const v4 = prefixes.filter((p) => p.includes('.'));
         const v6 = prefixes.filter((p) => p.includes(':'));
         results.prefixes = {
@@ -81,8 +112,8 @@ async function _GET(req: Request) {
     }
 
     return NextResponse.json(results);
-  } catch (e: any) {
-    return NextResponse.json({ error: 'BGP lookup failed', detail: e?.message }, { status: 500 });
+  } catch (e) {
+    return NextResponse.json({ error: 'BGP lookup failed', detail: e instanceof Error ? e.message : String(e) }, { status: 500 });
   }
 }
 
