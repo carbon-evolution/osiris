@@ -1,16 +1,11 @@
 import { NextResponse } from 'next/server';
 import { limit, LIMITS } from './rateLimit';
 import { audit } from './audit';
+import { clientIp } from './client-ip';
 
-export function clientIp(req: Request): string {
-  const h = req.headers;
-  return (
-    h.get('x-forwarded-for')?.split(',')[0]?.trim() ||
-    h.get('x-real-ip') ||
-    h.get('cf-connecting-ip') ||
-    'unknown'
-  );
-}
+// Forwarding headers are only honoured when TRUST_PROXY_HEADERS is set — see
+// ./client-ip for the threat model.
+export { clientIp };
 
 /**
  * Rate-limit + audit guard for Node-runtime route handlers.

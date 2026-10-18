@@ -13,6 +13,40 @@ import {
 } from 'lucide-react';
 import { ipToNumber, numberToIp, calculateSubnetStart, classifyDevice, assessRisk, batchFetch, ShodanInternetDBResponse, SweepDevice } from '@/lib/osint-utils';
 
+// ── Scanner access token (OWASP A01) ──
+// On public deployments /api/scanner answers 401 unless the request carries
+// the operator-issued SCANNER_ACCESS_TOKEN. Prompt once on a 401 and keep the
+// token for this browser tab only (sessionStorage, not localStorage).
+const SCANNER_TOKEN_STORAGE_KEY = 'osiris.scannerAccessToken';
+
+function readScannerToken(): string {
+  try { return sessionStorage.getItem(SCANNER_TOKEN_STORAGE_KEY) || ''; } catch { return ''; }
+}
+
+function writeScannerToken(token: string | null): void {
+  try {
+    if (token) sessionStorage.setItem(SCANNER_TOKEN_STORAGE_KEY, token);
+    else sessionStorage.removeItem(SCANNER_TOKEN_STORAGE_KEY);
+  } catch { /* storage unavailable: token lives for this request only */ }
+}
+
+async function fetchScanner(url: string): Promise<Response> {
+  const send = (token: string) => fetch(url, token ? { headers: { 'X-Scanner-Token': token } } : undefined);
+  const stored = readScannerToken();
+  const res = await send(stored);
+  if (res.status !== 401) return res;
+  writeScannerToken(null);
+  const entered = window.prompt(
+    stored
+      ? 'The saved scanner access token was rejected. Enter the SCANNER_ACCESS_TOKEN for this OSIRIS instance:'
+      : 'This OSIRIS instance requires a scanner access token. Enter the SCANNER_ACCESS_TOKEN issued by its operator:',
+  )?.trim();
+  if (!entered) return res;
+  const retry = await send(entered);
+  if (retry.status !== 401) writeScannerToken(entered);
+  return retry;
+}
+
 const TABS = [
   { id: 'scanner', label: 'PORT SCAN', icon: Radar, placeholder: 'IP or hostname', color: '#1A73E8' },
   { id: 'vuln', label: 'VULN SWEEP', icon: Bug, placeholder: 'IP or hostname', color: '#FF3D3D' },
@@ -223,7 +257,9 @@ function OsintPanelInner({ isMobile, onSweepVisualize, onScanGeolocate, onReconF
           break;
         }
       }
-      const res = await fetch(url, activeTab === 'shodan' ? { cache: 'no-store' } : undefined);
+      const res = url.startsWith('/api/scanner')
+        ? await fetchScanner(url)
+        : await fetch(url, activeTab === 'shodan' ? { cache: 'no-store' } : undefined);
       if (activeTab === 'shodan' && res.status === 404) {
         setResults({ ip: query, status: 'No Shodan InternetDB records found', ports: [], cpes: [], hostnames: [], tags: [], vulns: [] });
         setLoading(false);

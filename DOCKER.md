@@ -137,9 +137,28 @@ Copy `.env.template` to `.env` and fill in only what you need.
 |----------|---------|--------------|
 | `SCANNER_URL` | RECON scanner backend base URL (e.g. `http://scanner:7700`) | RECON toolkit (quick/ssl/headers/rdns/subdomains/tech/whois/geoloc/vuln) |
 | `SCANNER_KEY` | Shared secret; **must equal the backend's `OSIRIS_KEY`** | RECON toolkit |
+| `SCANNER_ACCESS_TOKEN` | Token trusted users enter in the RECON panel (sent as `X-Scanner-Token`) | RECON toolkit on any production/Docker deployment |
+| `SCANNER_ALLOW_ANONYMOUS` | `true` lets **any** visitor run scans (not recommended) | Public scanner, deliberately |
+| `TRUST_PROXY_HEADERS` | `true` / `<N>` / `cloudflare` — honour forwarding headers for client IP | Per-client rate limits behind a reverse proxy |
 
 Without `SCANNER_URL`/`SCANNER_KEY` the RECON endpoints return `503` and the
 rest of OSIRIS works normally. Generate a key with `openssl rand -hex 32`.
+
+**Scanner access (closed by default).** The scanner makes your server probe
+arbitrary public hosts, so a production build — including this Docker image —
+answers `403` to RECON scans unless you set `SCANNER_ACCESS_TOKEN` (the RECON
+panel prompts for it once per browser tab) or, deliberately,
+`SCANNER_ALLOW_ANONYMOUS=true`. Only `npm run dev` on localhost works without
+either. *Upgrading:* if you used the RECON panel on a Docker/public host, set
+`SCANNER_ACCESS_TOKEN` or it stops working.
+
+**Client IP behind nginx.** Next.js forwards a client-supplied
+`X-Forwarded-For` unchanged, so OSIRIS ignores forwarding headers by default
+(all clients then share one rate-limit bucket). Behind the bundled nginx, set
+`TRUST_PROXY_HEADERS=true` — OSIRIS then uses the rightmost `X-Forwarded-For`
+entry, which nginx appends from the real socket address. Only do this if the
+app port (`OSIRIS_PORT`, 3000) is not reachable except through the proxy;
+otherwise clients can connect directly and forge the header.
 
 ### Optional keys (reserved / for higher rate limits)
 

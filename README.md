@@ -340,6 +340,12 @@ Place the `osiris-scanner` sidecar as a sibling folder, then:
 npm run osiris   # starts scanner (:7700) + dashboard (:3000)
 ```
 
+The dev server allows RECON scans from `localhost` with no extra setup. A
+production build (`npm start`, Docker, any public host) refuses them until you
+set `SCANNER_ACCESS_TOKEN` (the RECON panel prompts for it once per tab) or,
+not recommended, `SCANNER_ALLOW_ANONYMOUS=true`. See
+[DOCKER.md](DOCKER.md#3-api-keys--data-sources).
+
 Build for production:
 
 ```bash
@@ -356,6 +362,8 @@ npm run build && npm start
 |----------|---------|--------|
 | `GEMINI_API_KEY_1..8` | AI Intelligence Analyst (Gemini 2.5 Flash + web search) | [Google AI Studio](https://aistudio.google.com/apikey) (free) |
 | `SCANNER_URL`, `SCANNER_KEY` | RECON toolkit (port scan, SSL, DNS, WHOIS, vuln) | Generate a key, match in `osiris-scanner` sidecar |
+| `SCANNER_ACCESS_TOKEN` / `SCANNER_ALLOW_ANONYMOUS` | RECON scans on production/public hosts (closed by default) | `openssl rand -hex 32`; give the token to trusted users |
+| `TRUST_PROXY_HEADERS` | Per-client rate limits behind a reverse proxy (`true`, hop count, or `cloudflare`) | Set only when the app port is reachable solely via the proxy |
 | `URLHAUS_KEY` | URLhaus malware lookups | [abuse.ch auth](https://auth.abuse.ch/) (free) |
 | `ISMALICIOUS_KEY`, `ISMALICIOUS_SECRET` | IsMalicious threat lookups (auth = base64 key:secret) | [IsMalicious](https://ismalicious.com/) |
 | `NVD_API_KEY` (scanner) | Faster vuln-scan CVE lookups (50 req/30s vs ~5) | [NVD](https://nvd.nist.gov/developers/request-an-api-key) (free) |
@@ -554,7 +562,8 @@ Every data domain gets its own isolated route under `src/app/api/`:
 - **🔄 Stateless API** — Backend routes are stateless and cache-friendly, enabling horizontal scaling
 - **🛡️ SSRF protection** — `ssrf-guard.ts` validates all outbound URLs against private IP ranges before fetching
 - **🔒 Proxy security** — CCTV proxies enforce strict host allowlists and content-type validation; HLS proxy includes CORS-aware origin headers
-- **📦 Rate-limited endpoints** — AI analysis, IP sweep, and scanner endpoints all have per-IP rate limiting
+- **📦 Rate-limited endpoints** — AI analysis, IP sweep, and scanner endpoints all have per-IP rate limiting (forwarding headers are trusted only with `TRUST_PROXY_HEADERS`)
+- **🔑 Scanner access gate** — the RECON scanner proxy is closed to remote callers on production builds unless the operator sets `SCANNER_ACCESS_TOKEN` (or explicitly `SCANNER_ALLOW_ANONYMOUS=true`)
 - **🔗 Entity linking** — Sanctions cross-checking and OFAC/SDN matching is built into WHOIS and IP intel routes
 
 ---
