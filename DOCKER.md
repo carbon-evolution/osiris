@@ -55,11 +55,27 @@ A prebuilt multi-arch-friendly image is published to the GitHub Container
 Registry, so you can run OSIRIS without building anything:
 
 ```bash
-docker pull ghcr.io/aiacos/osiris:latest      # or a pinned tag, e.g. :0.1.0
+docker pull ghcr.io/carbon-evolution/osiris:latest      # or a pinned tag, e.g. :0.1.0
 docker run -d --name osiris \
   -p 3005:3000 --env-file .env --restart unless-stopped \
-  ghcr.io/aiacos/osiris:latest
+  ghcr.io/carbon-evolution/osiris:latest
 ```
+
+#### Verify the image signature
+
+Release images are signed keylessly with [Sigstore cosign](https://docs.sigstore.dev/)
+by the `release.yml` workflow, and carry SLSA build provenance and an SBOM.
+To check that an image was built by this repository's release workflow for a
+given tag (install cosign first, e.g. `brew install cosign`):
+
+```bash
+cosign verify ghcr.io/carbon-evolution/osiris:0.1.0 \
+  --certificate-identity https://github.com/carbon-evolution/osiris/.github/workflows/release.yml@refs/tags/v0.1.0 \
+  --certificate-oidc-issuer https://token.actions.githubusercontent.com
+```
+
+Replace `0.1.0` / `v0.1.0` with the release you pulled. A non-zero exit means
+the image was not signed by this workflow — don't run it.
 
 > If the package is **private**, authenticate first with a GitHub token that
 > has `read:packages`:

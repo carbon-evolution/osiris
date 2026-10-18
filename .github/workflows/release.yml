@@ -1,6 +1,6 @@
 name: release
 
-# Build and publish the container image to GitHub Packages (GHCR) on a version tag.
+# Build, publish and sign the container image on GitHub Packages (GHCR) on a version tag.
 on:
   push:
     tags: ["v*"]
@@ -9,6 +9,7 @@ on:
 permissions:
   contents: read
   packages: write
+  id-token: write # keyless Sigstore signing via GitHub OIDC
 
 jobs:
   container:
@@ -31,6 +32,7 @@ jobs:
             type=semver,pattern={{version}}
             type=raw,value=latest
       - name: Build and push
+        id: build
         uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
         with:
           context: .
@@ -40,3 +42,27 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+          # SLSA build provenance and an SBOM, attached to the image as attestations.
+          provenance: mode=max
+          sbom: true
+      - uses: sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6 # v4.1.2
+      # Keyless: the signature binds the image digest to this repo, workflow and
+      # ref via GitHub's OIDC identity, recorded in the public Rekor log.
+      - name: Sign the image
+        env:
+          DIGEST: ${{ steps.build.outputs.digest }}
+          TAGS: ${{ steps.meta.outputs.tags }}
+        run: |
+          images=""
+          for tag in ${TAGS}; do images+="${tag}@${DIGEST} "; done
+          cosign sign --yes ${images}
+      - name: Verify the signature
+        env:
+          DIGEST: ${{ steps.build.outputs.digest }}
+          IMAGE: ghcr.io/${{ github.repository }}
+          IDENTITY: https://github.com/${{ github.repository }}/.github/workflows/release.yml@${{ github.ref }}
+        run: |
+          cosign verify "${IMAGE}@${DIGEST}" \
+            --certificate-identity "${IDENTITY}" \
+            --certificate-oidc-issuer https://token.actions.githubusercontent.com > /dev/null
+          echo "Signature verified for ${IMAGE}@${DIGEST}"
