@@ -8,14 +8,17 @@ on:
 
 permissions:
   contents: read
-  packages: write
-  id-token: write # keyless Sigstore signing via GitHub OIDC
 
 jobs:
   container:
     runs-on: ubuntu-latest
+    # Write scopes only for the job that publishes and signs.
+    permissions:
+      contents: read
+      packages: write
+      id-token: write # keyless Sigstore signing via GitHub OIDC
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
       - name: Log in to GHCR
         uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0

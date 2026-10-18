@@ -9,3 +9,11 @@ updates:
     groups:
       actions:
         patterns: ["*"]
+  # Base images are pinned by digest in the Dockerfiles; this keeps them current.
+  - package-ecosystem: docker
+    directories: ["/", "/intel"]
+    schedule:
+      interval: weekly
+    groups:
+      docker:
+        patterns: ["*"]
