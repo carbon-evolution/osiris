@@ -2,7 +2,8 @@
 
 OSIRIS ships as a self-contained Next.js standalone build. This guide covers
 running it with Docker / Docker Compose, deploying it as a [CasaOS](https://casaos.io)
-app, and configuring the optional API keys.
+app, configuring the optional API keys, and
+[verifying a signed release](#4-verifying-a-release).
 
 > **TL;DR:** OSIRIS runs fully **without any API keys**. All core feeds
 > (aviation, satellites, fires, earthquakes, weather, news, CVEs) use public
@@ -55,7 +56,7 @@ A prebuilt multi-arch-friendly image is published to the GitHub Container
 Registry, so you can run OSIRIS without building anything:
 
 ```bash
-docker pull ghcr.io/carbon-evolution/osiris:latest      # or a pinned tag, e.g. :0.1.0
+docker pull ghcr.io/carbon-evolution/osiris:latest      # or a pinned tag, e.g. :0.2.0
 docker run -d --name osiris \
   -p 3005:3000 --env-file .env --restart unless-stopped \
   ghcr.io/carbon-evolution/osiris:latest
@@ -69,13 +70,16 @@ To check that an image was built by this repository's release workflow for a
 given tag (install cosign first, e.g. `brew install cosign`):
 
 ```bash
-cosign verify ghcr.io/carbon-evolution/osiris:0.1.0 \
-  --certificate-identity https://github.com/carbon-evolution/osiris/.github/workflows/release.yml@refs/tags/v0.1.0 \
+cosign verify ghcr.io/carbon-evolution/osiris:0.2.0 \
+  --certificate-identity https://github.com/carbon-evolution/osiris/.github/workflows/release.yml@refs/tags/v0.2.0 \
   --certificate-oidc-issuer https://token.actions.githubusercontent.com
 ```
 
-Replace `0.1.0` / `v0.1.0` with the release you pulled. A non-zero exit means
-the image was not signed by this workflow — don't run it.
+Replace `0.2.0` / `v0.2.0` with the release you pulled. A non-zero exit means
+the image was not signed by this workflow — don't run it. (Image signing was
+added after `0.1.0`, so `0.1.0` has no signature.) The release's downloadable
+files carry their own signatures and provenance — see
+[Verifying a release](#4-verifying-a-release).
 
 > If the package is **private**, authenticate first with a GitHub token that
 > has `read:packages`:
@@ -192,3 +196,101 @@ public traffic-authority feeds · Crypto (BTC) → `blockstream.info` · Crypto
 (ETH) → `eth.blockscout.com` ([Blockscout](https://github.com/blockscout/blockscout)
 open-source explorer) · OFAC SDN sanctions → [OpenSanctions](https://www.opensanctions.org)
 mirror (CC-BY 4.0) · Telegram OSINT → public `t.me/s/<channel>` web preview.
+
+---
+
+## 4. Verifying a release
+
+Every `vX.Y.Z` tag runs [`release.yml`](.github/workflows/release.yml), which
+publishes a [GitHub Release](https://github.com/carbon-evolution/osiris/releases)
+with these assets (example for `v0.2.0`):
+
+| Asset | What it is |
+|-------|------------|
+| `osiris-v0.2.0-source.tar.gz` | `git archive` of the tagged commit (reproducible) |
+| `osiris-v0.2.0-standalone.tar.gz` | Next.js standalone build: `.next/standalone` + `.next/static` + `public`, run with `node server.js` |
+| `osiris-v0.2.0-sbom.cdx.json` | CycloneDX SBOM of the production npm dependency tree (`npm sbom`) |
+| `SHA256SUMS` | SHA-256 of the three files above |
+| `<file>.sigstore.json` | Keyless [Sigstore](https://docs.sigstore.dev/) bundle (signature + certificate + Rekor entry) for each file above, including `SHA256SUMS` |
+| `osiris-v0.2.0.intoto.jsonl` | [SLSA](https://slsa.dev/) v1 build provenance for the three files: the Sigstore bundle from [`actions/attest-build-provenance`](https://github.com/actions/attest-build-provenance) (also listed under the repo's [attestations](https://github.com/carbon-evolution/osiris/attestations)) |
+
+The signing identity is the release workflow at the tag, issued by GitHub's
+OIDC provider; there are no long-lived keys. Install the tools with e.g.
+`brew install cosign gh` (see the
+[cosign](https://docs.sigstore.dev/cosign/system_config/installation/) and
+[GitHub CLI](https://cli.github.com/) install docs). Replace `v0.2.0` / `0.2.0`
+below with the release you downloaded.
+
+**1. Checksums** (on macOS use `shasum -a 256 -c SHA256SUMS`):
+
+```bash
+sha256sum -c SHA256SUMS
+```
+
+**2. Signatures** — the checksum file, or any single file:
+
+```bash
+cosign verify-blob --bundle SHA256SUMS.sigstore.json \
+  --certificate-identity 'https://github.com/carbon-evolution/osiris/.github/workflows/release.yml@refs/tags/v0.2.0' \
+  --certificate-oidc-issuer https://token.actions.githubusercontent.com \
+  SHA256SUMS
+
+cosign verify-blob --bundle osiris-v0.2.0-standalone.tar.gz.sigstore.json \
+  --certificate-identity 'https://github.com/carbon-evolution/osiris/.github/workflows/release.yml@refs/tags/v0.2.0' \
+  --certificate-oidc-issuer https://token.actions.githubusercontent.com \
+  osiris-v0.2.0-standalone.tar.gz
+```
+
+**3. SLSA provenance** — proves the file was built by this repository's
+release workflow from the tagged source, on a GitHub-hosted runner:
+
+```bash
+gh attestation verify osiris-v0.2.0-standalone.tar.gz \
+  --repo carbon-evolution/osiris \
+  --bundle osiris-v0.2.0.intoto.jsonl \
+  --signer-workflow carbon-evolution/osiris/.github/workflows/release.yml \
+  --source-ref refs/tags/v0.2.0 \
+  --deny-self-hosted-runners
+```
+
+Drop `--bundle ...` to check against the attestation stored on GitHub instead
+of the downloaded file. Repeat for `osiris-v0.2.0-source.tar.gz` and
+`osiris-v0.2.0-sbom.cdx.json`.
+
+**4. Container image** — signature, then the attached provenance and SBOM:
+
+```bash
+cosign verify ghcr.io/carbon-evolution/osiris:0.2.0 \
+  --certificate-identity 'https://github.com/carbon-evolution/osiris/.github/workflows/release.yml@refs/tags/v0.2.0' \
+  --certificate-oidc-issuer https://token.actions.githubusercontent.com
+
+docker buildx imagetools inspect ghcr.io/carbon-evolution/osiris:0.2.0 --format '{{ json .Provenance }}'
+docker buildx imagetools inspect ghcr.io/carbon-evolution/osiris:0.2.0 --format '{{ json .SBOM }}'
+```
+
+Any non-zero exit means the artifact was not produced by this workflow at that
+tag — don't use it.
+
+**Reproduce the source archive.** The tarball is `git archive` piped through
+GNU `gzip -n -9`, so the uncompressed tar is identical to what you get from a
+clone (and the `.tar.gz` too, on Linux with GNU gzip):
+
+```bash
+git archive --format=tar --prefix=osiris-v0.2.0/ v0.2.0 | sha256sum
+gunzip -c osiris-v0.2.0-source.tar.gz | sha256sum      # same hash
+```
+
+### Running the standalone build (no Docker)
+
+The standalone bundle is built on GitHub's `ubuntu-latest` (linux-x64, glibc)
+with Node 22, so native dependencies (e.g. `sharp`) are linux-x64 binaries;
+on other platforms use the container image or build from source.
+
+```bash
+tar xzf osiris-v0.2.0-standalone.tar.gz
+cd osiris-v0.2.0
+PORT=3000 HOSTNAME=0.0.0.0 node server.js
+```
+
+Configuration is the same as for the image (environment variables, see
+[section 3](#3-api-keys--data-sources)).
