@@ -29,7 +29,7 @@ Supported versions: the latest release and `main`.
 
 ## Security assessment — OWASP Top 10:2025
 
-*Assessed 2026-10-18 against commit `45da475` (`main`). Re-assess after major changes; the automated controls below run continuously.*
+*Assessed 2026-10-18 against commit `45da475` (`main`); re-rated the same day at `5a24bcf` after the fixes in #50–#52. Re-assess after major changes; the automated controls below run continuously.*
 
 **Method:** manual code review of every API route and the map/popup code; CodeQL (`security-extended`) with all 34 alerts triaged; OWASP ZAP baseline scan of a production build; OpenSSF Scorecard; `npm audit` and `npm audit signatures`; ClamAV over the repository and installed dependencies; full-history gitleaks (scanner repo) and GitHub secret scanning.
 
@@ -39,32 +39,33 @@ Supported versions: the latest release and `main`.
 
 | # | Category | Residual risk |
 |---|---|---|
-| A01 | Broken Access Control | 🟠 **Medium** |
-| A02 | Security Misconfiguration | 🟠 **Medium** |
+| A01 | Broken Access Control | 🟢 **Low** (was Medium) |
+| A02 | Security Misconfiguration | 🟠 **Medium** (improved) |
 | A03 | Software Supply Chain Failures | 🟢 **Low** |
 | A04 | Cryptographic Failures | 🟢 **Low** |
 | A05 | Injection | 🟢 **Low** |
-| A06 | Insecure Design | 🟠 **Medium** |
+| A06 | Insecure Design | 🟢 **Low** (was Medium) |
 | A07 | Authentication Failures | 🟢 **Low** |
 | A08 | Software or Data Integrity Failures | 🟢 **Low** |
 | A09 | Security Logging and Alerting Failures | 🟠 **Medium** |
 | A10 | Mishandling of Exceptional Conditions | 🟢 **Low** |
 
-**Overall: no High-risk findings; 4 Medium, 6 Low.** OSIRIS is a public, read-only intelligence dashboard with no user accounts, so most risk sits in what anonymous visitors can make the server do, and in browser hardening.
+**Overall: no High-risk findings; 2 Medium, 8 Low** (initial assessment: 4 Medium, 6 Low). OSIRIS is a public, read-only intelligence dashboard with no user accounts, so most risk sits in what anonymous visitors can make the server do, and in browser hardening.
 
-### A01 — Broken Access Control · 🟠 Medium
+### A01 — Broken Access Control · 🟢 Low
 - ✅ No user data or accounts to cross-access; the dashboard is intentionally public and read-only.
 - ✅ Server-to-server calls no longer trust the client: `stats` uses a fixed internal origin instead of the `Host` header (#32, #41); `/api/github-webhook` is disabled unless a secret and target are configured and always verifies the HMAC signature (#44).
-- ⚠️ **The recon scanner proxy (`/api/scanner`) is usable by any visitor** when `SCANNER_KEY` is set: anyone can make your server run port/TLS/header scans of public hosts. Mitigated by SSRF target validation, an allowlist of scan types and per-IP rate limiting.
-- ⚠️ Rate limiting keys on `X-Forwarded-For`/`X-Real-IP`, which clients can forge unless a trusted reverse proxy overwrites them.
-- **Recommended:** put the scanner behind authentication (or leave `SCANNER_KEY` unset on public deployments); only honour forwarding headers from a trusted proxy.
+- ✅ **The recon scanner proxy is closed by default** (#51): production builds refuse scans unless the operator sets `SCANNER_ACCESS_TOKEN` (sent as `X-Scanner-Token`, compared with `timingSafeEqual`; the recon panel prompts once and keeps it in `sessionStorage`) or explicitly opts in with `SCANNER_ALLOW_ANONYMOUS=true`. Zero-config access is limited to the local dev server on loopback, with cross-site and forwarded requests refused. SSRF validation and the scan-type allowlist still apply; the allowlist now checks own keys only.
+- ✅ **Client IPs are only taken from forwarding headers when `TRUST_PROXY_HEADERS` is set** (#51), using the entry the trusted proxy appends rather than the client-supplied one, so rate limits can't be bypassed by forging `X-Forwarded-For`.
+- ⚠️ Without `TRUST_PROXY_HEADERS`, all visitors share one rate-limit bucket per endpoint (safe, but strict). Deployments behind nginx should enable it — and must then not expose the app port directly.
 
-### A02 — Security Misconfiguration · 🟠 Medium
-ZAP baseline (2026-10-18): **0 High, 5 Medium, 5 Low, 5 Informational** alert types, 60 passive rules passed.
-- ⚠️ **Content-Security-Policy is permissive** (ZAP Medium): `script-src` allows `'unsafe-inline'` and `'unsafe-eval'`, `style-src 'unsafe-inline'`, wildcard `https:` sources, and no `frame-ancestors`/`form-action` fallback.
-- ⚠️ Missing `Permissions-Policy` and `Cross-Origin-Opener/Embedder/Resource-Policy` headers; `X-Powered-By: Next.js` is sent (ZAP Low).
+### A02 — Security Misconfiguration · 🟠 Medium (improved)
+ZAP baseline on `main` after #52: **0 High, 3 Medium, 1 Low, 4 Informational** alert types, 62 passive rules passed (initially 0 / 5 / 5 / 5, 60 passed).
+- ✅ **Hardening headers** (#52): `Permissions-Policy` (unused device APIs denied), `Cross-Origin-Opener-Policy: same-origin`, `Cross-Origin-Resource-Policy: same-origin`; `X-Powered-By` removed.
+- ✅ **CSP tightened** (#52): explicit directives with `default-src 'self'`, scripts from `'self'` only, **no `'unsafe-eval'` in production**, `object-src 'none'`, `base-uri`, `form-action` and `frame-ancestors` set; verified in a browser with 0 CSP violations.
+- ⚠️ **Remaining ZAP Medium:** `script-src 'unsafe-inline'` (Next.js inline bootstrap scripts and inline `onclick` handlers in map popup HTML), `style-src 'unsafe-inline'` (React inline styles), and wildcard `https:` for images, media, frames and API connections (hundreds of data-driven camera and feed hosts). Accepted Low: no `Cross-Origin-Embedder-Policy`, which would block third-party camera media and embeds.
 - ✅ HSTS and `X-Frame-Options: SAMEORIGIN` are set; the unused Next.js image optimizer (open fetch proxy) is disabled (#24); the Docker image runs as a non-root user with a writable cache directory (#27); the production build type-checks.
-- **Recommended:** `poweredByHeader: false`; add `Permissions-Policy` and COOP/CORP headers; move CSP to nonces/hashes and drop `'unsafe-eval'` where the map stack allows.
+- **Recommended:** move the popup `onclick` handlers to `addEventListener`, then adopt CSP nonces to drop `script-src 'unsafe-inline'`.
 
 ### A03 — Software Supply Chain Failures · 🟢 Low
 - ✅ `npm audit --omit=dev`: **0 vulnerabilities** (dashboard, `intel/`, scanner), enforced in CI.
@@ -86,16 +87,16 @@ ZAP baseline (2026-10-18): **0 High, 5 Medium, 5 Low, 5 Informational** alert ty
 - ✅ Shared SSRF guard (canonical IPs, private/metadata ranges blocked, DNS answers checked, redirects re-validated); strict input validation on path-spliced parameters (#32, #42); React escaping elsewhere; `renderMarkdown` escapes before formatting.
 - ✅ Scanner repository: Semgrep (JavaScript, Node, secrets, command-injection rules) on every PR.
 
-### A06 — Insecure Design · 🟠 Medium
+### A06 — Insecure Design · 🟢 Low
 - ✅ **Analytics is opt-in and off by default**: the middleware sends nothing unless `UMAMI_URL` and `UMAMI_WEBSITE_ID` are both set (no hardcoded host or upstream site ID). The separate visitor-IP "Network Log" event was removed; page views time out after 2s and fail silently. Covered by unit tests.
-- ⚠️ Active recon capability exposed on a public dashboard (see A01).
+- ✅ Active recon capability is no longer exposed to anonymous visitors by default (see A01).
 - ⚠️ The SSRF guard checks DNS at validation time; a DNS-rebinding race remains possible (documented in `src/lib/ssrf-guard.ts`).
 - ✅ Fail-closed defaults for optional integrations (webhook #44, scanner without key → 503); fixed-upstream proxies instead of caller-supplied URLs.
 
 ### A07 — Authentication Failures · 🟢 Low
 - ✅ No end-user authentication surface (no accounts, passwords or sessions).
-- ✅ Service credentials: webhook HMAC always required once configured; scanner calls need `SCANNER_KEY`; provider API keys are server-side only.
-- ⚠️ See A04 for the scanner key transport/comparison.
+- ✅ Service credentials: webhook HMAC always required once configured; scanner access needs `SCANNER_ACCESS_TOKEN` (constant-time comparison) and the sidecar needs `SCANNER_KEY`; provider API keys are server-side only.
+- ⚠️ See A04 for the sidecar key transport/comparison.
 
 ### A08 — Software or Data Integrity Failures · 🟢 Low
 - ✅ `main` requires **verified signed commits** and 7 passing checks (tests, build, audit, lint, CodeQL ×3) in both repositories; force-pushes and deletion are blocked.
@@ -126,4 +127,4 @@ ZAP baseline (2026-10-18): **0 High, 5 Medium, 5 Low, 5 Informational** alert ty
 | Signed commits, branch protection | GitHub settings | every merge |
 | Signed release images (cosign), provenance, SBOM | `release.yml` | every `v*` tag |
 
-**OpenSSF Scorecard:** 6.2/10 on `main` at assessment time; the remaining gaps are mostly single-maintainer factors (code review, contributors) plus fuzzing and the OpenSSF Best Practices badge.
+**OpenSSF Scorecard:** 8.0/10 on `main` after these changes (6.2 at the initial assessment); the remaining gaps are mostly single-maintainer factors (code review, contributors) plus fuzzing and the OpenSSF Best Practices badge.
