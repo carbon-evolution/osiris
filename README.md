@@ -540,7 +540,7 @@ Every data domain gets its own isolated route under `src/app/api/`:
 | `/api/entity/expand` | Entity relationship expansion | Graph DB |
 | `/api/sdk/ingest` | Polybolos SDK data ingestion | API key |
 | `/api/sdk/stream` | SDK event stream | API key |
-| `/api/github-webhook` | GitHub event webhook | Secret |
+| `/api/github-webhook` | Relays signed GitHub webhooks to `GITHUB_WEBHOOK_FORWARD_URL` (disabled unless configured) | Secret |
 | `/api/proxy-tiles` | Map tile proxy | — |
 
 ### Key Design Principles
