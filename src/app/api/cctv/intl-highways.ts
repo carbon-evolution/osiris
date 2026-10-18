@@ -7,6 +7,34 @@ import type { CctvCamera } from './types';
 
 const CACHE_TTL_MS = 5 * 60 * 1000;
 
+/** Fields read from a Digitraffic weathercam station GeoJSON feature. */
+interface DigitrafficStation {
+  properties?: {
+    id?: string;
+    name?: string;
+    nameFi?: string;
+    nameSe?: string;
+    nearestWeatherStationName?: string;
+    presets?: { id: string }[];
+  };
+  geometry?: { coordinates?: number[] };
+}
+
+/** Fields read from an Infraestruturas de Portugal ArcGIS camera feature. */
+interface PortugalCameraFeature {
+  attributes?: {
+    longitude?: number;
+    latitude?: number;
+    url1?: string;
+    url?: string;
+    objectid?: number | string;
+    descricao?: string;
+    estrada?: string;
+    localidade?: string;
+  };
+  geometry?: { coordinates?: number[]; rings?: number[][][] };
+}
+
 // ── Finland: Fintraffic Digitraffic Weathercams (~470) ──
 async function fetchFinlandCameras(): Promise<CctvCamera[]> {
   try {
@@ -16,12 +44,12 @@ async function fetchFinlandCameras(): Promise<CctvCamera[]> {
     });
     if (!res.ok) return [];
     const data = await res.json();
-    const features: any[] = data?.features || [];
+    const features: DigitrafficStation[] = data?.features || [];
     const cameras: CctvCamera[] = [];
     const seen = new Set<string>();
 
     for (const f of features) {
-      const p = f.properties || {};
+      const p: NonNullable<DigitrafficStation['properties']> = f.properties || {};
       const coords = f.geometry?.coordinates;
       if (!coords || coords.length < 2) continue;
       const [lng, lat] = coords;
@@ -30,7 +58,7 @@ async function fetchFinlandCameras(): Promise<CctvCamera[]> {
       seen.add(stationId);
 
       // Build image URL from first preset
-      const presets: any[] = p.presets || [];
+      const presets = p.presets || [];
       const firstPreset = presets[0];
       const imgUrl = firstPreset
         ? `https://weathercam.digitraffic.fi/${firstPreset.id}.jpg`
@@ -61,12 +89,12 @@ async function fetchPortugalCameras(): Promise<CctvCamera[]> {
     const res = await fetch(url, { signal: AbortSignal.timeout(12000), cache: 'force-cache' });
     if (!res.ok) return [];
     const data = await res.json();
-    const features: any[] = data?.features || [];
+    const features: PortugalCameraFeature[] = data?.features || [];
     const cameras: CctvCamera[] = [];
     const seen = new Set<string>();
 
     for (const f of features) {
-      const a = f.attributes || {};
+      const a: NonNullable<PortugalCameraFeature['attributes']> = f.attributes || {};
       const coords = f.geometry?.coordinates || f.geometry?.rings?.[0]?.[0];
       let lng: number, lat: number;
 

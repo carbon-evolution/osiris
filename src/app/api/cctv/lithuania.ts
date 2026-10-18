@@ -56,6 +56,16 @@ function lks94ToWgs84(E: number, N: number): [number, number] {
   return [(lat * 180) / Math.PI, (lon * 180) / Math.PI];
 }
 
+/** Fields read from each eismoinfo.lt camera-info-table row. */
+interface EismoCameraRaw {
+  id?: string | number;
+  name?: string;
+  roadName?: string;
+  image?: string;
+  x?: number | string;
+  y?: number | string;
+}
+
 let cached: CctvCamera[] | null = null;
 let cacheTs = 0;
 
@@ -72,7 +82,7 @@ export async function fetchLithuaniaCameras(): Promise<CctvCamera[]> {
       cache: 'force-cache',
     });
     if (!res.ok) return cached ?? [];
-    const list: any[] = await res.json();
+    const list: EismoCameraRaw[] = await res.json();
 
     const cameras: CctvCamera[] = [];
     const seen = new Set<string>();

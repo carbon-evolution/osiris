@@ -44,6 +44,23 @@ async function _GET() {
   }
 }
 
+/** GeoJSON polygon feature for one H3 interference cell. */
+interface JammingFeature {
+  type: 'Feature';
+  geometry: { type: 'Polygon'; coordinates: number[][][] };
+  properties: {
+    severity: string;
+    color: string;
+    opacity: number;
+    total_aircraft: number;
+    bad_aircraft: number;
+    ratio: number;
+    label: string;
+    center_lng: number;
+    center_lat: number;
+  };
+}
+
 function processData(csv: string, dateStr: string) {
   const lines = csv.trim().split('\n').filter(Boolean);
   if (lines.length < 2) {
@@ -52,7 +69,7 @@ function processData(csv: string, dateStr: string) {
     });
   }
 
-  const features: any[] = [];
+  const features: JammingFeature[] = [];
   let highCount = 0;
   let mediumCount = 0;
   let lowCount = 0;

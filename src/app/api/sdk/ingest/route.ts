@@ -15,7 +15,7 @@ import { NextRequest, NextResponse } from 'next/server';
 
 // Share the entity store with the stream endpoint
 const globalForSDK = globalThis as unknown as {
-  sdkEntityStore: Map<string, any>;
+  sdkEntityStore: Map<string, unknown>;
   sdkLastUpdate: number;
   sdkIngestLog: Array<{ source: string; count: number; timestamp: string }>;
 };

@@ -16,6 +16,18 @@ const CACHE_TTL_MS = 5 * 60 * 1000;
 // National bounding box for the whole peninsula.
 const BBOX = { minX: 124, maxX: 132, minY: 33, maxY: 43 };
 
+/** Fields read from each camera in the ITS NCCTVInfo response. */
+interface ItsCctvRaw {
+  coordx?: number | string;
+  coordy?: number | string;
+  cctvurl?: string;
+  cctvname?: string;
+}
+
+interface ItsCctvResponse {
+  response?: { data?: ItsCctvRaw[] };
+}
+
 async function fetchType(key: string, type: 'ex' | 'its'): Promise<CctvCamera[]> {
   const url =
     `https://openapi.its.go.kr/api/NCCTVInfo?apiKey=${encodeURIComponent(key)}` +
@@ -24,8 +36,8 @@ async function fetchType(key: string, type: 'ex' | 'its'): Promise<CctvCamera[]>
   try {
     const res = await fetch(url, { signal: AbortSignal.timeout(12000), cache: 'force-cache' });
     if (!res.ok) return [];
-    const data: any = await res.json();
-    const list: any[] = data?.response?.data ?? [];
+    const data: ItsCctvResponse | null = await res.json();
+    const list: ItsCctvRaw[] = data?.response?.data ?? [];
     const cameras: CctvCamera[] = [];
     const seen = new Set<string>();
 

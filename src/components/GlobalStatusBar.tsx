@@ -16,7 +16,7 @@ const RISK_TOOLTIPS: Record<string, string> = {
 export default function GlobalStatusBar() {
   const [exchanges, setExchanges] = useState<Exchange[]>([]);
   const [risks, setRisks] = useState<CountryRisk[]>([]);
-  const [cyber, setCyber] = useState<any>(null);
+  const [cyber, setCyber] = useState<{ stats?: { active_cves?: number } } | null>(null);
   const [openCount, setOpenCount] = useState(0);
   const [hoveredRisk, setHoveredRisk] = useState<CountryRisk | null>(null);
 

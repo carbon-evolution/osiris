@@ -32,8 +32,8 @@ async function _GET(req: Request) {
       vendor: vendor || 'Not Found',
       prefix: cleanMac.replace(/[:-]/g, '').slice(0, 6),
     });
-  } catch (error: any) {
-    return NextResponse.json({ error: 'MAC lookup failed', detail: error.message }, { status: 502 });
+  } catch (error) {
+    return NextResponse.json({ error: 'MAC lookup failed', detail: error instanceof Error ? error.message : String(error) }, { status: 502 });
   }
 }
 

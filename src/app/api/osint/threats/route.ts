@@ -2,6 +2,41 @@ import { withQueryCache } from '@/lib/feeds/serve';
 import { NextResponse } from 'next/server';
 import { isRateLimited, getClientIp } from '@/lib/ssrf-guard';
 
+/** Fields read from an AlienVault OTX pulse. */
+interface OtxPulse {
+  name?: string;
+  description?: string;
+  created?: string;
+  modified?: string;
+  tags?: string[];
+  adversary?: string;
+  targeted_countries?: string[];
+  indicator_count?: number;
+}
+
+interface ThreatsResult {
+  timestamp: string;
+  pulses?: {
+    name?: string;
+    description?: string;
+    created?: string;
+    modified?: string;
+    tags?: string[];
+    adversary?: string;
+    targeted_countries?: string[];
+    indicators_count?: number;
+  }[];
+  tor_exit_node?: boolean | null;
+  otx?: {
+    reputation?: number;
+    pulse_count: number;
+    country?: string;
+    asn?: string;
+    whois?: { registrar?: string; creation_date?: string; expiration_date?: string } | null;
+  };
+  threat_level?: 'HIGH' | 'MEDIUM' | 'LOW';
+}
+
 // Threat Intelligence — AlienVault OTX public pulse feed + Tor exit nodes
 async function _GET(req: Request) {
   const { searchParams } = new URL(req.url);
@@ -13,7 +48,7 @@ async function _GET(req: Request) {
   }
   
   try {
-    const results: any = { timestamp: new Date().toISOString() };
+    const results: ThreatsResult = { timestamp: new Date().toISOString() };
 
     // 1. AlienVault OTX — public pulse feed (no key needed for public data)
     try {
@@ -28,7 +63,7 @@ async function _GET(req: Request) {
         });
         if (actRes.ok) {
           const data = await actRes.json();
-          results.pulses = (data.results || []).slice(0, 10).map((p: any) => ({
+          results.pulses = (data.results || []).slice(0, 10).map((p: OtxPulse) => ({
             name: p.name,
             description: p.description?.slice(0, 200),
             created: p.created,

@@ -11,7 +11,7 @@
 
 // In-memory entity store shared across the SDK endpoints
 const globalForSDK = globalThis as unknown as {
-  sdkEntityStore: Map<string, any>;
+  sdkEntityStore: Map<string, unknown>;
   sdkLastUpdate: number;
 };
 

@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Newspaper, ChevronDown, ChevronUp, ExternalLink, MapPin, Zap } from 'lucide-react';
+import type { NewsItem } from '@/lib/ai-engine';
 
 /* ═══════════════════════════════════════════════════════════════
    OSIRIS — Intelligence Feed
@@ -10,7 +11,7 @@ import { Newspaper, ChevronDown, ChevronUp, ExternalLink, MapPin, Zap } from 'lu
    ═══════════════════════════════════════════════════════════════ */
 
 interface IntelFeedProps {
-  data: any;
+  data: { news?: NewsItem[] };
   onLocate?: (lat: number, lng: number) => void;
 }
 
@@ -63,7 +64,7 @@ export default function IntelFeed({ data, onLocate }: IntelFeedProps) {
           <Newspaper className="w-3.5 h-3.5 text-[var(--gold-primary)]" />
           <span className="hud-text text-[12px] text-[var(--text-primary)]">SIGINT FEED</span>
           <span className="gotham-tag gotham-tag--info" style={{ fontSize: '8px', padding: '1px 5px' }}>{news.length}</span>
-          {news.some((n: any) => n.risk_score >= 8) && (
+          {news.some((n) => n.risk_score >= 8) && (
             <span className="gotham-tag gotham-tag--critical" style={{ fontSize: '7px', padding: '1px 4px' }}>ALERTS</span>
           )}
         </div>
@@ -90,7 +91,7 @@ export default function IntelFeed({ data, onLocate }: IntelFeedProps) {
                   </span>
                 </div>
               ) : (
-                news.slice(0, 25).map((item: any, i: number) => (
+                news.slice(0, 25).map((item, i: number) => (
                   <div
                     key={i}
                     role="button"
@@ -111,7 +112,7 @@ export default function IntelFeed({ data, onLocate }: IntelFeedProps) {
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
-                            onLocate?.(item.coords[0], item.coords[1]);
+                            onLocate?.(item.coords![0], item.coords![1]);
                           }}
                           className="text-[var(--text-muted)] hover:text-[var(--cyan-primary)] transition-colors"
                         >

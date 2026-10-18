@@ -89,10 +89,10 @@ export async function GET(req: Request) {
     });
     const data = await res.json();
     return NextResponse.json(data, { status: res.status });
-  } catch (e: any) {
+  } catch (e) {
     return NextResponse.json({
       error: 'Scanner unreachable',
-      detail: e.message,
+      detail: e instanceof Error ? e.message : String(e),
     }, { status: 502 });
   }
 }

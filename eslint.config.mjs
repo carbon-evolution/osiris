@@ -19,12 +19,42 @@ const eslintConfig = defineConfig([
     rules: { "@typescript-eslint/no-require-imports": "off" },
   },
   {
-    rules: {
-      // ~480 existing `any`s are being replaced file by file; warn so lint can
-      // gate CI on everything else in the meantime. Switch back to "error"
-      // once the count reaches zero.
-      "@typescript-eslint/no-explicit-any": "warn",
-    },
+    // Explicit `any` is an error everywhere, including any new file.
+    rules: { "@typescript-eslint/no-explicit-any": "error" },
+  },
+  {
+    // Ratchet: files that still contain explicit `any`s only warn while they
+    // are being cleaned up. Remove a file from this list once it's clean;
+    // delete this block when the list is empty.
+    files: [
+      "src/app/api/cctv/route.ts",
+      "src/app/api/cctv/us-dot-additional.ts",
+      "src/app/api/cyber-intel/route.ts",
+      "src/app/api/flights/airport/route.ts",
+      "src/app/api/malware/route.ts",
+      "src/app/api/maritime/route.ts",
+      "src/app/api/news/route.ts",
+      "src/app/api/osint/bgp/route.ts",
+      "src/app/api/osint/cve/route.ts",
+      "src/app/api/osint/dns/route.ts",
+      "src/app/api/osint/ismalicious/route.ts",
+      "src/app/api/osint/otx/route.ts",
+      "src/app/api/osint/whois/route.ts",
+      "src/app/api/satellites/enrich/route.ts",
+      "src/app/api/scm-suppliers/route.ts",
+      "src/app/api/threat-intel/route.ts",
+      "src/app/page.tsx",
+      "src/components/CyberIntelPanel.tsx",
+      "src/components/EntityGraphPanel.tsx",
+      "src/components/LayerPanel.tsx",
+      "src/components/LiveAlerts.tsx",
+      "src/components/OsintPanel.tsx",
+      "src/components/OsirisMap.tsx",
+      "src/lib/feeds/flights.ts",
+      "src/lib/feeds/markets.ts",
+      "src/lib/sdk/PolybolosClient.ts",
+    ],
+    rules: { "@typescript-eslint/no-explicit-any": "warn" },
   },
 ]);
 

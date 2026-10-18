@@ -9,6 +9,15 @@ import type { CctvCamera } from './types';
 
 const CACHE_TTL_MS = 5 * 60 * 1000;
 
+/** Fields read from each THB CCTV record. */
+interface ThbCctvRaw {
+  id?: string;
+  gisx?: number;
+  gisy?: number;
+  html?: string;
+  stakenumber?: string;
+}
+
 async function fetchEndpoint(url: string, prefix: string): Promise<CctvCamera[]> {
   try {
     const res = await fetch(url, {
@@ -16,14 +25,14 @@ async function fetchEndpoint(url: string, prefix: string): Promise<CctvCamera[]>
       cache: 'force-cache',
     });
     if (!res.ok) return [];
-    const data: any[] = await res.json();
+    const data: ThbCctvRaw[] = await res.json();
     const cameras: CctvCamera[] = [];
     const seen = new Set<string>();
 
     for (const c of data) {
       const id: string = c.id || '';
-      const lat: number = c.gisy;
-      const lng: number = c.gisx;
+      const lat = c.gisy;
+      const lng = c.gisx;
       // THB returns some hosts (e.g. cctvs.freeway.gov.tw) as http://, but they
       // only answer over https — plain http connections are refused. Upgrade so
       // the proxy can reach them.

@@ -22,6 +22,38 @@ type Quake = {
   source: 'USGS' | 'EMSC';
 };
 
+/** Fields read from a USGS GeoJSON summary feature. */
+interface UsgsFeature {
+  id: string;
+  geometry?: { coordinates?: number[] };
+  properties: {
+    mag: number;
+    place: string;
+    time: number;
+    url: string;
+    tsunami?: number;
+    type?: string;
+    felt?: number | null;
+    alert?: string | null;
+  };
+}
+
+/** Fields read from an EMSC FDSN event feature. */
+interface EmscFeature {
+  id?: string;
+  geometry?: { coordinates?: number[] };
+  properties: {
+    unid?: string;
+    lat: number;
+    lon: number;
+    depth: number;
+    mag: number;
+    flynn_region?: string;
+    time?: string;
+    evtype?: string;
+  };
+}
+
 export interface EarthquakesPayload {
   earthquakes: Quake[];
   total: number;
@@ -34,7 +66,7 @@ async function fetchUSGS(): Promise<Quake[]> {
   const res = await fetch(url, { signal: AbortSignal.timeout(10000) });
   if (!res.ok) throw new Error('USGS unavailable');
   const data = await res.json();
-  return (data.features || []).map((f: any): Quake => {
+  return (data.features || []).map((f: UsgsFeature): Quake => {
     const c = f.geometry?.coordinates || [0, 0, 0];
     const p = f.properties || {};
     return {
@@ -52,7 +84,7 @@ async function fetchEMSC(): Promise<Quake[]> {
   const res = await fetch(url, { signal: AbortSignal.timeout(10000), headers: { 'User-Agent': 'OSIRIS-Intelligence-Platform/3.5' } });
   if (!res.ok) throw new Error('EMSC unavailable');
   const data = await res.json();
-  return (data.features || []).map((f: any): Quake => {
+  return (data.features || []).map((f: EmscFeature): Quake => {
     const p = f.properties || {};
     const c = f.geometry?.coordinates || [p.lon, p.lat, p.depth];
     return {

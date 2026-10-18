@@ -6,6 +6,34 @@ import { matchExact, type SanctionEntry } from '@/lib/sanctions';
 // IP Geolocation + Reputation — combines multiple free sources.
 // Cross-checks the ASN owner / ISP / org strings against the OFAC SDN
 // list so an IP routed via a sanctioned operator surfaces a hit.
+interface IpLookupResult {
+  ip: string;
+  timestamp: string;
+  geo?: {
+    country?: string;
+    country_code?: string;
+    region?: string;
+    city?: string;
+    lat?: number;
+    lon?: number;
+    timezone?: string;
+    isp?: string;
+    org?: string;
+    as_number?: string;
+    as_name?: string;
+    is_mobile?: boolean;
+    is_proxy?: boolean;
+    is_hosting?: boolean;
+  };
+  reputation?: {
+    is_proxy: boolean;
+    is_hosting: boolean;
+    is_mobile: boolean;
+    risk_level: 'HIGH' | 'MEDIUM' | 'LOW';
+  };
+  sanctions_match?: { source: string; hits: Array<{ matched_value: string; entries: SanctionEntry[] }> } | null;
+}
+
 async function _GET(req: Request) {
   const { searchParams } = new URL(req.url);
   const ip = searchParams.get('ip');
@@ -24,7 +52,7 @@ async function _GET(req: Request) {
   }
 
   try {
-    const results: any = { ip, timestamp: new Date().toISOString() };
+    const results: IpLookupResult = { ip, timestamp: new Date().toISOString() };
 
     // 1. ip-api.com — geolocation (free, no key)
     try {

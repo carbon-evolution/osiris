@@ -42,9 +42,26 @@ function toEmbedUrl(url: string): string {
   return url;
 }
 
+/** Fields read from a Live-Environment-Streams GeoJSON feature. */
+interface WebcamFeature {
+  properties?: {
+    url_type?: string;
+    url?: string;
+    display_name?: string;
+    name?: string;
+    country_code?: string;
+    source_family?: string;
+    coordinates_quality?: string;
+    status?: string;
+    city?: string;
+    region?: string;
+  };
+  geometry?: { coordinates?: number[] };
+}
+
 // ── Parse a GeoJSON feature into CctvCamera (or null if invalid) ──
-function featureToCamera(feature: any): CctvCamera | null {
-  const p = feature.properties || {};
+function featureToCamera(feature: WebcamFeature): CctvCamera | null {
+  const p: NonNullable<WebcamFeature['properties']> = feature.properties || {};
   const coords = feature.geometry?.coordinates;
   if (!coords || coords.length < 2) return null;
 
@@ -128,7 +145,7 @@ export async function fetchOpenWebcams(): Promise<CctvCamera[]> {
     }
 
     const data = await res.json();
-    const features: any[] = data?.features || [];
+    const features: WebcamFeature[] = data?.features || [];
 
     const cameras: CctvCamera[] = [];
     const seen = new Set<string>();

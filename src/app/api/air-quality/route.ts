@@ -8,6 +8,37 @@ import { NextResponse } from 'next/server';
  * Data: PM2.5, PM10, O3, NO2, SO2, CO measurements worldwide
  */
 
+/** Fields read from an OpenAQ v2 /latest measurement. */
+interface OpenAqMeasurement {
+  parameter?: string;
+  value: number;
+  unit?: string;
+  lastUpdated?: string;
+}
+
+/** Fields read from an OpenAQ v2 /latest location result. */
+interface OpenAqLocation {
+  location?: string;
+  city?: string;
+  country?: string;
+  coordinates?: { latitude?: number; longitude?: number };
+  measurements?: OpenAqMeasurement[];
+}
+
+interface AirQualityStation {
+  id: string;
+  name?: string;
+  city: string;
+  country?: string;
+  lat: number;
+  lng: number;
+  pm25: number;
+  unit?: string;
+  level: string;
+  color: string;
+  lastUpdated?: string;
+}
+
 async function _GET() {
   try {
     // OpenAQ v2 — get latest measurements globally
@@ -25,13 +56,13 @@ async function _GET() {
       )
     );
 
-    const stations: any[] = [];
+    const stations: AirQualityStation[] = [];
     for (const result of results) {
       if (result.status !== 'fulfilled') continue;
-      const data = result.value;
+      const data: { results?: OpenAqLocation[] } = result.value;
       for (const loc of data.results || []) {
         if (!loc.coordinates?.latitude || !loc.coordinates?.longitude) continue;
-        const pm25 = loc.measurements?.find((m: any) => m.parameter === 'pm25');
+        const pm25 = loc.measurements?.find((m) => m.parameter === 'pm25');
         if (!pm25) continue;
         
         // AQI color coding based on PM2.5 (WHO/EPA scale)

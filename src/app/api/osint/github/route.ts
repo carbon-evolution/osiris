@@ -1,6 +1,13 @@
 import { withQueryCache } from '@/lib/feeds/serve';
 import { NextResponse } from 'next/server';
 
+/** Fields read from each repo in the GitHub /users/:user/repos response. */
+interface GithubRepo {
+  name?: string;
+  language?: string | null;
+  updated_at?: string;
+}
+
 async function _GET(req: Request) {
   const { searchParams } = new URL(req.url);
   const username = searchParams.get('user');
@@ -32,10 +39,10 @@ async function _GET(req: Request) {
       followers: userData.followers,
       created_at: userData.created_at,
       avatar_url: userData.avatar_url,
-      recent_repos: Array.isArray(reposData) ? reposData.map((r: any) => ({ name: r.name, language: r.language, updated: r.updated_at })) : []
+      recent_repos: Array.isArray(reposData) ? reposData.map((r: GithubRepo) => ({ name: r.name, language: r.language, updated: r.updated_at })) : []
     });
-  } catch (error: any) {
-    return NextResponse.json({ error: 'GitHub lookup failed', detail: error.message }, { status: 502 });
+  } catch (error) {
+    return NextResponse.json({ error: 'GitHub lookup failed', detail: error instanceof Error ? error.message : String(error) }, { status: 502 });
   }
 }
 

@@ -5,6 +5,38 @@ import { readFresh } from '@/lib/feedStore';
 // Inspired by WorldMonitor's infrastructure tracking
 // Local-first: serves locally-synced CISA KEV (workers) when fresh, else live.
 
+/** Fields read from a CISA KEV catalogue entry. */
+interface KevVulnerability {
+  cveID: string;
+  vulnerabilityName?: string;
+  vendorProject?: string;
+  product?: string;
+  dateAdded: string;
+  dueDate?: string;
+}
+
+interface CyberThreat {
+  id: string;
+  name?: string;
+  vendor?: string;
+  product?: string;
+  severity: string;
+  date: string;
+  due?: string;
+  source: string;
+}
+
+interface CyberThreatsResult {
+  threats: CyberThreat[];
+  stats: {
+    cisa_total?: number;
+    shadowserver?: string;
+    active_cves?: number;
+    threat_level?: string;
+  };
+  timestamp: string;
+}
+
 export async function GET() {
   // ── Local-first: synced CISA KEV from Postgres ──
   if (process.env.LOCAL_FIRST !== 'false') {
@@ -43,7 +75,7 @@ export async function GET() {
   }
 
   try {
-    const results: any = { threats: [], stats: {}, timestamp: new Date().toISOString() };
+    const results: CyberThreatsResult = { threats: [], stats: {}, timestamp: new Date().toISOString() };
 
     // 1. CISA Known Exploited Vulnerabilities (authoritative US govt source)
     try {
@@ -53,13 +85,13 @@ export async function GET() {
       if (res.ok) {
         const data = await res.json();
         const recent = (data.vulnerabilities || [])
-          .filter((v: any) => {
+          .filter((v: KevVulnerability) => {
             const added = new Date(v.dateAdded);
             const daysAgo = (Date.now() - added.getTime()) / (1000 * 60 * 60 * 24);
             return daysAgo <= 30;
           })
           .slice(0, 10)
-          .map((v: any) => ({
+          .map((v: KevVulnerability): CyberThreat => ({
             id: v.cveID,
             name: v.vulnerabilityName,
             vendor: v.vendorProject,

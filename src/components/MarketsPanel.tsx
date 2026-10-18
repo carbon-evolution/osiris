@@ -9,7 +9,25 @@ import {
   Zap, Shield, Droplets, Gem, Bitcoin, LineChart, Maximize2, Minimize2
 } from 'lucide-react';
 
-interface MarketsPanelProps { data: any; spaceWeather?: any; }
+/** One quote as served by /api/markets (see src/lib/feeds/markets.ts). */
+interface Quote {
+  price: number;
+  change_percent: number;
+  up?: boolean;
+}
+
+/** Sections (stocks, oil, ...) keyed by display name, plus SCM alert strings. */
+type MarketsData = Record<string, Record<string, Quote> | undefined> & { scm_alerts?: string[] };
+
+/** Subset of the /api/space-weather payload shown in the banner. */
+interface SpaceWeatherSummary {
+  storm_color?: string;
+  kp_index?: number;
+  storm_level?: string;
+  solar_flares: { class: string }[];
+}
+
+interface MarketsPanelProps { data: { markets?: MarketsData }; spaceWeather?: SpaceWeatherSummary | null; }
 
 const SECTIONS = [
   { key: 'indices', label: 'INDICES', icon: LineChart },
@@ -19,7 +37,7 @@ const SECTIONS = [
   { key: 'crypto', label: 'CRYPTO', icon: Bitcoin },
 ];
 
-function Ticker({ name, data: d }: { name: string; data: any }) {
+function Ticker({ name, data: d }: { name: string; data: Quote | undefined }) {
   if (!d) return null;
   return (
     <div className="flex items-center justify-between py-1.5 px-2 rounded hover:bg-[var(--hover-accent)] transition-colors">
@@ -41,7 +59,7 @@ export default function MarketsPanel({ data, spaceWeather }: MarketsPanelProps) 
   const [expanded, setExpanded] = useState(true);
   const [maximized, setMaximized] = useState(false);
   const [activeSection, setActiveSection] = useState('stocks');
-  const markets = data.markets || {};
+  const markets: MarketsData = data.markets || {};
 
   // Ensure portal only renders on client
   const mounted = useIsClient();

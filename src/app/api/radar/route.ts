@@ -25,6 +25,16 @@ const COUNTRY_CENTROIDS: Record<string, [number, number]> = {
   VE:[-66,8],VN:[106,16],YE:[48,15.5],ZM:[28,-14],ZW:[30,-20],
 };
 
+/** Fields read from an IODA v2 outage event. */
+interface IodaEvent {
+  location?: string;
+  score?: number;
+  severity?: string;
+  start?: number;
+  duration?: number;
+  datasource?: string;
+}
+
 async function _GET() {
   try {
     const now = Math.floor(Date.now() / 1000);
@@ -45,16 +55,16 @@ async function _GET() {
     }
 
     const json = await res.json();
-    const events = json.data || [];
+    const events: IodaEvent[] = json.data || [];
 
     const outages = events
-      .filter((e: any) => {
+      .filter((e) => {
         // IODA uses "location" field like "country/RW"
         const code = e.location?.split('/')[1];
         return code && COUNTRY_CENTROIDS[code];
       })
-      .map((e: any, i: number) => {
-        const code = e.location.split('/')[1];
+      .map((e, i: number) => {
+        const code = e.location!.split('/')[1];
         const [lng, lat] = COUNTRY_CENTROIDS[code];
         // Jitter so overlapping events don't stack
         const jLng = ((i * 137.5) % 200 - 100) / 100 * 2;

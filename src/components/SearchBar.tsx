@@ -48,7 +48,7 @@ export default function SearchBar({ onLocate }: SearchBarProps) {
           headers: { 'Accept-Language': 'en' },
         });
         const data = await res.json();
-        setResults(data.map((r: any) => ({ label: r.display_name, lat: parseFloat(r.lat), lng: parseFloat(r.lon) })));
+        setResults(data.map((r: { display_name: string; lat: string; lon: string }) => ({ label: r.display_name, lat: parseFloat(r.lat), lng: parseFloat(r.lon) })));
       } catch { setResults([]); }
       setLoading(false);
     }, 350);

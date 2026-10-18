@@ -8,6 +8,24 @@ export const dynamic = 'force-dynamic';
  * Free tier: no API key needed for public scans, 10 req/min limit
  * Proxies the urlscan.io public API for domain/IP/URL scanning
  */
+/** Fields read from a urlscan.io search result. */
+interface UrlscanSearchResult {
+  _id?: string;
+  page?: {
+    url?: string;
+    domain?: string;
+    ip?: string;
+    asn?: string;
+    asnname?: string;
+    country?: string;
+    server?: string;
+    status?: string | number;
+  };
+  screenshot?: string;
+  task?: { time?: string };
+  verdicts?: { overall?: { malicious?: boolean } } & Record<string, unknown>;
+}
+
 async function _GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const domain = searchParams.get('domain');
@@ -33,7 +51,7 @@ async function _GET(req: NextRequest) {
         query: domain,
         type: 'domain',
         total: data.total || 0,
-        results: (data.results || []).map((r: any) => ({
+        results: (data.results || []).map((r: UrlscanSearchResult) => ({
           scan_id: r._id,
           url: r.page?.url || '',
           domain: r.page?.domain || '',
@@ -70,7 +88,7 @@ async function _GET(req: NextRequest) {
         query: ip,
         type: 'ip',
         total: data.total || 0,
-        results: (data.results || []).map((r: any) => ({
+        results: (data.results || []).map((r: UrlscanSearchResult) => ({
           scan_id: r._id,
           url: r.page?.url || '',
           domain: r.page?.domain || '',

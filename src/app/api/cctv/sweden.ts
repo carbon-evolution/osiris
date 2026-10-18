@@ -14,13 +14,25 @@ const ENDPOINT = 'https://api.trafikinfo.trafikverket.se/v2/data.json';
 const CACHE_TTL_MS = 5 * 60 * 1000;
 
 // "POINT (lng lat)" → [lat, lng]
-function parsePoint(wgs84: string): [number, number] | null {
+function parsePoint(wgs84: string | undefined): [number, number] | null {
   const m = /POINT\s*\(\s*([-\d.]+)\s+([-\d.]+)\s*\)/i.exec(wgs84 || '');
   if (!m) return null;
   const lng = Number(m[1]);
   const lat = Number(m[2]);
   if (!lat || !lng) return null;
   return [lat, lng];
+}
+
+/** Fields read from each Trafikverket Camera object. */
+interface TrafikverketCamera {
+  Id?: string | number;
+  Name?: string;
+  PhotoUrl?: string;
+  Geometry?: { WGS84?: string };
+}
+
+interface TrafikverketResponse {
+  RESPONSE?: { RESULT?: { Camera?: TrafikverketCamera[] }[] };
 }
 
 let cached: CctvCamera[] | null = null;
@@ -54,8 +66,8 @@ export async function fetchSwedenCameras(): Promise<CctvCamera[]> {
     });
     if (!res.ok) return cached ?? [];
 
-    const data: any = await res.json();
-    const list: any[] = data?.RESPONSE?.RESULT?.[0]?.Camera ?? [];
+    const data: TrafikverketResponse | null = await res.json();
+    const list: TrafikverketCamera[] = data?.RESPONSE?.RESULT?.[0]?.Camera ?? [];
     const cameras: CctvCamera[] = [];
     const seen = new Set<string>();
 

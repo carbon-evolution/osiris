@@ -7,6 +7,21 @@ import { NextResponse } from 'next/server';
  * Fix #115: Steps 2-4 now run in parallel via Promise.allSettled
  */
 
+/** Fields read from a RestCountries v3.1 /alpha response. */
+interface RestCountry {
+  name?: { common?: string; official?: string };
+  capital?: string[];
+  population?: number;
+  area?: number;
+  region?: string;
+  subregion?: string;
+  languages?: Record<string, string>;
+  currencies?: Record<string, { name?: string; symbol?: string }>;
+  flag?: string;
+  flags?: { svg?: string };
+  timezones?: string[];
+}
+
 async function _GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const lat = parseFloat(searchParams.get('lat') || '0');
@@ -24,7 +39,13 @@ async function _GET(request: Request) {
 
     let countryName = '';
     let countryCode = '';
-    let locationInfo: any = {};
+    let locationInfo: {
+      city?: string;
+      state?: string;
+      country?: string;
+      country_code?: string;
+      display_name?: string;
+    } = {};
 
     if (geoRes.ok) {
       const geoData = await geoRes.json();
@@ -44,7 +65,7 @@ async function _GET(request: Request) {
     const [countryResult, wikiResult, hosResult] = await Promise.allSettled([
 
       // Step 2: Fetch country details from RestCountries
-      (async () => {
+      (async (): Promise<RestCountry | null> => {
         if (!countryCode) return null;
         try {
           const res = await fetch(
@@ -129,7 +150,7 @@ async function _GET(request: Request) {
         subregion: countryData.subregion,
         languages: countryData.languages ? Object.values(countryData.languages) : [],
         currencies: countryData.currencies
-          ? Object.entries(countryData.currencies).map(([code, info]: [string, any]) => `${info.name} (${info.symbol || code})`)
+          ? Object.entries(countryData.currencies).map(([code, info]: [string, { name?: string; symbol?: string }]) => `${info.name} (${info.symbol || code})`)
           : [],
         flag: countryData.flag,
         flag_url: countryData.flags?.svg,

@@ -40,6 +40,23 @@ const COUNTRY_MAP: Record<string, [number, number]> = {
   CU:[-78,21], DO:[-70,19], PR:[-66.5,18],
 };
 
+/** GeoJSON point feature for one geolocated victim. */
+interface VictimFeature {
+  type: 'Feature';
+  geometry: { type: 'Point'; coordinates: [number, number] };
+  properties: {
+    id: string;
+    victim: string;
+    group: string;
+    country: string;
+    sector: string;
+    discovered: string;
+    description: string;
+    revenue?: string;
+    employees?: string;
+  };
+}
+
 interface RansomwareVictim {
   post_title: string;
   group_name: string;
@@ -74,7 +91,7 @@ async function _GET() {
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
 
     const victims: RansomwareVictim[] = await res.json();
-    const features: any[] = [];
+    const features: VictimFeature[] = [];
     const groups = new Map<string, { count: number; sectors: Set<string>; countries: Set<string>; lastSeen: string }>();
 
     // Process and geolocate up to 500 most recent victims

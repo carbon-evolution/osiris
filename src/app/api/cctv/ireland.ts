@@ -28,6 +28,20 @@ const QUERY = {
   },
 };
 
+/** Fields read from a TII MapFeatures GraphQL feature. */
+interface TiiMapFeature {
+  __typename?: string;
+  active?: boolean;
+  uri?: string;
+  title?: string;
+  features?: { geometry?: { coordinates?: unknown } }[];
+  views?: { category?: string; url?: string }[];
+}
+
+interface TiiMapFeaturesResponse {
+  data?: { mapFeaturesQuery?: { mapFeatures?: TiiMapFeature[] } };
+}
+
 let cached: CctvCamera[] | null = null;
 let cacheTs = 0;
 
@@ -48,8 +62,8 @@ export async function fetchIrelandCameras(): Promise<CctvCamera[]> {
     });
     if (!res.ok) return cached ?? [];
 
-    const data: any = await res.json();
-    const list: any[] = data?.data?.mapFeaturesQuery?.mapFeatures ?? [];
+    const data: TiiMapFeaturesResponse | null = await res.json();
+    const list: TiiMapFeature[] = data?.data?.mapFeaturesQuery?.mapFeatures ?? [];
     const cameras: CctvCamera[] = [];
     const seen = new Set<string>();
 
@@ -62,7 +76,7 @@ export async function fetchIrelandCameras(): Promise<CctvCamera[]> {
       const lat = Number(coords[1]);
       if (!lat || !lng) continue;
 
-      const view = (f?.views ?? []).find((v: any) => v?.category === 'IMAGE' && v?.url);
+      const view = (f?.views ?? []).find((v) => v?.category === 'IMAGE' && v?.url);
       const image: string = view?.url || '';
       if (!image) continue;
 

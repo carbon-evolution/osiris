@@ -2,6 +2,16 @@ import { withQueryCache } from '@/lib/feeds/serve';
 import { NextResponse } from 'next/server';
 import { isRateLimited, getClientIp } from '@/lib/ssrf-guard';
 
+interface CertSummary {
+  id?: number | string;
+  issuer?: string;
+  common_name?: string;
+  name_value?: string;
+  not_before?: string;
+  not_after?: string;
+  serial?: string;
+}
+
 // Certificate Transparency lookup via crt.sh (free, no key)
 async function _GET(req: Request) {
   const { searchParams } = new URL(req.url);
@@ -18,7 +28,7 @@ async function _GET(req: Request) {
   }
 
   const subdomains = new Set<string>();
-  const uniqueCerts: any[] = [];
+  const uniqueCerts: CertSummary[] = [];
   let totalCerts = 0;
   let source = '';
 
